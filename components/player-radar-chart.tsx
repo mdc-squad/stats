@@ -179,7 +179,7 @@ export function PlayerRadarChart({
                 ) => {
                   const payload = props.payload
                   if (type === "roles" && payload) {
-                    return [`K/D: ${payload.rawValue?.toFixed(2)} (${payload.games} игр)`, ""]
+                    return [`K/D: ${payload.rawValue?.toFixed(2)} (${payload.games} записей)`, ""]
                   }
                   if (payload) {
                     const avgVal = payload.avg?.toFixed(0) || "0"

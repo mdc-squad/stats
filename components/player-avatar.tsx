@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { User } from "lucide-react"
 
 interface PlayerAvatarProps {
@@ -25,10 +25,14 @@ export function PlayerAvatar({ steamId, nickname, size = "md", className = "" }:
     lg: "w-8 h-8",
   }
 
-  // Steam avatar URL based on Steam ID
-  const avatarUrl = `https://avatars.cloudflare.steamstatic.com/${steamId}_full.jpg`
+  const normalizedSteamId = steamId.trim()
+  const avatarUrl = normalizedSteamId ? `/api/steam/avatar/${normalizedSteamId}` : null
 
-  if (error) {
+  useEffect(() => {
+    setError(false)
+  }, [avatarUrl])
+
+  if (error || !avatarUrl) {
     return (
       <div className={`${sizeClasses[size]} rounded-full bg-secondary flex items-center justify-center ${className}`}>
         <User className={`${iconSizes[size]} text-muted-foreground`} />
@@ -42,7 +46,6 @@ export function PlayerAvatar({ steamId, nickname, size = "md", className = "" }:
       alt={nickname}
       className={`${sizeClasses[size]} rounded-full object-cover ring-2 ring-christmas-gold/30 ${className}`}
       onError={() => setError(true)}
-      crossOrigin="anonymous"
     />
   )
 }

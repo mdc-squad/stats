@@ -3,7 +3,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Christmas theme colors - red, green, gold, white */
+/* Seasonal theme tokens (legacy variable names kept for compatibility) */
 :root {
   --background: oklch(0.12 0.02 280);
   --foreground: oklch(0.98 0 0);
@@ -160,7 +160,7 @@
   opacity: 0.8;
 }
 
-/* Christmas lights animation */
+/* Decorative lights animation */
 @keyframes twinkle {
   0%,
   100% {

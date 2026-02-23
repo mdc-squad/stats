@@ -56,6 +56,9 @@ export function SLLeaderboard({ slStats, title = "Топ Squad Leaders" }: SLLea
             <Shield className="w-4 h-4" />
             {title}
           </CardTitle>
+          <p className="text-[10px] text-muted-foreground">
+            Участие SL = запись в `playersevents`, где роль игрока указана как SL.
+          </p>
         </CardHeader>
         <CardContent className="space-y-2">
           {slStats.slice(0, 10).map((sl, index) => (
@@ -68,8 +71,8 @@ export function SLLeaderboard({ slStats, title = "Топ Squad Leaders" }: SLLea
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate text-christmas-snow">{sl.nickname}</p>
                 <div className="flex gap-2 text-xs text-muted-foreground">
-                  <span>{sl.slGames} игр</span>
-                  <span>WR: {(sl.slWinRate * 100).toFixed(0)}%</span>
+                  <span>{sl.slGames.toLocaleString("ru-RU")} участий SL</span>
+                  <span>WR в роли SL: {(sl.slWinRate * 100).toFixed(0)}%</span>
                 </div>
               </div>
               <Badge variant="outline" className="font-mono text-christmas-gold border-christmas-gold/30">

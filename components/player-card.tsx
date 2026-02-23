@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button"
 import { PlayerAvatar } from "@/components/player-avatar"
 import { PlayerRadarChart } from "@/components/player-radar-chart"
 import { type Player, type PlayerEventStat, type RelativeThresholds, getPlayerStrengths } from "@/lib/data-utils"
-import { Download, Trophy, Skull, Target, Heart, Crosshair, Gift, Sparkles, Car, Zap } from "lucide-react"
+import { Download, Trophy, Skull, Target, Heart, Crosshair, Sparkles, Car, Zap } from "lucide-react"
 import { toPng } from "html-to-image"
 
 interface PlayerCardProps {
   player: Player
   rank?: number
+  footerLabel?: string
   playerStats?: PlayerEventStat[]
   maxRoleKD?: Record<string, number>
   thresholds?: RelativeThresholds
@@ -64,9 +65,12 @@ const DEFAULT_AVG_VALUES = {
   win_rate: 0.5,
 }
 
+const DEFAULT_FOOTER_LABEL = "MDC CLAN • АКТУАЛЬНАЯ СТАТИСТИКА"
+
 export function PlayerCard({
   player,
   rank,
+  footerLabel = DEFAULT_FOOTER_LABEL,
   playerStats = [],
   maxRoleKD = {},
   thresholds,
@@ -94,7 +98,7 @@ export function PlayerCard({
       })
 
       const link = document.createElement("a")
-      link.download = `${player.nickname}-stats-2025.png`
+      link.download = `${player.nickname}-stats.png`
       link.href = dataUrl
       link.click()
     } catch (err) {
@@ -197,8 +201,8 @@ export function PlayerCard({
           </div>
 
           <div className="pt-3 border-t border-christmas-gold/20 text-center flex items-center justify-center gap-2">
-            <Gift className="w-3 h-3 text-christmas-red" />
-            <p className="text-[10px] text-christmas-gold">MDC CLAN • НОВОГОДНИЕ ИТОГИ 2025</p>
+            <Sparkles className="w-3 h-3 text-christmas-red" />
+            <p className="text-[10px] text-christmas-gold">{footerLabel}</p>
             <Sparkles className="w-3 h-3 text-christmas-gold" />
           </div>
         </CardContent>

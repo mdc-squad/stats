@@ -12,6 +12,7 @@ export interface MDCData {
   player_event_stats: PlayerEventStat[]
   players: Player[]
   clans: Clan[]
+  dictionaries: MDCDictionaries
 }
 
 export interface GameEvent {
@@ -99,6 +100,18 @@ export interface Clan {
   short_name: string
 }
 
+export interface MDCDictionaries {
+  maps: string[]
+  modes: string[]
+  factions: string[]
+  event_types: string[]
+  tags: string[]
+  roles: string[]
+  specializations: string[]
+  vehicles: string[]
+  squads: string[]
+}
+
 export interface SLStats {
   player_id: string
   nickname: string
@@ -111,34 +124,279 @@ export interface SLStats {
   slWinRate: number
 }
 
-export function getUniqueTags(players: Player[] | any): string[] {
+export interface RoleDataCoverage {
+  totalEvents: number
+  coveredEvents: number
+  coveredEventRate: number
+  totalRoleRecords: number
+  averageRoleRecordsPerCoveredEvent: number
+  extraCoveredEvents: number
+}
+
+function toDateKey(value: string | null | undefined): string {
+  if (!value) {
+    return "1970-01-01"
+  }
+  if (value.includes("T")) {
+    return value.split("T")[0]
+  }
+  if (value.includes(" ")) {
+    return value.split(" ")[0]
+  }
+  return value
+}
+
+function parseSafeDate(value: string | null | undefined): Date | null {
+  if (!value) {
+    return null
+  }
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function normalizeEventId(value: string | null | undefined): string {
+  if (!value) {
+    return ""
+  }
+
+  return value
+    .trim()
+    .replace(/\s*\|\s*/g, " | ")
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+}
+
+function getEventCoverageKey(value: string | null | undefined): string {
+  if (!value) {
+    return ""
+  }
+
+  const parts = value
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  // Ignore side order (A vs B / B vs A) for coverage checks.
+  if (parts.length >= 3) {
+    return normalizeEventId(parts.slice(0, 3).join(" | "))
+  }
+
+  return normalizeEventId(value)
+}
+
+function extractDateFromEventId(value: string | null | undefined): string | null {
+  if (!value) {
+    return null
+  }
+
+  const match = value.match(/(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}))?/)
+  if (!match) {
+    return null
+  }
+
+  const [, dd, mm, yyyy, hh = "00", min = "00"] = match
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}:00`
+}
+
+function extractEventIdPart(value: string | null | undefined, index: number): string | null {
+  if (!value) {
+    return null
+  }
+
+  const parts = value
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  return parts[index] ?? null
+}
+
+function deriveMapFromEventId(value: string | null | undefined): string {
+  const source = extractEventIdPart(value, 2)
+  if (!source) {
+    return "Unknown"
+  }
+
+  const trimmed = source.trim()
+  if (!trimmed) {
+    return "Unknown"
+  }
+
+  const withoutMode = trimmed.replace(
+    /\s+(?:AAS|RAAS|Invasion|Skirmish|Rivals|Destruction|TC|Insurgency|Seed)\b.*$/i,
+    "",
+  )
+  const normalized = withoutMode.trim().replace(/\s{2,}/g, " ")
+  return normalized || trimmed
+}
+
+function normalizeMapNameKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9а-яё]/gi, "")
+}
+
+function stripMapLayerSuffix(value: string): string {
+  return value
+    .replace(/\s+(?:AAS|RAAS|Invasion|Skirmish|Rivals|Destruction|TC|Insurgency|Seed)\b.*$/i, "")
+    .trim()
+}
+
+function buildDomainLookup(domainValues: string[], observedValues: string[]): {
+  lookup: Map<string, string>
+  entries: { key: string; value: string }[]
+} {
+  const lookup = new Map<string, string>()
+
+  domainValues
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .forEach((value) => {
+      const key = normalizeMapNameKey(value)
+      if (key && !lookup.has(key)) {
+        lookup.set(key, value)
+      }
+    })
+
+  observedValues
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .forEach((value) => {
+      const key = normalizeMapNameKey(value)
+      if (key && !lookup.has(key)) {
+        lookup.set(key, value)
+      }
+    })
+
+  return {
+    lookup,
+    entries: Array.from(lookup.entries()).map(([key, value]) => ({ key, value })),
+  }
+}
+
+function resolveDomainValue(
+  rawValue: string,
+  lookup: Map<string, string>,
+  entries: { key: string; value: string }[],
+  normalizedCandidates: string[],
+): string {
+  for (const candidate of normalizedCandidates) {
+    const exact = lookup.get(candidate)
+    if (exact) {
+      return exact
+    }
+  }
+
+  let bestMatch: { value: string; score: number } | null = null
+  for (const candidate of normalizedCandidates) {
+    for (const entry of entries) {
+      if (candidate.startsWith(entry.key) || entry.key.startsWith(candidate)) {
+        const score = Math.min(candidate.length, entry.key.length)
+        if (!bestMatch || score > bestMatch.score) {
+          bestMatch = { value: entry.value, score }
+        }
+      }
+    }
+  }
+
+  return bestMatch?.value ?? rawValue
+}
+
+function resolveRoleName(
+  rawRole: string,
+  lookup: Map<string, string>,
+  entries: { key: string; value: string }[],
+): string {
+  const trimmed = rawRole.trim()
+  if (!trimmed) {
+    return ""
+  }
+
+  const normalized = normalizeMapNameKey(trimmed)
+  if (!normalized) {
+    return ""
+  }
+
+  return resolveDomainValue(trimmed, lookup, entries, [normalized])
+}
+
+export function getUniqueTags(players: Player[] | any, tagDomain: string[] = []): string[] {
   const tags = new Set<string>()
   
   // Defensive check: ensure players is an array
   if (!Array.isArray(players)) {
     console.warn("[v0] getUniqueTags received non-array players:", typeof players)
-    return []
+    return Array.from(
+      new Set(
+        tagDomain
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      ),
+    )
   }
   
   players.forEach((p) => {
     if (p && p.tag) tags.add(p.tag)
   })
-  return Array.from(tags).sort()
+
+  const observedTags = Array.from(tags)
+  const normalizedObservedTags = new Set(observedTags.map((tag) => normalizeMapNameKey(tag)))
+  const domainOrderedTags = tagDomain
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .filter((tag) => normalizedObservedTags.has(normalizeMapNameKey(tag)))
+
+  const domainKeySet = new Set(domainOrderedTags.map((tag) => normalizeMapNameKey(tag)))
+  const extraObservedTags = observedTags
+    .filter((tag) => !domainKeySet.has(normalizeMapNameKey(tag)))
+    .sort((a, b) => a.localeCompare(b))
+
+  return [...domainOrderedTags, ...extraObservedTags]
 }
 
-export function getUniqueRoles(playerStats: PlayerEventStat[] | any): string[] {
-  const roles = new Set<string>()
+export function getUniqueRoles(playerStats: PlayerEventStat[] | any, roleDomain: string[] = []): string[] {
+  const observedRoles = new Set<string>()
   
   // Defensive check: ensure playerStats is an array
   if (!Array.isArray(playerStats)) {
     console.warn("[v0] getUniqueRoles received non-array playerStats:", typeof playerStats)
-    return []
+    return Array.from(
+      new Set(
+        roleDomain
+          .map((role) => role.trim())
+          .filter(Boolean),
+      ),
+    )
   }
-  
+
+  const rawObservedRoles: string[] = []
   playerStats.forEach((stat) => {
-    if (stat && stat.role) roles.add(stat.role)
+    const role = stat?.role?.trim()
+    if (role) {
+      rawObservedRoles.push(role)
+    }
   })
-  return Array.from(roles).sort()
+
+  const { lookup, entries } = buildDomainLookup(roleDomain, rawObservedRoles)
+
+  rawObservedRoles.forEach((role) => {
+    const canonicalRole = resolveRoleName(role, lookup, entries)
+    if (canonicalRole) {
+      observedRoles.add(canonicalRole)
+    }
+  })
+
+  const observedRoleList = Array.from(observedRoles)
+  const normalizedObservedRoleSet = new Set(observedRoleList.map((role) => normalizeMapNameKey(role)))
+  const domainOrderedRoles = roleDomain
+    .map((role) => role.trim())
+    .filter(Boolean)
+    .filter((role) => normalizedObservedRoleSet.has(normalizeMapNameKey(role)))
+
+  const domainKeySet = new Set(domainOrderedRoles.map((role) => normalizeMapNameKey(role)))
+  const extraObservedRoles = observedRoleList
+    .filter((role) => !domainKeySet.has(normalizeMapNameKey(role)))
+    .sort((a, b) => a.localeCompare(b))
+
+  return [...domainOrderedRoles, ...extraObservedRoles]
 }
 
 export function filterDataByTags(data: MDCData, selectedTags: string[]): MDCData {
@@ -153,8 +411,12 @@ export function filterDataByTags(data: MDCData, selectedTags: string[]): MDCData
 
   const filteredPlayerEventStats = playerEventStats.filter((stat) => stat && playerIds.has(stat.player_id))
 
-  const eventIds = new Set(filteredPlayerEventStats.map((s) => s.event_id))
-  const filteredEvents = events.filter((e) => e && eventIds.has(e.event_id))
+  const filteredEventKeys = new Set(filteredPlayerEventStats.map((s) => normalizeEventId(s.event_id)))
+  const eventsLinkedToSelectedPlayers = events.filter((event) => filteredEventKeys.has(normalizeEventId(event.event_id)))
+
+  // API can provide events and player_event_stats with non-overlapping windows.
+  // In that case keep all events, otherwise event-based charts become empty.
+  const filteredEvents = eventsLinkedToSelectedPlayers.length === 0 ? events : eventsLinkedToSelectedPlayers
 
   return {
     ...data,
@@ -201,16 +463,83 @@ export function getTopByKDA(players: Player[], limit = 10): Player[] {
     .slice(0, limit)
 }
 
-export function getMapStats(events: GameEvent[]): { map: string; count: number; wins: number; winRate: number }[] {
+export function getMapStats(events: GameEvent[], mapDomain: string[] = []): { map: string; count: number; wins: number; winRate: number }[] {
   const mapData: Record<string, { count: number; wins: number }> = {}
+  const domainLookup = new Map<string, string>()
+
+  // API dictionary has priority for canonical map names.
+  mapDomain
+    .map((mapName) => mapName.trim())
+    .filter(Boolean)
+    .forEach((mapName) => {
+      const key = normalizeMapNameKey(mapName)
+      if (key && !domainLookup.has(key)) {
+        domainLookup.set(key, mapName)
+      }
+    })
+
+  // Extend dictionary with names actually present in events.
+  events.forEach((event) => {
+    const eventMap = event.map?.trim()
+    if (!eventMap) return
+    const key = normalizeMapNameKey(eventMap)
+    if (key && !domainLookup.has(key)) {
+      domainLookup.set(key, eventMap)
+    }
+  })
+
+  const domainEntries = Array.from(domainLookup.entries()).map(([key, mapName]) => ({ key, mapName }))
+
+  const resolveMapName = (rawMap: string): string => {
+    const trimmed = rawMap.trim()
+    if (!trimmed) {
+      return ""
+    }
+
+    const normalizedTrimmed = stripMapLayerSuffix(trimmed) || trimmed
+    if (domainEntries.length === 0) {
+      return normalizedTrimmed
+    }
+
+    const candidateKeys = Array.from(
+      new Set([normalizeMapNameKey(trimmed), normalizeMapNameKey(normalizedTrimmed)].filter(Boolean)),
+    )
+
+    for (const candidateKey of candidateKeys) {
+      const exact = domainLookup.get(candidateKey)
+      if (exact) {
+        return exact
+      }
+    }
+
+    let bestMatch: { mapName: string; score: number } | null = null
+    for (const candidateKey of candidateKeys) {
+      for (const entry of domainEntries) {
+        if (candidateKey.startsWith(entry.key) || entry.key.startsWith(candidateKey)) {
+          const score = Math.min(candidateKey.length, entry.key.length)
+          if (!bestMatch || score > bestMatch.score) {
+            bestMatch = { mapName: entry.mapName, score }
+          }
+        }
+      }
+    }
+
+    return bestMatch?.mapName ?? normalizedTrimmed
+  }
 
   events.forEach((event) => {
-    if (!event.map) return
-    if (!mapData[event.map]) {
-      mapData[event.map] = { count: 0, wins: 0 }
+    const fallbackMap = deriveMapFromEventId(event.event_id)
+    const rawMap = event.map?.trim() || (fallbackMap !== "Unknown" ? fallbackMap : "")
+    if (!rawMap) return
+
+    const canonicalMap = resolveMapName(rawMap)
+    if (!canonicalMap) return
+
+    if (!mapData[canonicalMap]) {
+      mapData[canonicalMap] = { count: 0, wins: 0 }
     }
-    mapData[event.map].count++
-    if (event.is_win) mapData[event.map].wins++
+    mapData[canonicalMap].count++
+    if (event.is_win) mapData[canonicalMap].wins++
   })
 
   return Object.entries(mapData)
@@ -223,15 +552,31 @@ export function getMapStats(events: GameEvent[]): { map: string; count: number; 
     .sort((a, b) => b.count - a.count)
 }
 
-export function getEventTypeStats(events: GameEvent[]): { type: string; count: number; wins: number }[] {
+export function getEventTypeStats(events: GameEvent[], eventTypeDomain: string[] = []): { type: string; count: number; wins: number }[] {
   const typeData: Record<string, { count: number; wins: number }> = {}
+  const rawObservedTypes = events
+    .map((event) => event.event_type?.trim() ?? "")
+    .filter(Boolean)
+  const { lookup, entries } = buildDomainLookup(eventTypeDomain, rawObservedTypes)
 
   events.forEach((event) => {
-    if (!typeData[event.event_type]) {
-      typeData[event.event_type] = { count: 0, wins: 0 }
+    const eventType = event.event_type?.trim()
+    if (!eventType) return
+
+    const canonicalType = resolveDomainValue(
+      eventType,
+      lookup,
+      entries,
+      [normalizeMapNameKey(eventType)],
+    )
+
+    if (!canonicalType) return
+
+    if (!typeData[canonicalType]) {
+      typeData[canonicalType] = { count: 0, wins: 0 }
     }
-    typeData[event.event_type].count++
-    if (event.is_win) typeData[event.event_type].wins++
+    typeData[canonicalType].count++
+    if (event.is_win) typeData[canonicalType].wins++
   })
 
   return Object.entries(typeData)
@@ -345,12 +690,19 @@ export function getPlayerStrengths(player: Player, thresholds?: RelativeThreshol
   return strengths
 }
 
-export function getRoleStats(playerStats: PlayerEventStat[]): { role: string; count: number }[] {
+export function getRoleStats(playerStats: PlayerEventStat[], roleDomain: string[] = []): { role: string; count: number }[] {
   const roleData: Record<string, number> = {}
+  const rawObservedRoles = playerStats
+    .map((stat) => stat.role?.trim() ?? "")
+    .filter(Boolean)
+  const { lookup, entries } = buildDomainLookup(roleDomain, rawObservedRoles)
 
   playerStats.forEach((stat) => {
-    if (!stat.role) return
-    roleData[stat.role] = (roleData[stat.role] || 0) + 1
+    const role = stat.role?.trim()
+    if (!role) return
+    const canonicalRole = resolveRoleName(role, lookup, entries)
+    if (!canonicalRole) return
+    roleData[canonicalRole] = (roleData[canonicalRole] || 0) + 1
   })
 
   return Object.entries(roleData)
@@ -358,11 +710,45 @@ export function getRoleStats(playerStats: PlayerEventStat[]): { role: string; co
     .sort((a, b) => b.count - a.count)
 }
 
+export function getRoleDataCoverage(events: GameEvent[], playerStats: PlayerEventStat[]): RoleDataCoverage {
+  const totalEventKeys = new Set(
+    events
+      .map((event) => getEventCoverageKey(event.event_id))
+      .filter(Boolean),
+  )
+  const totalEvents = totalEventKeys.size
+
+  const coveredEventKeys = new Set(
+    playerStats
+      .filter((stat) => !!stat?.role?.trim())
+      .map((stat) => getEventCoverageKey(stat.event_id))
+      .filter(Boolean),
+  )
+
+  const coveredEvents =
+    totalEventKeys.size > 0
+      ? Array.from(coveredEventKeys).filter((eventKey) => totalEventKeys.has(eventKey)).length
+      : coveredEventKeys.size
+  const extraCoveredEvents = Math.max(0, coveredEventKeys.size - coveredEvents)
+  const totalRoleRecords = playerStats.filter((stat) => !!stat?.role?.trim()).length
+  const coveredEventRate = totalEvents > 0 ? coveredEvents / totalEvents : 0
+
+  return {
+    totalEvents,
+    coveredEvents,
+    coveredEventRate,
+    totalRoleRecords,
+    averageRoleRecordsPerCoveredEvent: coveredEvents > 0 ? totalRoleRecords / coveredEvents : 0,
+    extraCoveredEvents,
+  }
+}
+
 export function getMonthlyActivity(events: GameEvent[]): { month: string; count: number; wins: number }[] {
   const monthData: Record<string, { count: number; wins: number }> = {}
 
   events.forEach((event) => {
-    const date = new Date(event.started_at)
+    const date = parseSafeDate(event.started_at)
+    if (!date) return
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
 
     if (!monthData[monthKey]) {
@@ -387,7 +773,7 @@ export function getDailyActivity(
   const dailyData: Record<string, { count: number; wins: number }> = {}
 
   events.forEach((event) => {
-    const date = event.started_at.split("T")[0] || event.started_at.split(" ")[0]
+    const date = toDateKey(event.started_at)
     if (!dailyData[date]) {
       dailyData[date] = { count: 0, wins: 0 }
     }
@@ -417,7 +803,8 @@ export function getWeeklyActivity(
   const weekData: Record<string, { count: number; wins: number }> = {}
 
   events.forEach((event) => {
-    const date = new Date(event.started_at)
+    const date = parseSafeDate(event.started_at)
+    if (!date) return
     const startOfYear = new Date(date.getFullYear(), 0, 1)
     const weekNum = Math.ceil(((date.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7)
     const weekKey = `${date.getFullYear()}-W${String(weekNum).padStart(2, "0")}`
@@ -441,6 +828,7 @@ export function getWeeklyActivity(
 
 export function getSLStats(playerStats: PlayerEventStat[], events: GameEvent[], players: Player[]): SLStats[] {
   const slData: Record<string, { kills: number; deaths: number; games: number; wins: number }> = {}
+  const eventLookup = new Map(events.map((event) => [normalizeEventId(event.event_id), event]))
 
   playerStats.forEach((stat) => {
     if (stat.role !== "SL") return
@@ -453,7 +841,7 @@ export function getSLStats(playerStats: PlayerEventStat[], events: GameEvent[], 
     slData[stat.player_id].deaths += stat.deaths
     slData[stat.player_id].games++
 
-    const event = events.find((e) => e.event_id === stat.event_id)
+    const event = eventLookup.get(normalizeEventId(stat.event_id))
     if (event?.is_win) slData[stat.player_id].wins++
   })
 
@@ -476,11 +864,26 @@ export function getSLStats(playerStats: PlayerEventStat[], events: GameEvent[], 
     .sort((a, b) => b.slGames - a.slGames)
 }
 
-export function getTopByRole(playerStats: PlayerEventStat[], players: Player[], role: string, limit = 5) {
+export function getTopByRole(
+  playerStats: PlayerEventStat[],
+  players: Player[],
+  role: string,
+  limit = 5,
+  roleDomain: string[] = [],
+) {
   const roleData: Record<string, { kills: number; deaths: number; downs: number; games: number }> = {}
+  const rawObservedRoles = playerStats
+    .map((stat) => stat.role?.trim() ?? "")
+    .filter(Boolean)
+  const { lookup, entries } = buildDomainLookup(roleDomain, rawObservedRoles)
+  const targetRole = resolveRoleName(role, lookup, entries)
 
   playerStats.forEach((stat) => {
-    if (stat.role !== role) return
+    const statRole = stat.role?.trim()
+    if (!statRole) return
+
+    const canonicalRole = resolveRoleName(statRole, lookup, entries)
+    if (!canonicalRole || canonicalRole !== targetRole) return
 
     if (!roleData[stat.player_id]) {
       roleData[stat.player_id] = { kills: 0, deaths: 0, downs: 0, games: 0 }
@@ -490,6 +893,8 @@ export function getTopByRole(playerStats: PlayerEventStat[], players: Player[], 
     roleData[stat.player_id].downs += stat.downs
     roleData[stat.player_id].games++
   })
+
+  const totalRoleGames = Object.values(roleData).reduce((sum, data) => sum + data.games, 0)
 
   return Object.entries(roleData)
     .filter(([, d]) => d.games >= 3)
@@ -503,6 +908,8 @@ export function getTopByRole(playerStats: PlayerEventStat[], players: Player[], 
         deaths: d.deaths,
         downs: d.downs,
         games: d.games,
+        roleTotalEntries: totalRoleGames,
+        roleSharePercent: totalRoleGames > 0 ? (d.games / totalRoleGames) * 100 : 0,
         kd: d.deaths > 0 ? d.kills / d.deaths : d.kills,
         kda: d.deaths > 0 ? (d.downs) / d.deaths : d.downs,
       }
@@ -512,11 +919,13 @@ export function getTopByRole(playerStats: PlayerEventStat[], players: Player[], 
 }
 
 export function getPlayerProgress(playerId: string, playerStats: PlayerEventStat[], events: GameEvent[]) {
+  const eventLookup = new Map(events.map((event) => [normalizeEventId(event.event_id), event]))
+
   const stats = playerStats
     .filter((s) => s.player_id === playerId)
     .map((s) => {
-      const event = events.find((e) => e.event_id === s.event_id)
-      return { ...s, date: event?.started_at || "" }
+      const event = eventLookup.get(normalizeEventId(s.event_id))
+      return { ...s, date: event?.started_at || extractDateFromEventId(s.event_id) || "" }
     })
     .filter((s) => s.date)
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -528,7 +937,7 @@ export function getPlayerProgress(playerId: string, playerStats: PlayerEventStat
     cumDeaths += s.deaths
     return {
       game: i + 1,
-      date: s.date.split("T")[0] || s.date.split(" ")[0],
+      date: toDateKey(s.date),
       kills: s.kills,
       deaths: s.deaths,
       kd: s.deaths > 0 ? s.kills / s.deaths : s.kills,
@@ -540,16 +949,22 @@ export function getPlayerProgress(playerId: string, playerStats: PlayerEventStat
 }
 
 export function getBestMatches(playerStats: PlayerEventStat[], events: GameEvent[], limit = 10) {
+  const eventLookup = new Map(events.map((event) => [normalizeEventId(event.event_id), event]))
+
   const matches = playerStats
     .filter((s) => s.deaths > 0 || s.kills > 0)
     .map((s) => {
-      const event = events.find((e) => e.event_id === s.event_id)
+      const event = eventLookup.get(normalizeEventId(s.event_id))
+      const fallbackEventType = extractEventIdPart(s.event_id, 0) || ""
+      const fallbackMap = deriveMapFromEventId(s.event_id)
+      const fallbackDate = extractDateFromEventId(s.event_id) || ""
+
       return {
         ...s,
-        eventType: event?.event_type || "",
-        map: event?.map || "Unknown",
-        date: event?.started_at || "",
-        isWin: event?.is_win,
+        eventType: event?.event_type || fallbackEventType,
+        map: event?.map || fallbackMap,
+        date: event?.started_at || fallbackDate,
+        isWin: event?.is_win ?? null,
       }
     })
     .sort((a, b) => b.kd - a.kd)
@@ -559,7 +974,8 @@ export function getBestMatches(playerStats: PlayerEventStat[], events: GameEvent
 }
 
 export function getSteamAvatarUrl(steamId: string): string {
-  return `https://avatars.steamstatic.com/${steamId}_full.jpg`
+  const normalizedSteamId = steamId.trim()
+  return normalizedSteamId ? `/api/steam/avatar/${normalizedSteamId}` : "/placeholder-user.jpg"
 }
 
 export const EVENT_TYPE_ICONS: Record<string, { icon: string; name: string }> = {
@@ -576,12 +992,15 @@ export function getWeeklyParticipation(
   playerStats: PlayerEventStat[],
 ): { week: string; participants: number; uniqueParticipants: number }[] {
   const weekData: Record<string, Set<string>> = {}
+  const eventLookup = new Map(events.map((event) => [normalizeEventId(event.event_id), event]))
 
   playerStats.forEach((stat) => {
-    const event = events.find((e) => e.event_id === stat.event_id)
-    if (!event) return
+    const event = eventLookup.get(normalizeEventId(stat.event_id))
+    const eventDate = event?.started_at || extractDateFromEventId(stat.event_id)
+    if (!eventDate) return
 
-    const date = new Date(event.started_at)
+    const date = parseSafeDate(eventDate)
+    if (!date) return
     const startOfYear = new Date(date.getFullYear(), 0, 1)
     const weekNum = Math.ceil(((date.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7)
     const weekKey = `${date.getFullYear()}-W${String(weekNum).padStart(2, "0")}`

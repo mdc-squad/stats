@@ -9,8 +9,16 @@ interface WeeklyActivityChartProps {
 }
 
 export function WeeklyActivityChart({ data }: WeeklyActivityChartProps) {
-  const formatWeek = (week: string) => {
+  const formatWeek = (week: unknown) => {
+    if (typeof week !== "string" || week.length === 0) {
+      return "W?"
+    }
+
     const parts = week.split("-W")
+    if (parts.length < 2 || !parts[1]) {
+      return week
+    }
+
     return `W${parts[1]}`
   }
 
@@ -19,7 +27,21 @@ export function WeeklyActivityChart({ data }: WeeklyActivityChartProps) {
     weekLabel: formatWeek(d.week),
   }))
 
-  const maxParticipants = Math.max(...data.map((d) => d.participants), 1)
+  if (chartData.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Участники по неделям
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Нет данных по участникам</p>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>

@@ -10,8 +10,16 @@ interface WinrateProgressChartProps {
 }
 
 export function WinrateProgressChart({ data }: WinrateProgressChartProps) {
-  const formatDate = (date: string) => {
+  const formatDate = (date: unknown) => {
+    if (typeof date !== "string" || date.length === 0) {
+      return "N/A"
+    }
+
     const d = new Date(date)
+    if (Number.isNaN(d.getTime())) {
+      return date
+    }
+
     return `${d.getDate()}.${d.getMonth() + 1}`
   }
 
@@ -26,6 +34,22 @@ export function WinrateProgressChart({ data }: WinrateProgressChartProps) {
     const totalGames = data.reduce((sum, d) => sum + d.count, 0)
     return totalGames > 0 ? (totalWins / totalGames) * 100 : 0
   }, [data])
+
+  if (chartData.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
+            <TrendingUp className="w-4 h-4" />
+            Средний Win Rate
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Нет данных для расчёта Win Rate</p>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>

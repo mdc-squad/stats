@@ -9,8 +9,16 @@ interface DailyActivityChartProps {
 }
 
 export function DailyActivityChart({ data }: DailyActivityChartProps) {
-  const formatDate = (date: string) => {
+  const formatDate = (date: unknown) => {
+    if (typeof date !== "string" || date.length === 0) {
+      return "N/A"
+    }
+
     const d = new Date(date)
+    if (Number.isNaN(d.getTime())) {
+      return date
+    }
+
     return `${d.getDate()}.${d.getMonth() + 1}`
   }
 
@@ -23,13 +31,30 @@ export function DailyActivityChart({ data }: DailyActivityChartProps) {
   // Calculate date range for title
   const dateRange =
     chartData.length > 0 ? `${formatDate(chartData[0].date)} - ${formatDate(chartData[chartData.length - 1].date)}` : ""
+  const titleSuffix = dateRange ? ` (${dateRange})` : ""
+
+  if (chartData.length === 0) {
+    return (
+      <Card className="col-span-full">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
+            <Calendar className="w-4 h-4" />
+            Победы и поражения за всё время
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Нет данных по событиям</p>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card className="col-span-full">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
           <Calendar className="w-4 h-4" />
-          Победы и поражения за всё время ({dateRange})
+          Победы и поражения за всё время{titleSuffix}
         </CardTitle>
       </CardHeader>
       <CardContent>

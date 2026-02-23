@@ -63,6 +63,7 @@ export function BestMatches({ matches, players }: BestMatchesProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
+          {matches.length === 0 && <p className="text-sm text-muted-foreground">Нет данных по матчам</p>}
           {matches.map((match, index) => (
             <div
               key={`${match.event_id}-${match.player_id}`}

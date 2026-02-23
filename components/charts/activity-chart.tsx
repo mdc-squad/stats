@@ -9,10 +9,24 @@ interface ActivityChartProps {
 }
 
 export function ActivityChart({ data }: ActivityChartProps) {
-  const formatMonth = (month: string) => {
+  const formatMonth = (month: unknown) => {
+    if (typeof month !== "string" || month.length === 0) {
+      return "N/A"
+    }
+
     const [year, m] = month.split("-")
+    if (!year || !m) {
+      return month
+    }
+
     const months = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
-    return `${months[Number.parseInt(m) - 1]} ${year.slice(2)}`
+    const monthIndex = Number.parseInt(m, 10) - 1
+    const monthLabel = months[monthIndex]
+    if (!monthLabel) {
+      return month
+    }
+
+    return `${monthLabel} ${year.slice(2)}`
   }
 
   const chartData = data.map((d) => ({
@@ -20,6 +34,22 @@ export function ActivityChart({ data }: ActivityChartProps) {
     monthLabel: formatMonth(d.month),
     losses: d.count - d.wins,
   }))
+
+  if (chartData.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
+            <Activity className="w-4 h-4" />
+            Активность по месяцам
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Нет данных по событиям</p>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>

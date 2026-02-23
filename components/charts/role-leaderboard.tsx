@@ -15,6 +15,8 @@ interface RolePlayer {
   deaths: number
   downs: number
   games: number
+  roleTotalEntries: number
+  roleSharePercent: number
   kd: number
   kda: number
 }
@@ -37,6 +39,8 @@ export function RoleLeaderboard({ players, role, icon }: RoleLeaderboardProps) {
     return `${index + 1}.`
   }
 
+  const formatEntries = (count: number) => count.toLocaleString("ru-RU")
+
   return (
     <div className="relative group">
       <Card
@@ -48,7 +52,9 @@ export function RoleLeaderboard({ players, role, icon }: RoleLeaderboardProps) {
             {icon}
             Топ {role}
           </CardTitle>
-          <p className="text-[10px] text-muted-foreground">K/D указан для роли {role}</p>
+          <p className="text-[10px] text-muted-foreground">
+            K/D по роли {role}. Процент показывает долю записей этой роли в текущей выборке `playersevents`.
+          </p>
         </CardHeader>
         <CardContent className="space-y-2">
           {players.map((player, index) => (
@@ -60,7 +66,10 @@ export function RoleLeaderboard({ players, role, icon }: RoleLeaderboardProps) {
               <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate text-christmas-snow">{player.nickname}</p>
-                <p className="text-xs text-muted-foreground">{player.games} игр</p>
+                <p className="text-xs text-muted-foreground">
+                  {player.roleSharePercent.toFixed(1)}% всех участий в роли ({formatEntries(player.games)} из{" "}
+                  {formatEntries(player.roleTotalEntries)})
+                </p>
               </div>
               <div className="text-right">
                 <Badge variant="outline" className="font-mono text-christmas-gold border-christmas-gold/30">

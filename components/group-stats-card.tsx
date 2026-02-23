@@ -5,15 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PlayerAvatar } from "@/components/player-avatar"
 import type { Player } from "@/lib/data-utils"
-import { Download, Users, Crosshair, Skull, Trophy, Target, Gift, Sparkles } from "lucide-react"
+import { Download, Users, Crosshair, Skull, Trophy, Target, Sparkles } from "lucide-react"
 import { toPng } from "html-to-image"
 
 interface GroupStatsCardProps {
   players: Player[]
   title?: string
+  footerLabel?: string
 }
 
-export function GroupStatsCard({ players, title = "Групповая статистика" }: GroupStatsCardProps) {
+const DEFAULT_FOOTER_LABEL = "MDC CLAN • АКТУАЛЬНАЯ СТАТИСТИКА"
+
+export function GroupStatsCard({
+  players,
+  title = "Групповая статистика",
+  footerLabel = DEFAULT_FOOTER_LABEL,
+}: GroupStatsCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
 
   const stats = {
@@ -120,8 +127,8 @@ export function GroupStatsCard({ players, title = "Групповая стати
           )}
 
           <div className="pt-3 border-t border-christmas-gold/20 text-center flex items-center justify-center gap-2">
-            <Gift className="w-3 h-3 text-christmas-red" />
-            <p className="text-[10px] text-christmas-gold">MDC CLAN • НОВОГОДНИЕ ИТОГИ 2025</p>
+            <Sparkles className="w-3 h-3 text-christmas-red" />
+            <p className="text-[10px] text-christmas-gold">{footerLabel}</p>
             <Sparkles className="w-3 h-3 text-christmas-gold" />
           </div>
         </CardContent>

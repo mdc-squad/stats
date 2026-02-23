@@ -6,6 +6,11 @@ import { Users } from "lucide-react"
 
 interface RoleChartProps {
   data: { role: string; count: number }[]
+  coverageSummary?: {
+    coveredEvents: number
+    totalEvents: number
+    coveredEventRate: number
+  }
 }
 
 const COLORS = [
@@ -26,19 +31,28 @@ const COLORS = [
   "#83a6ed",
 ]
 
-const CustomTooltip = ({ active, payload }: any) => {
+const CustomTooltip = ({ active, payload, totalCount }: any) => {
   if (active && payload && payload.length) {
+    const value = Number(payload[0].value ?? 0)
+    const sharePercent = totalCount > 0 ? (value / totalCount) * 100 : 0
     return (
       <div className="bg-card border border-border rounded-lg p-2 shadow-lg">
         <p className="text-christmas-snow font-medium">{payload[0].name}</p>
-        <p className="text-christmas-snow/80 text-sm">Игр: {payload[0].value}</p>
+        <p className="text-christmas-snow/80 text-sm">
+          Доля среди role-записей: {sharePercent.toFixed(1)}% ({value.toLocaleString("ru-RU")} участий)
+        </p>
       </div>
     )
   }
   return null
 }
 
-export function RoleChart({ data }: RoleChartProps) {
+export function RoleChart({ data, coverageSummary }: RoleChartProps) {
+  const totalCount = data.reduce((sum, item) => sum + item.count, 0)
+  const coverageText = coverageSummary
+    ? `Данные ролей есть в ${coverageSummary.coveredEvents}/${coverageSummary.totalEvents} событий (${(coverageSummary.coveredEventRate * 100).toFixed(1)}%)`
+    : "Источник: API playersevents"
+
   return (
     <Card className="border-christmas-gold/20">
       <CardHeader className="pb-3">
@@ -46,6 +60,7 @@ export function RoleChart({ data }: RoleChartProps) {
           <Users className="w-4 h-4" />
           Распределение ролей
         </CardTitle>
+        <p className="text-xs text-muted-foreground">{coverageText}</p>
       </CardHeader>
       <CardContent>
         <div className="h-[280px]">
@@ -65,7 +80,7 @@ export function RoleChart({ data }: RoleChartProps) {
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip totalCount={totalCount} />} />
               <Legend
                 verticalAlign="bottom"
                 height={60}

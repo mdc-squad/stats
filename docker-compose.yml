@@ -1,0 +1,41 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mdc-player-statictics
+    ports:
+      - "${APP_PORT:-3001}:3000"
+    network_mode: bridge
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+    restart: unless-stopped
+
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: deps
+    container_name: mdc-player-statictics-dev
+    working_dir: /app
+    command: sh -lc "if [ ! -d node_modules/.pnpm ]; then pnpm install --no-frozen-lockfile; fi && pnpm dev -H 0.0.0.0 -p 3000"
+    ports:
+      - "${APP_DEV_PORT:-3002}:3000"
+    network_mode: bridge
+    environment:
+      NODE_ENV: development
+      NEXT_TELEMETRY_DISABLED: "1"
+      WATCHPACK_POLLING: "true"
+      CI: "true"
+    volumes:
+      - .:/app
+      - mdc_player_statistics_node_modules:/app/node_modules
+      - mdc_player_statistics_next:/app/.next
+    restart: unless-stopped
+    profiles:
+      - dev
+
+volumes:
+  mdc_player_statistics_node_modules:
+  mdc_player_statistics_next:
