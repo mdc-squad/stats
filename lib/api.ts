@@ -2,8 +2,21 @@ import { type MDCData, type GameEvent, type PlayerEventStat, type Player, type C
 
 const API_BASE = process.env.NEXT_PUBLIC_MDC_API_BASE ?? "/api/mdc"
 const DEFAULT_API_TIMEOUT_MS = (() => {
-  const parsed = Number(process.env.NEXT_PUBLIC_MDC_API_TIMEOUT_MS ?? "8000")
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 8000
+  const parsed = Number(process.env.NEXT_PUBLIC_MDC_API_TIMEOUT_MS ?? "30000")
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 30000
+})()
+const DEFAULT_API_RETRY_ATTEMPTS = (() => {
+  const parsed = Number(process.env.NEXT_PUBLIC_MDC_API_RETRY_ATTEMPTS ?? "2")
+  if (!Number.isFinite(parsed) || parsed < 0) return 2
+  return Math.min(6, Math.floor(parsed))
+})()
+const DEFAULT_API_BACKOFF_BASE_MS = (() => {
+  const parsed = Number(process.env.NEXT_PUBLIC_MDC_API_BACKOFF_BASE_MS ?? "500")
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 500
+})()
+const DEFAULT_API_BACKOFF_MAX_MS = (() => {
+  const parsed = Number(process.env.NEXT_PUBLIC_MDC_API_BACKOFF_MAX_MS ?? "5000")
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5000
 })()
 
 type UnknownRecord = Record<string, unknown>
@@ -94,6 +107,40 @@ function withQueryParams(url: string, params: Record<string, string | undefined>
   }
 
   return `${url}${url.includes("?") ? "&" : "?"}${serialized}`
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+function getBackoffDelayMs(attempt: number): number {
+  const exponential = DEFAULT_API_BACKOFF_BASE_MS * 2 ** attempt
+  const jitter = Math.floor(Math.random() * 250)
+  return Math.min(DEFAULT_API_BACKOFF_MAX_MS, exponential + jitter)
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 425 || status === 429 || status >= 500
+}
+
+function isRetryableNetworkError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false
+  }
+
+  if (error.name === "AbortError") {
+    return true
+  }
+
+  const message = error.message.toLowerCase()
+  return (
+    error.name === "TypeError" ||
+    message.includes("network") ||
+    message.includes("fetch") ||
+    message.includes("timeout")
+  )
 }
 
 function reportSyncProgress(options: FetchApiOptions, update: SyncProgressUpdate): void {
@@ -493,28 +540,49 @@ async function fetchJsonWithOptions(url: string, options: FetchApiOptions = {}):
   const requestUrl = withQueryParams(url, {
     publish: publishValue,
   })
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_API_TIMEOUT_MS)
 
-  let response: Response
-  try {
-    response = await fetch(requestUrl, {
-      ...(options.forceRefresh ? { cache: "no-store" } : {}),
-      signal: controller.signal,
-    })
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`API timeout after ${DEFAULT_API_TIMEOUT_MS}ms`)
+  for (let attempt = 0; attempt <= DEFAULT_API_RETRY_ATTEMPTS; attempt++) {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_API_TIMEOUT_MS)
+
+    let response: Response
+    try {
+      response = await fetch(requestUrl, {
+        ...(options.forceRefresh ? { cache: "no-store" } : {}),
+        signal: controller.signal,
+      })
+    } catch (error) {
+      clearTimeout(timeoutId)
+
+      const isTimeout = error instanceof Error && error.name === "AbortError"
+      const shouldRetry = attempt < DEFAULT_API_RETRY_ATTEMPTS && isRetryableNetworkError(error)
+      if (shouldRetry) {
+        await delay(getBackoffDelayMs(attempt))
+        continue
+      }
+
+      if (isTimeout) {
+        throw new Error(`API timeout after ${DEFAULT_API_TIMEOUT_MS}ms (${requestUrl})`)
+      }
+      throw error
+    } finally {
+      clearTimeout(timeoutId)
     }
-    throw error
-  } finally {
-    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      const shouldRetry = attempt < DEFAULT_API_RETRY_ATTEMPTS && isRetryableStatus(response.status)
+      if (shouldRetry) {
+        await delay(getBackoffDelayMs(attempt))
+        continue
+      }
+
+      throw new Error(`API error: ${response.status} (${requestUrl})`)
+    }
+
+    return response.json()
   }
 
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`)
-  }
-  return response.json()
+  throw new Error(`API request failed after retries (${requestUrl})`)
 }
 
 async function fetchPagedPlayerEventStatsRaw(options: FetchApiOptions = {}): Promise<unknown[]> {
@@ -675,7 +743,7 @@ export async function fetchAllData(options: FetchApiOptions = {}): Promise<MDCDa
     message: "Инициализация синхронизации...",
   })
 
-  const pagedRawStatsPromise = fetchPagedPlayerEventStatsRaw(options)
+  const pagedRawStatsPromise = fetchPagedPlayerEventStatsRaw(options).catch(() => [])
   let allError: unknown = null
   let normalizedFromAll: MDCData | null = null
   let rootFromAll: UnknownRecord | null = null
