@@ -5,20 +5,23 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Cartes
 import { Map } from "lucide-react"
 
 interface MapChartProps {
-  data: { map: string; count: number; wins: number; winRate: number }[]
+  data: { map: string; count: number; wins: number; resolved: number; winRate: number }[]
 }
 
 const TOP_MAPS_LIMIT = 16
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
-    const point = payload[0].payload as { map: string; count: number; wins: number; winRate: number }
+    const point = payload[0].payload as { map: string; count: number; wins: number; resolved: number; winRate: number }
     return (
       <div className="bg-card border border-border rounded-lg p-2 shadow-lg">
         <p className="text-christmas-snow font-medium">{point.map}</p>
         <p className="text-christmas-snow/80 text-sm">Матчей: {point.count}</p>
         <p className="text-christmas-snow/80 text-sm">Побед: {point.wins}</p>
-        <p className="text-christmas-gold text-xs">WR: {point.winRate.toFixed(1)}%</p>
+        <p className="text-christmas-snow/80 text-sm">С известным результатом: {point.resolved}</p>
+        <p className="text-christmas-gold text-xs">
+          WR: {point.resolved > 0 ? `${point.winRate.toFixed(1)}%` : "н/д"}
+        </p>
       </div>
     )
   }

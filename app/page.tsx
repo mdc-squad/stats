@@ -1027,7 +1027,10 @@ export default function YearReviewPage() {
                   <p className="text-2xl mb-1">{et.type}</p>
                   <p className="text-xl font-bold text-christmas-snow">{et.count}</p>
                   <p className="text-xs text-christmas-gold">
-                    {et.wins} побед ({et.count > 0 ? ((et.wins / et.count) * 100).toFixed(0) : 0}%)
+                    {et.wins} побед ({et.resolved > 0 ? `${((et.wins / et.resolved) * 100).toFixed(0)}%` : "н/д"})
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    результатов: {et.resolved}/{et.count}
                   </p>
                 </CardContent>
               </Card>

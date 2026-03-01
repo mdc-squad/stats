@@ -43,7 +43,7 @@ export function DailyActivityChart({ data }: DailyActivityChartProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">Нет данных по событиям</p>
+          <p className="text-sm text-muted-foreground">Нет данных по результатам событий</p>
         </CardContent>
       </Card>
     )

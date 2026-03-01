@@ -45,7 +45,7 @@ export function WinrateProgressChart({ data }: WinrateProgressChartProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">Нет данных для расчёта Win Rate</p>
+          <p className="text-sm text-muted-foreground">Нет данных по результатам для расчёта Win Rate</p>
         </CardContent>
       </Card>
     )

@@ -463,8 +463,11 @@ export function getTopByKDA(players: Player[], limit = 10): Player[] {
     .slice(0, limit)
 }
 
-export function getMapStats(events: GameEvent[], mapDomain: string[] = []): { map: string; count: number; wins: number; winRate: number }[] {
-  const mapData: Record<string, { count: number; wins: number }> = {}
+export function getMapStats(
+  events: GameEvent[],
+  mapDomain: string[] = [],
+): { map: string; count: number; wins: number; resolved: number; winRate: number }[] {
+  const mapData: Record<string, { count: number; wins: number; resolved: number }> = {}
   const domainLookup = new Map<string, string>()
 
   // API dictionary has priority for canonical map names.
@@ -536,10 +539,13 @@ export function getMapStats(events: GameEvent[], mapDomain: string[] = []): { ma
     if (!canonicalMap) return
 
     if (!mapData[canonicalMap]) {
-      mapData[canonicalMap] = { count: 0, wins: 0 }
+      mapData[canonicalMap] = { count: 0, wins: 0, resolved: 0 }
     }
     mapData[canonicalMap].count++
-    if (event.is_win) mapData[canonicalMap].wins++
+    if (event.is_win !== null) {
+      mapData[canonicalMap].resolved++
+      if (event.is_win) mapData[canonicalMap].wins++
+    }
   })
 
   return Object.entries(mapData)
@@ -547,13 +553,17 @@ export function getMapStats(events: GameEvent[], mapDomain: string[] = []): { ma
       map,
       count: data.count,
       wins: data.wins,
-      winRate: data.count > 0 ? (data.wins / data.count) * 100 : 0,
+      resolved: data.resolved,
+      winRate: data.resolved > 0 ? (data.wins / data.resolved) * 100 : 0,
     }))
     .sort((a, b) => b.count - a.count)
 }
 
-export function getEventTypeStats(events: GameEvent[], eventTypeDomain: string[] = []): { type: string; count: number; wins: number }[] {
-  const typeData: Record<string, { count: number; wins: number }> = {}
+export function getEventTypeStats(
+  events: GameEvent[],
+  eventTypeDomain: string[] = [],
+): { type: string; count: number; wins: number; resolved: number; unknown: number }[] {
+  const typeData: Record<string, { count: number; wins: number; resolved: number; unknown: number }> = {}
   const rawObservedTypes = events
     .map((event) => event.event_type?.trim() ?? "")
     .filter(Boolean)
@@ -573,9 +583,15 @@ export function getEventTypeStats(events: GameEvent[], eventTypeDomain: string[]
     if (!canonicalType) return
 
     if (!typeData[canonicalType]) {
-      typeData[canonicalType] = { count: 0, wins: 0 }
+      typeData[canonicalType] = { count: 0, wins: 0, resolved: 0, unknown: 0 }
     }
     typeData[canonicalType].count++
+    if (event.is_win === null) {
+      typeData[canonicalType].unknown++
+      return
+    }
+
+    typeData[canonicalType].resolved++
     if (event.is_win) typeData[canonicalType].wins++
   })
 
@@ -584,6 +600,8 @@ export function getEventTypeStats(events: GameEvent[], eventTypeDomain: string[]
       type,
       count: data.count,
       wins: data.wins,
+      resolved: data.resolved,
+      unknown: data.unknown,
     }))
     .sort((a, b) => b.count - a.count)
 }
@@ -747,6 +765,8 @@ export function getMonthlyActivity(events: GameEvent[]): { month: string; count:
   const monthData: Record<string, { count: number; wins: number }> = {}
 
   events.forEach((event) => {
+    if (event.is_win === null) return
+
     const date = parseSafeDate(event.started_at)
     if (!date) return
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
@@ -773,6 +793,8 @@ export function getDailyActivity(
   const dailyData: Record<string, { count: number; wins: number }> = {}
 
   events.forEach((event) => {
+    if (event.is_win === null) return
+
     const date = toDateKey(event.started_at)
     if (!dailyData[date]) {
       dailyData[date] = { count: 0, wins: 0 }
