@@ -1,39 +1,34 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts"
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
 import { Calendar } from "lucide-react"
+import { useMemo } from "react"
 
 interface DailyActivityChartProps {
   data: { date: string; count: number; wins: number; cumWinRate: number }[]
 }
 
 export function DailyActivityChart({ data }: DailyActivityChartProps) {
-  const formatDate = (date: unknown) => {
-    if (typeof date !== "string" || date.length === 0) {
-      return "N/A"
+  const chartData = useMemo(() => {
+    const totalMatches = data.reduce((sum, point) => sum + point.count, 0)
+    const totalWins = data.reduce((sum, point) => sum + point.wins, 0)
+    const totalLosses = Math.max(0, totalMatches - totalWins)
+    const winRate = totalMatches > 0 ? (totalWins / totalMatches) * 100 : 0
+
+    return {
+      totalMatches,
+      totalWins,
+      totalLosses,
+      winRate,
+      slices: [
+        { name: "Победы", value: totalWins, color: "var(--christmas-green)" },
+        { name: "Поражения", value: totalLosses, color: "var(--christmas-red)" },
+      ],
     }
+  }, [data])
 
-    const d = new Date(date)
-    if (Number.isNaN(d.getTime())) {
-      return date
-    }
-
-    return `${d.getDate()}.${d.getMonth() + 1}`
-  }
-
-  const chartData = data.map((d) => ({
-    ...d,
-    dateLabel: formatDate(d.date),
-    losses: d.count - d.wins,
-  }))
-
-  // Calculate date range for title
-  const dateRange =
-    chartData.length > 0 ? `${formatDate(chartData[0].date)} - ${formatDate(chartData[chartData.length - 1].date)}` : ""
-  const titleSuffix = dateRange ? ` (${dateRange})` : ""
-
-  if (chartData.length === 0) {
+  if (chartData.totalMatches === 0) {
     return (
       <Card className="col-span-full">
         <CardHeader className="pb-3">
@@ -54,32 +49,30 @@ export function DailyActivityChart({ data }: DailyActivityChartProps) {
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
           <Calendar className="w-4 h-4" />
-          Победы и поражения за всё время{titleSuffix}
+          Победы и поражения за всё время
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-[250px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ left: -10, right: 10, top: 10 }}>
-              <defs>
-                <linearGradient id="colorWinsDaily" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--christmas-green)" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="var(--christmas-green)" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="colorLossesDaily" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--christmas-red)" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="var(--christmas-red)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
-              <XAxis
-                dataKey="dateLabel"
-                stroke="var(--muted-foreground)"
-                fontSize={9}
-                tickLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis stroke="var(--muted-foreground)" fontSize={10} tickLine={false} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+          <div className="h-[260px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData.slices}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={58}
+                  outerRadius={96}
+                  dataKey="value"
+                  paddingAngle={3}
+                  cornerRadius={6}
+                  stroke="var(--card)"
+                  strokeWidth={2}
+                >
+                  {chartData.slices.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Pie>
               <Tooltip
                 contentStyle={{
                   backgroundColor: "var(--card)",
@@ -87,30 +80,33 @@ export function DailyActivityChart({ data }: DailyActivityChartProps) {
                   borderRadius: "8px",
                   color: "var(--foreground)",
                 }}
-                labelStyle={{ color: "var(--foreground)" }}
                 formatter={(value: number, name: string) => [
-                  value,
-                  name === "wins" ? "Победы" : name === "losses" ? "Поражения" : name,
+                  `${value} (${chartData.totalMatches > 0 ? ((value / chartData.totalMatches) * 100).toFixed(1) : 0}%)`,
+                  name,
                 ]}
               />
-              <Area
-                type="monotone"
-                dataKey="wins"
-                stroke="var(--christmas-green)"
-                fillOpacity={1}
-                fill="url(#colorWinsDaily)"
-                strokeWidth={2}
-              />
-              <Area
-                type="monotone"
-                dataKey="losses"
-                stroke="var(--christmas-red)"
-                fillOpacity={1}
-                fill="url(#colorLossesDaily)"
-                strokeWidth={2}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="space-y-3">
+            <div className="rounded-lg border border-border/50 bg-background/30 p-3">
+              <p className="text-xs text-muted-foreground">Win Rate</p>
+              <p className="text-2xl font-semibold text-christmas-gold">{chartData.winRate.toFixed(1)}%</p>
+            </div>
+            <div className="rounded-lg border border-border/50 bg-background/30 p-3">
+              <p className="text-xs text-muted-foreground">Победы</p>
+              <p className="text-xl font-semibold text-christmas-green">{chartData.totalWins}</p>
+            </div>
+            <div className="rounded-lg border border-border/50 bg-background/30 p-3">
+              <p className="text-xs text-muted-foreground">Поражения</p>
+              <p className="text-xl font-semibold text-christmas-red">{chartData.totalLosses}</p>
+            </div>
+            <div className="rounded-lg border border-border/50 bg-background/30 p-3">
+              <p className="text-xs text-muted-foreground">Событий с известным результатом</p>
+              <p className="text-lg font-semibold text-christmas-snow">{chartData.totalMatches}</p>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
