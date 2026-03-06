@@ -3,9 +3,10 @@
 import { useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { PlayerAvatar } from "@/components/player-avatar"
 import type { PastGameSummary } from "@/lib/data-utils"
-import { Crosshair, Heart, Map as MapIcon, Shield, Skull, Trophy } from "lucide-react"
+import { CircleHelp, Crosshair, Heart, Map as MapIcon, Shield, Skull, Trophy } from "lucide-react"
 
 interface GameSliceLeaderboardsProps {
   games: PastGameSummary[]
@@ -16,7 +17,9 @@ type LeaderboardItem = {
   key: string
   label: string
   subtitle: string
+  metricLabel: string
   metric: string
+  helperLabel: string
   helper: string
   steamId?: string
   nickname?: string
@@ -47,12 +50,14 @@ function withSampleFloor<T extends { matches: number }>(items: T[]): T[] {
 function SliceLeaderboardCard({
   title,
   subtitle,
+  tooltip,
   items,
   emptyText,
   icon: Icon,
 }: {
   title: string
   subtitle: string
+  tooltip: string
   items: LeaderboardItem[]
   emptyText: string
   icon: typeof Trophy
@@ -60,11 +65,30 @@ function SliceLeaderboardCard({
   return (
     <Card className="border-border/50 bg-card/60">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base text-christmas-snow">
-          <Icon className="w-4 h-4 text-christmas-gold" />
-          {title}
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">{subtitle}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2 text-base text-christmas-snow">
+              <Icon className="w-4 h-4 text-christmas-gold" />
+              {title}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">{subtitle}</p>
+          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/35 text-muted-foreground transition-colors hover:border-christmas-gold/40 hover:text-christmas-gold"
+                aria-label={`Пояснение для борда ${title}`}
+              >
+                <CircleHelp className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs border border-border bg-card text-card-foreground">
+              <p className="font-medium text-christmas-snow">{title}</p>
+              <p className="mt-1 leading-relaxed text-muted-foreground">{tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         {items.length === 0 ? (
@@ -85,9 +109,12 @@ function SliceLeaderboardCard({
                 <p className="truncate text-sm font-medium text-christmas-snow">{item.label}</p>
                 <p className="truncate text-[11px] text-muted-foreground">{item.subtitle}</p>
               </div>
-              <div className="text-right">
+              <div className="min-w-[132px] text-right">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{item.metricLabel}</p>
                 <p className="text-sm font-semibold text-christmas-snow">{item.metric}</p>
-                <p className="text-[11px] text-muted-foreground">{item.helper}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {item.helperLabel}: {item.helper}
+                </p>
               </div>
             </div>
           ))
@@ -409,8 +436,10 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
           key: `best-${entry.opponent}`,
           label: entry.opponent,
           subtitle: `${entry.matches} игр • WR ${entry.winRate.toFixed(0)}%`,
+          metricLabel: "Средний разрыв",
           metric: formatSigned(entry.avgTicketDiff),
-          helper: `ср. билеты • K ${entry.avgKills.toFixed(1)}`,
+          helperLabel: "Средние убийства",
+          helper: `${entry.avgKills.toFixed(1)} за матч`,
         })),
       hardOpponents: opponentRows
         .filter((entry) => entry.losses > 0)
@@ -424,8 +453,10 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
           key: `hard-${entry.opponent}`,
           label: entry.opponent,
           subtitle: `${entry.matches} игр • WR ${entry.winRate.toFixed(0)}%`,
+          metricLabel: "Средний разрыв",
           metric: formatSigned(entry.avgTicketDiff),
-          helper: `ср. поднятия ${entry.avgRevives.toFixed(1)}`,
+          helperLabel: "Средние поднятия",
+          helper: `${entry.avgRevives.toFixed(1)} за матч`,
         })),
       bestCombos: comboRows
         .sort((left, right) => {
@@ -438,8 +469,10 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
           key: `combo-${entry.label}`,
           label: entry.label,
           subtitle: `${entry.matches} игр • WR ${entry.winRate.toFixed(0)}%`,
+          metricLabel: "Средний разрыв",
           metric: formatSigned(entry.avgTicketDiff),
-          helper: `ср. K ${entry.avgKills.toFixed(1)} • Dn ${entry.avgDowns.toFixed(1)}`,
+          helperLabel: "Средние K / Dn",
+          helper: `${entry.avgKills.toFixed(1)} / ${entry.avgDowns.toFixed(1)}`,
         })),
       medicOpponents: playerOpponentRows
         .sort((left, right) => {
@@ -452,8 +485,10 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
           key: `medic-${entry.player_id}-${entry.opponent}`,
           label: `${entry.nickname} • ${entry.opponent}`,
           subtitle: `${entry.matches} игр • WR ${entry.winRate.toFixed(0)}%`,
+          metricLabel: "Поднятия за матч",
           metric: entry.avgRevives.toFixed(1),
-          helper: `поднятия/игру • импакт ${entry.avgImpact.toFixed(0)}`,
+          helperLabel: "Средний импакт",
+          helper: entry.avgImpact.toFixed(0),
           steamId: entry.steam_id,
           nickname: entry.nickname,
         })),
@@ -469,8 +504,10 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
           key: `killer-${entry.player_id}-${entry.opponent}`,
           label: `${entry.nickname} • ${entry.opponent}`,
           subtitle: `${entry.matches} игр • Dn ${entry.avgDowns.toFixed(1)} / матч`,
+          metricLabel: "Убийства за матч",
           metric: entry.avgKills.toFixed(1),
-          helper: `киллы/игру • K/D ${entry.kd.toFixed(2)}`,
+          helperLabel: "Средний K/D",
+          helper: entry.kd.toFixed(2),
           steamId: entry.steam_id,
           nickname: entry.nickname,
         })),
@@ -485,8 +522,10 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
           key: `strong-${entry.player_id}`,
           label: entry.nickname,
           subtitle: `${entry.matches} игр • ${Array.from(entry.opponents).slice(0, 2).join(", ") || "тяжелые соперники"}`,
+          metricLabel: "Импакт за матч",
           metric: entry.avgImpact.toFixed(0),
-          helper: `импакт/игру • K/D ${entry.kd.toFixed(2)}`,
+          helperLabel: "Средний K/D",
+          helper: entry.kd.toFixed(2),
           steamId: entry.steam_id,
           nickname: entry.nickname,
         })),
@@ -511,6 +550,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
         <SliceLeaderboardCard
           title="Против кого заходит"
           subtitle="Оппоненты, против которых у нас лучший средний разрыв и стабильный WR"
+          tooltip="Главное число справа — средний разрыв билетов за матч: положительное значит, что этот соперник чаще закрывается с запасом, отрицательное — что игры получаются вязкими или проигрышными. Ниже показаны средние убийства за матч. Этот срез помогает отделить комфортные победы от случайных разовых успехов."
           items={leaderboards.bestOpponents}
           emptyText="Недостаточно матчей с явно успешными соперниками в текущем срезе."
           icon={Trophy}
@@ -518,6 +558,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
         <SliceLeaderboardCard
           title="Кому чаще отдаём"
           subtitle="Самые неприятные оппоненты по win rate и среднему разрыву билетов"
+          tooltip="Главное число — средний разрыв билетов, но уже с акцентом на слабые матчапы: чем сильнее минус, тем болезненнее средний итог против этого клана. Дополнительная метрика — средние поднятия за матч, она показывает, сколько ресурса уходит на стабилизацию команды под этим давлением."
           items={leaderboards.hardOpponents}
           emptyText="В текущем срезе нет выраженных проблемных соперников."
           icon={Skull}
@@ -525,6 +566,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
         <SliceLeaderboardCard
           title="Связки Карта + Оппонент"
           subtitle="Где конкретная карта против конкретного клана особенно хорошо складывается"
+          tooltip="Этот борд смотрит не просто на клан или карту по отдельности, а на конкретную связку. Главное число — средний разрыв билетов, ниже — средние убийства и ноки за матч. Такой срез нужен, чтобы находить сценарии, где именно на этой карте против этого соперника мы раскрываемся лучше всего."
           items={leaderboards.bestCombos}
           emptyText="Не хватает повторяющихся сочетаний карта + оппонент."
           icon={MapIcon}
@@ -532,6 +574,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
         <SliceLeaderboardCard
           title="Лучшие Реаним-Паки"
           subtitle={`Кто больше всего поднимает против конкретных кланов ${leaderboards.playerScopeLabel}`}
+          tooltip="Главная метрика — среднее число поднятий конкретного игрока за матч против данного клана. Ниже — средний импакт, чтобы видеть, не сводится ли вклад только к ревайвам. Борд помогает понять, кто лучше всего удерживает строй команды в тяжёлых разменах."
           items={leaderboards.medicOpponents}
           emptyText="Нет устойчивых матчапов по поднятиям в текущем срезе."
           icon={Heart}
@@ -539,6 +582,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
         <SliceLeaderboardCard
           title="Лучшие Убийцы По Кланам"
           subtitle={`Кто чаще всего делает фраги и ноки против конкретных оппонентов ${leaderboards.playerScopeLabel}`}
+          tooltip="Главное число — средние убийства игрока за матч против конкретного оппонента. Ниже — его средний K/D в этом matchup. Этот рейтинг показывает, кто лучше всего конвертирует контакты во фраги именно против определённых кланов, а не в среднем по больнице."
           items={leaderboards.killerOpponents}
           emptyText="Недостаточно данных для персональных килл-мэтчапов."
           icon={Crosshair}
@@ -546,6 +590,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
         <SliceLeaderboardCard
           title="Холодная Голова В Тяжёлых Матчах"
           subtitle="Игроки, которые лучше всего держат импакт против самых неудобных соперников"
+          tooltip="Здесь собираются игроки, которые не проседают по качеству игры против самых неудобных оппонентов. Главное число — средний импакт за матч, ниже — средний K/D. Борд полезен для понимания, на кого можно опираться в матчах против реально неприятных соперников."
           items={leaderboards.strongMatchPlayers}
           emptyText="Не нашлось тяжёлых матчапов, на которых можно собрать отдельный рейтинг."
           icon={Shield}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useDeferredValue, useEffect, useMemo, useState } from "react"
+import { useDeferredValue, useEffect, useMemo, useState, type CSSProperties } from "react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import { PlayerAvatar } from "@/components/player-avatar"
 import { PlayerSelector } from "@/components/player-selector"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { PastGameSummary, Player } from "@/lib/data-utils"
 import { getSquadToneClasses } from "@/lib/squad-utils"
 import { Calendar, Crosshair, Filter, Heart, Search, Shield, Skull, Trophy, Users, Zap } from "lucide-react"
@@ -80,19 +81,55 @@ function getGameAnchorId(eventId: string): string {
   return `game-${normalized || "unknown"}`
 }
 
+function getTicketDiffValue(game: Pick<PastGameSummary, "tickets_1" | "tickets_2" | "score">): number | null {
+  if (game.score !== null) {
+    return game.score
+  }
+
+  if (game.tickets_1 !== null && game.tickets_2 !== null) {
+    return game.tickets_1 - game.tickets_2
+  }
+
+  return null
+}
+
 function formatTicketSummary(game: Pick<PastGameSummary, "tickets_1" | "tickets_2" | "score">): string {
-  const diff =
-    game.score !== null
-      ? game.score
-      : game.tickets_1 !== null && game.tickets_2 !== null
-      ? game.tickets_1 - game.tickets_2
-      : null
+  const diff = getTicketDiffValue(game)
 
   if (diff === null) {
     return "Нет данных"
   }
 
   return `${diff > 0 ? "+" : ""}${diff}`
+}
+
+function getCollapsedGameToneStyle(game: Pick<PastGameSummary, "is_win" | "tickets_1" | "tickets_2" | "score">): CSSProperties {
+  const diff = getTicketDiffValue(game)
+  const intensity = diff === null ? 0.16 : Math.min(1, Math.abs(diff) / 180)
+
+  if (game.is_win === true) {
+    return {
+      backgroundImage: `linear-gradient(90deg, rgba(34, 197, 94, ${0.14 + intensity * 0.2}) 0%, rgba(34, 197, 94, ${
+        0.04 + intensity * 0.12
+      }) 18%, rgba(15, 23, 42, 0.04) 44%, rgba(15, 23, 42, 0) 72%)`,
+      boxShadow: `inset 3px 0 0 rgba(74, 222, 128, ${0.45 + intensity * 0.28})`,
+    }
+  }
+
+  if (game.is_win === false) {
+    return {
+      backgroundImage: `linear-gradient(90deg, rgba(239, 68, 68, ${0.13 + intensity * 0.22}) 0%, rgba(239, 68, 68, ${
+        0.04 + intensity * 0.12
+      }) 18%, rgba(15, 23, 42, 0.04) 44%, rgba(15, 23, 42, 0) 72%)`,
+      boxShadow: `inset 3px 0 0 rgba(248, 113, 113, ${0.42 + intensity * 0.3})`,
+    }
+  }
+
+  return {
+    backgroundImage:
+      "linear-gradient(90deg, rgba(148, 163, 184, 0.16) 0%, rgba(148, 163, 184, 0.06) 18%, rgba(15, 23, 42, 0.04) 44%, rgba(15, 23, 42, 0) 72%)",
+    boxShadow: "inset 3px 0 0 rgba(148, 163, 184, 0.35)",
+  }
 }
 
 function normalizeExternalUrl(value: string | null | undefined): string | null {
@@ -136,6 +173,7 @@ export function EventsExplorer({
   focusTarget,
 }: EventsExplorerProps) {
   const [query, setQuery] = useState("")
+  const [activeSection, setActiveSection] = useState("matches")
   const [resultFilters, setResultFilters] = useState<string[]>([])
   const [typeFilters, setTypeFilters] = useState<string[]>([])
   const [mapFilters, setMapFilters] = useState<string[]>([])
@@ -275,6 +313,7 @@ export function EventsExplorer({
   useEffect(() => {
     if (!focusTarget) return
 
+    setActiveSection("matches")
     setExpandedGames((current) => {
       if (current.includes(focusTarget.eventId)) {
         return current
@@ -444,316 +483,436 @@ export function EventsExplorer({
         </CardContent>
       </Card>
 
-      <EventsAnalyticsPanel games={filteredGames} pinnedPlayerIds={pinnedPlayerIds} />
-      <GameSliceLeaderboards games={filteredGames} pinnedPlayerIds={pinnedPlayerIds} />
-      <PinnedSquadLeaderboards games={filteredGames} pinnedPlayerIds={pinnedPlayerIds} />
+      <Tabs value={activeSection} onValueChange={setActiveSection} className="space-y-2">
+        <TabsList className="grid h-auto w-full grid-cols-1 overflow-hidden rounded-lg border border-border/60 bg-background/30 p-0 md:grid-cols-3">
+          <TabsTrigger
+            value="matches"
+            className="flex h-auto min-h-[58px] cursor-pointer flex-col items-start gap-0.5 rounded-none border-0 border-b border-r border-amber-500/20 bg-amber-500/[0.03] px-3 py-2.5 text-left shadow-none transition-colors duration-150 hover:bg-amber-500/[0.1] hover:text-amber-50 data-[state=active]:bg-amber-500/[0.15] data-[state=active]:text-amber-50 data-[state=active]:shadow-none md:border-b-0"
+          >
+            <span className="text-[11px] uppercase tracking-[0.18em] text-amber-200/70">Раздел</span>
+            <span className="text-sm font-semibold text-christmas-snow">Матчи</span>
+            <span className="text-[11px] text-amber-100/70">
+              {visibleGames.length} игр в листинге{focusedGameHiddenByFilters ? " + 1 закрепленная" : ""}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="leaderboards"
+            className="flex h-auto min-h-[58px] cursor-pointer flex-col items-start gap-0.5 rounded-none border-0 border-b border-emerald-500/20 bg-emerald-500/[0.03] px-3 py-2.5 text-left shadow-none transition-colors duration-150 hover:bg-emerald-500/[0.1] hover:text-emerald-50 data-[state=active]:bg-emerald-500/[0.15] data-[state=active]:text-emerald-50 data-[state=active]:shadow-none md:border-b-0 md:border-r"
+          >
+            <span className="text-[11px] uppercase tracking-[0.18em] text-emerald-200/70">Раздел</span>
+            <span className="text-sm font-semibold text-christmas-snow">Лидерборды</span>
+            <span className="text-[11px] text-emerald-100/70">Матчапы и топы</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="analytics"
+            className="flex h-auto min-h-[58px] cursor-pointer flex-col items-start gap-0.5 rounded-none border-0 bg-cyan-500/[0.03] px-3 py-2.5 text-left shadow-none transition-colors duration-150 hover:bg-cyan-500/[0.1] hover:text-cyan-50 data-[state=active]:bg-cyan-500/[0.16] data-[state=active]:text-cyan-50 data-[state=active]:shadow-none"
+          >
+            <span className="text-[11px] uppercase tracking-[0.18em] text-cyan-200/70">Раздел</span>
+            <span className="text-sm font-semibold text-christmas-snow">Аналитика</span>
+            <span className="text-[11px] text-cyan-100/70">Кривые и динамика</span>
+          </TabsTrigger>
+        </TabsList>
 
-      {focusedGameHiddenByFilters && (
-        <Card className="border-amber-500/30 bg-amber-500/10">
-          <CardContent className="pt-4 text-sm text-amber-100">
-            Открытая из карточки игрока игра закреплена сверху, даже если текущие фильтры её скрывают.
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="matches" className="mt-0 space-y-3">
+          <div className="grid gap-2 rounded-lg border border-border/50 bg-background/20 px-3 py-2 text-sm md:grid-cols-[1.2fr_auto_auto] md:items-center">
+            <div className="min-w-0">
+              <p className="font-medium text-christmas-snow">Плотный листинг матчей и разворотов</p>
+              <p className="text-[11px] text-muted-foreground">Компактный список для быстрого сканирования серии игр</p>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Видимо: <span className="font-medium text-christmas-snow">{visibleGames.length}</span>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Фокус: <span className="font-medium text-christmas-snow">{focusTarget ? "есть" : "нет"}</span>
+            </div>
+          </div>
 
-      {visibleGames.length === 0 ? (
-        <Card className="border-border/50 bg-card/60">
-          <CardContent className="py-10 text-center text-muted-foreground">
-            Нет игр, которые подходят под текущие фильтры.
-          </CardContent>
-        </Card>
-      ) : (
-        <Accordion type="multiple" value={expandedGames} onValueChange={setExpandedGames} className="space-y-3">
-          {visibleGames.map((game) => {
-            const resultMeta = getResultMeta(game)
-            const isFocused = focusTarget?.eventId === game.event_id
-            const recordingUrl = normalizeExternalUrl(game.cast_url)
-            const tacticsUrl = normalizeExternalUrl(game.tactics_url)
+          {focusedGameHiddenByFilters && (
+            <Card className="border-amber-500/30 bg-amber-500/10">
+              <CardContent className="pt-4 text-sm text-amber-100">
+                Открытая из карточки игрока игра закреплена сверху, даже если текущие фильтры её скрывают.
+              </CardContent>
+            </Card>
+          )}
 
-            return (
-              <Card
-                key={game.event_id}
-                id={getGameAnchorId(game.event_id)}
-                className={`border transition-colors ${
-                  isFocused ? "border-christmas-gold/50 bg-christmas-gold/5" : "border-border/50 bg-card/70"
-                }`}
-              >
-                <AccordionItem value={game.event_id} className="border-0">
-                  <AccordionTrigger className="px-4 py-5 hover:no-underline">
-                    <div className="flex-1 min-w-0">
-                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,1fr)] lg:items-center">
-                        <div className="space-y-2 text-left">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="outline" className={resultMeta.className}>
-                              {resultMeta.label}
-                            </Badge>
-                            <Badge variant="outline" className="border-christmas-gold/30 text-christmas-gold">
-                              {game.event_type}
-                            </Badge>
-                            {game.faction_matchup && (
-                              <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200">
-                                {game.faction_matchup}
-                              </Badge>
-                            )}
-                            {isFocused && (
-                              <Badge variant="outline" className="border-christmas-gold/40 bg-christmas-gold/10 text-christmas-snow">
-                                Открыто из карточки игрока
-                              </Badge>
-                            )}
-                          </div>
+          {visibleGames.length === 0 ? (
+            <Card className="border-border/50 bg-card/60">
+              <CardContent className="py-10 text-center text-muted-foreground">
+                Нет игр, которые подходят под текущие фильтры.
+              </CardContent>
+            </Card>
+          ) : (
+            <Accordion type="multiple" value={expandedGames} onValueChange={setExpandedGames} className="space-y-1.5">
+              {visibleGames.map((game) => {
+                const resultMeta = getResultMeta(game)
+                const isFocused = focusTarget?.eventId === game.event_id
+                const recordingUrl = normalizeExternalUrl(game.cast_url)
+                const tacticsUrl = normalizeExternalUrl(game.tactics_url)
+                const ticketDiff = getTicketDiffValue(game)
+                const cardToneStyle = getCollapsedGameToneStyle(game)
+                const compactMetrics = [
+                  {
+                    label: "±",
+                    value: formatTicketSummary(game),
+                    className:
+                      ticketDiff === null
+                        ? "border-slate-400/20 bg-slate-400/10 text-christmas-snow"
+                        : ticketDiff >= 0
+                        ? "border-emerald-400/25 bg-emerald-400/12 text-christmas-snow"
+                        : "border-rose-400/25 bg-rose-400/12 text-christmas-snow",
+                  },
+                  {
+                    label: "K",
+                    value: String(game.totalKills),
+                    className: "border-christmas-green/20 bg-christmas-green/10 text-christmas-snow",
+                  },
+                  {
+                    label: "Dn",
+                    value: String(game.totalDowns),
+                    className: "border-orange-500/20 bg-orange-500/10 text-christmas-snow",
+                  },
+                  {
+                    label: "D",
+                    value: String(game.totalDeaths),
+                    className: "border-christmas-red/20 bg-christmas-red/10 text-christmas-snow",
+                  },
+                  {
+                    label: "Rev",
+                    value: String(game.totalRevives),
+                    className: "border-blue-500/20 bg-blue-500/10 text-christmas-snow",
+                  },
+                  {
+                    label: "P",
+                    value: String(game.participants),
+                    className: "border-christmas-gold/20 bg-christmas-gold/10 text-christmas-snow",
+                  },
+                ]
 
-                          <div className="space-y-1">
-                            <p className="text-base font-semibold text-christmas-snow">
-                              {game.map}
-                              {game.mode ? ` • ${game.mode}` : ""}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {game.opponent ? `${game.opponent} • ` : ""}
-                              {formatMatchDate(game.started_at)}
-                            </p>
-                            <p className="truncate text-[11px] text-muted-foreground">{game.event_id}</p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-left sm:grid-cols-4">
-                          <div className="rounded-lg border border-christmas-green/20 bg-christmas-green/10 p-2">
-                            <p className="text-[11px] text-muted-foreground">Убийства</p>
-                            <p className="text-lg font-semibold text-christmas-snow">{game.totalKills}</p>
-                          </div>
-                          <div className="rounded-lg border border-christmas-red/20 bg-christmas-red/10 p-2">
-                            <p className="text-[11px] text-muted-foreground">Смерти</p>
-                            <p className="text-lg font-semibold text-christmas-snow">{game.totalDeaths}</p>
-                          </div>
-                          <div className="rounded-lg border border-blue-500/20 bg-blue-500/10 p-2">
-                            <p className="text-[11px] text-muted-foreground">Поднятия</p>
-                            <p className="text-lg font-semibold text-christmas-snow">{game.totalRevives}</p>
-                          </div>
-                          <div className="rounded-lg border border-christmas-gold/20 bg-christmas-gold/10 p-2">
-                            <p className="text-[11px] text-muted-foreground">Игроков</p>
-                            <p className="text-lg font-semibold text-christmas-snow">{game.participants}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </AccordionTrigger>
-
-                  <AccordionContent className="px-4 pb-4">
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 gap-3 lg:grid-cols-7">
-                        <div className="rounded-lg border border-border/50 bg-background/35 p-3">
-                          <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-                            <Calendar className="w-3.5 h-3.5" />
-                            Дата
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-christmas-snow">{formatMatchDate(game.started_at)}</p>
-                        </div>
-                        <div className="rounded-lg border border-border/50 bg-background/35 p-3">
-                          <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-                            <Users className="w-3.5 h-3.5" />
-                            Состав
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-christmas-snow">
-                            MDC {game.mdc_players}
-                            {game.enemy_size ? ` • против ${game.enemy_size}` : ""}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-border/50 bg-background/35 p-3">
-                          <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-                            <Shield className="w-3.5 h-3.5" />
-                            Дека
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-christmas-snow">
-                            {game.faction_matchup || "Не указана"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-border/50 bg-background/35 p-3">
-                          <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-                            <Crosshair className="w-3.5 h-3.5" />
-                            Ноки / Поднятия
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-christmas-snow">
-                            {game.totalDowns} / {game.totalRevives}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-border/50 bg-background/35 p-3">
-                          <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-                            <Trophy className="w-3.5 h-3.5" />
-                            Билеты
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-christmas-snow">{formatTicketSummary(game)}</p>
-                        </div>
-                        <div className="rounded-lg border border-border/50 bg-background/35 p-3">
-                          <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-                            <Shield className="w-3.5 h-3.5" />
-                            Лучший игрок
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-christmas-snow">
-                            {game.topPerformer ? `${game.topPerformer.nickname} • #${game.topPerformer.rank}` : "Нет данных"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-border/50 bg-background/35 p-3">
-                          <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-                            <Trophy className="w-3.5 h-3.5" />
-                            Ссылки
-                          </p>
-                          {recordingUrl || tacticsUrl ? (
-                            <div className="mt-1 flex flex-wrap gap-3">
-                              {recordingUrl && (
-                                <a
-                                  href={recordingUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(event) => event.stopPropagation()}
-                                  className="inline-flex items-center gap-1 text-sm text-christmas-gold underline-offset-4 hover:text-christmas-snow hover:underline"
-                                  title={recordingUrl}
+                return (
+                  <Card
+                    key={game.event_id}
+                    id={getGameAnchorId(game.event_id)}
+                    style={cardToneStyle}
+                    className={`overflow-hidden border transition-colors ${
+                      isFocused ? "border-christmas-gold/50 bg-christmas-gold/5" : "border-border/50 bg-card/75"
+                    }`}
+                  >
+                    <AccordionItem value={game.event_id} className="border-0">
+                      <AccordionTrigger className="px-2.5 py-2 hover:no-underline [&>svg]:size-3.5">
+                        <div className="flex-1 min-w-0">
+                          <div className="grid gap-2 lg:grid-cols-[minmax(0,2.1fr)_auto] lg:items-center">
+                            <div className="space-y-1 text-left">
+                              <div className="flex flex-wrap items-center gap-1">
+                                <Badge variant="outline" className={`h-auto px-1.5 py-0 text-[9px] ${resultMeta.className}`}>
+                                  {resultMeta.label}
+                                </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className="h-auto border-christmas-gold/30 px-1.5 py-0 text-[9px] text-christmas-gold"
                                 >
-                                  Запись
-                                  <span className="text-[11px] text-muted-foreground">{getLinkHostLabel(recordingUrl)}</span>
-                                </a>
-                              )}
-                              {tacticsUrl && (
-                                <a
-                                  href={tacticsUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(event) => event.stopPropagation()}
-                                  className="inline-flex items-center gap-1 text-sm text-cyan-200 underline-offset-4 hover:text-christmas-snow hover:underline"
-                                  title={tacticsUrl}
+                                  {game.event_type}
+                                </Badge>
+                                {game.faction_matchup && (
+                                  <Badge
+                                    variant="outline"
+                                    className="h-auto border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0 text-[9px] text-cyan-200"
+                                  >
+                                    {game.faction_matchup}
+                                  </Badge>
+                                )}
+                                {isFocused && (
+                                  <Badge
+                                    variant="outline"
+                                    className="h-auto border-christmas-gold/40 bg-christmas-gold/10 px-1.5 py-0 text-[9px] text-christmas-snow"
+                                  >
+                                    Открыто из карточки игрока
+                                  </Badge>
+                                )}
+                              </div>
+
+                              <div className="space-y-0.5">
+                                <p className="text-[13px] font-semibold leading-tight text-christmas-snow sm:text-sm">
+                                  {game.map}
+                                  {game.mode ? ` • ${game.mode}` : ""}
+                                </p>
+                                <p className="truncate text-[11px] leading-tight text-muted-foreground">
+                                  {game.opponent ? `${game.opponent} • ` : ""}
+                                  {formatMatchDate(game.started_at)}
+                                  <span className="hidden 2xl:inline"> • {game.event_id}</span>
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center justify-start gap-1 text-left lg:flex-nowrap lg:justify-end">
+                              {compactMetrics.map((metric) => (
+                                <div
+                                  key={`${game.event_id}-${metric.label}`}
+                                  className={`min-w-[44px] rounded-md border px-1.5 py-0.5 ${metric.className}`}
                                 >
-                                  Тактика
-                                  <span className="text-[11px] text-muted-foreground">{getLinkHostLabel(tacticsUrl)}</span>
-                                </a>
+                                  <p className="text-[9px] uppercase leading-none tracking-wide text-muted-foreground">{metric.label}</p>
+                                  <p className="mt-0.5 text-xs font-semibold leading-none">{metric.value}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </AccordionTrigger>
+
+                      <AccordionContent className="px-4 pb-4">
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 gap-3 lg:grid-cols-7">
+                            <div className="rounded-lg border border-border/50 bg-background/35 p-3">
+                              <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                                <Calendar className="w-3.5 h-3.5" />
+                                Дата
+                              </p>
+                              <p className="mt-2 text-sm font-medium text-christmas-snow">{formatMatchDate(game.started_at)}</p>
+                            </div>
+                            <div className="rounded-lg border border-border/50 bg-background/35 p-3">
+                              <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                                <Users className="w-3.5 h-3.5" />
+                                Состав
+                              </p>
+                              <p className="mt-2 text-sm font-medium text-christmas-snow">
+                                MDC {game.mdc_players}
+                                {game.enemy_size ? ` • против ${game.enemy_size}` : ""}
+                              </p>
+                            </div>
+                            <div className="rounded-lg border border-border/50 bg-background/35 p-3">
+                              <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                                <Shield className="w-3.5 h-3.5" />
+                                Дека
+                              </p>
+                              <p className="mt-2 text-sm font-medium text-christmas-snow">
+                                {game.faction_matchup || "Не указана"}
+                              </p>
+                            </div>
+                            <div className="rounded-lg border border-border/50 bg-background/35 p-3">
+                              <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                                <Crosshair className="w-3.5 h-3.5" />
+                                Ноки / Поднятия
+                              </p>
+                              <p className="mt-2 text-sm font-medium text-christmas-snow">
+                                {game.totalDowns} / {game.totalRevives}
+                              </p>
+                            </div>
+                            <div className="rounded-lg border border-border/50 bg-background/35 p-3">
+                              <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                                <Trophy className="w-3.5 h-3.5" />
+                                Билеты
+                              </p>
+                              <p className="mt-2 text-sm font-medium text-christmas-snow">{formatTicketSummary(game)}</p>
+                            </div>
+                            <div className="rounded-lg border border-border/50 bg-background/35 p-3">
+                              <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                                <Shield className="w-3.5 h-3.5" />
+                                Лучший игрок
+                              </p>
+                              <p className="mt-2 text-sm font-medium text-christmas-snow">
+                                {game.topPerformer ? `${game.topPerformer.nickname} • #${game.topPerformer.rank}` : "Нет данных"}
+                              </p>
+                            </div>
+                            <div className="rounded-lg border border-border/50 bg-background/35 p-3">
+                              <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                                <Trophy className="w-3.5 h-3.5" />
+                                Ссылки
+                              </p>
+                              {recordingUrl || tacticsUrl ? (
+                                <div className="mt-1 flex flex-wrap gap-3">
+                                  {recordingUrl && (
+                                    <a
+                                      href={recordingUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(event) => event.stopPropagation()}
+                                      className="inline-flex items-center gap-1 text-sm text-christmas-gold underline-offset-4 hover:text-christmas-snow hover:underline"
+                                      title={recordingUrl}
+                                    >
+                                      Запись
+                                      <span className="text-[11px] text-muted-foreground">{getLinkHostLabel(recordingUrl)}</span>
+                                    </a>
+                                  )}
+                                  {tacticsUrl && (
+                                    <a
+                                      href={tacticsUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(event) => event.stopPropagation()}
+                                      className="inline-flex items-center gap-1 text-sm text-cyan-200 underline-offset-4 hover:text-christmas-snow hover:underline"
+                                      title={tacticsUrl}
+                                    >
+                                      Тактика
+                                      <span className="text-[11px] text-muted-foreground">{getLinkHostLabel(tacticsUrl)}</span>
+                                    </a>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="mt-2 text-sm font-medium text-muted-foreground">Ссылка не указана</p>
                               )}
                             </div>
-                          ) : (
-                            <p className="mt-2 text-sm font-medium text-muted-foreground">Ссылка не указана</p>
-                          )}
-                        </div>
-                      </div>
-
-                      <ScrollArea className="rounded-lg border border-border/50 bg-background/30">
-                        {game.players.length === 0 ? (
-                          <div className="p-4 text-sm text-muted-foreground">
-                            Для этого события есть карточка матча, но нет развернутого протокола игроков в `playersevents`.
                           </div>
-                        ) : (
-                          <Table className="min-w-[920px]">
-                            <TableHeader>
-                              <TableRow className="border-border/60">
-                                <TableHead>#</TableHead>
-                                <TableHead>Игрок</TableHead>
-                                <TableHead>Роль</TableHead>
-                                <TableHead>K</TableHead>
-                                <TableHead>Dn</TableHead>
-                                <TableHead>D</TableHead>
-                                <TableHead>Rev</TableHead>
-                                <TableHead>K/D</TableHead>
-                                <TableHead>Импакт</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {game.players.map((player) => {
-                                const isHighlighted =
-                                  focusTarget?.eventId === game.event_id && focusTarget.playerId === player.player_id
-                                const impactWidth = Math.max(0, Math.min(100, player.impactShare))
 
-                                return (
-                                  <TableRow
-                                    key={`${game.event_id}-${player.player_id}`}
-                                    className={isHighlighted ? "bg-christmas-gold/10 hover:bg-christmas-gold/15" : ""}
-                                  >
-                                    <TableCell className="font-mono text-christmas-gold">#{player.rank}</TableCell>
-                                    <TableCell className="max-w-[220px]">
-                                      <div className="flex items-center gap-3">
-                                        <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
-                                        <div className="min-w-0">
-                                          <p className="truncate font-medium text-christmas-snow">{player.nickname}</p>
-                                          <p className="truncate text-[11px] text-muted-foreground">{player.tag}</p>
-                                        </div>
-                                      </div>
-                                    </TableCell>
-                                    <TableCell className="max-w-[220px]">
-                                      <div className="space-y-1">
-                                        <p className="truncate text-sm text-christmas-snow">{player.role || "Без роли"}</p>
-                                        {player.squads.length > 0 && (
-                                          <div className="flex flex-wrap gap-1">
-                                            {player.squad_labels.map((label) => {
-                                              const tone = getSquadToneClasses(label)
-                                              return (
-                                                <Badge key={`${player.player_id}-${label}`} variant="outline" className={tone.badge}>
-                                                  {label}
-                                                </Badge>
-                                              )
-                                            })}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </TableCell>
-                                    <TableCell className="text-christmas-snow">{player.kills}</TableCell>
-                                    <TableCell className="text-orange-300">{player.downs}</TableCell>
-                                    <TableCell className="text-christmas-red">{player.deaths}</TableCell>
-                                    <TableCell className="text-blue-300">{player.revives}</TableCell>
-                                    <TableCell className="text-christmas-snow">{player.kd.toFixed(2)}</TableCell>
-                                    <TableCell className="w-[180px]">
-                                      <div className="space-y-1.5">
-                                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                                          <span>{player.impactScore}</span>
-                                          <span>{Math.round(player.impactShare)}%</span>
-                                        </div>
-                                        <div className="h-1.5 overflow-hidden rounded-full bg-background/70">
-                                          <div
-                                            className="h-full rounded-full bg-gradient-to-r from-christmas-red via-christmas-gold to-christmas-green"
-                                            style={{ width: `${impactWidth}%` }}
-                                          />
-                                        </div>
-                                      </div>
-                                    </TableCell>
+                          <ScrollArea className="rounded-lg border border-border/50 bg-background/30">
+                            {game.players.length === 0 ? (
+                              <div className="p-4 text-sm text-muted-foreground">
+                                Для этого события есть карточка матча, но нет развернутого протокола игроков в `playersevents`.
+                              </div>
+                            ) : (
+                              <Table className="min-w-[920px]">
+                                <TableHeader>
+                                  <TableRow className="border-border/60">
+                                    <TableHead>#</TableHead>
+                                    <TableHead>Игрок</TableHead>
+                                    <TableHead>Роль</TableHead>
+                                    <TableHead>K</TableHead>
+                                    <TableHead>Dn</TableHead>
+                                    <TableHead>D</TableHead>
+                                    <TableHead>Rev</TableHead>
+                                    <TableHead>K/D</TableHead>
+                                    <TableHead>Импакт</TableHead>
                                   </TableRow>
-                                )
-                              })}
-                            </TableBody>
-                          </Table>
-                        )}
-                      </ScrollArea>
+                                </TableHeader>
+                                <TableBody>
+                                  {game.players.map((player) => {
+                                    const isHighlighted =
+                                      focusTarget?.eventId === game.event_id && focusTarget.playerId === player.player_id
+                                    const impactWidth = Math.max(0, Math.min(100, player.impactShare))
 
-                      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                        <div className="rounded-lg border border-christmas-green/20 bg-christmas-green/10 p-3">
-                          <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                            <Crosshair className="w-3.5 h-3.5 text-christmas-green" />
-                            Убийства
-                          </p>
-                          <p className="mt-2 text-lg font-semibold text-christmas-snow">{game.totalKills}</p>
+                                    return (
+                                      <TableRow
+                                        key={`${game.event_id}-${player.player_id}`}
+                                        className={isHighlighted ? "bg-christmas-gold/10 hover:bg-christmas-gold/15" : ""}
+                                      >
+                                        <TableCell className="font-mono text-christmas-gold">#{player.rank}</TableCell>
+                                        <TableCell className="max-w-[220px]">
+                                          <div className="flex items-center gap-3">
+                                            <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
+                                            <div className="min-w-0">
+                                              <p className="truncate font-medium text-christmas-snow">{player.nickname}</p>
+                                              <p className="truncate text-[11px] text-muted-foreground">{player.tag}</p>
+                                            </div>
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="max-w-[220px]">
+                                          <div className="space-y-1">
+                                            <p className="truncate text-sm text-christmas-snow">{player.role || "Без роли"}</p>
+                                            {player.squads.length > 0 && (
+                                              <div className="flex flex-wrap gap-1">
+                                                {player.squad_labels.map((label) => {
+                                                  const tone = getSquadToneClasses(label)
+                                                  return (
+                                                    <Badge key={`${player.player_id}-${label}`} variant="outline" className={tone.badge}>
+                                                      {label}
+                                                    </Badge>
+                                                  )
+                                                })}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="text-christmas-snow">{player.kills}</TableCell>
+                                        <TableCell className="text-orange-300">{player.downs}</TableCell>
+                                        <TableCell className="text-christmas-red">{player.deaths}</TableCell>
+                                        <TableCell className="text-blue-300">{player.revives}</TableCell>
+                                        <TableCell className="text-christmas-snow">{player.kd.toFixed(2)}</TableCell>
+                                        <TableCell className="w-[180px]">
+                                          <div className="space-y-1.5">
+                                            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                              <span>{player.impactScore}</span>
+                                              <span>{Math.round(player.impactShare)}%</span>
+                                            </div>
+                                            <div className="h-1.5 overflow-hidden rounded-full bg-background/70">
+                                              <div
+                                                className="h-full rounded-full bg-gradient-to-r from-christmas-red via-christmas-gold to-christmas-green"
+                                                style={{ width: `${impactWidth}%` }}
+                                              />
+                                            </div>
+                                          </div>
+                                        </TableCell>
+                                      </TableRow>
+                                    )
+                                  })}
+                                </TableBody>
+                              </Table>
+                            )}
+                          </ScrollArea>
+
+                          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                            <div className="rounded-lg border border-christmas-green/20 bg-christmas-green/10 p-3">
+                              <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                <Crosshair className="w-3.5 h-3.5 text-christmas-green" />
+                                Убийства
+                              </p>
+                              <p className="mt-2 text-lg font-semibold text-christmas-snow">{game.totalKills}</p>
+                            </div>
+                            <div className="rounded-lg border border-orange-500/20 bg-orange-500/10 p-3">
+                              <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                <Zap className="w-3.5 h-3.5 text-orange-300" />
+                                Ноки
+                              </p>
+                              <p className="mt-2 text-lg font-semibold text-christmas-snow">{game.totalDowns}</p>
+                            </div>
+                            <div className="rounded-lg border border-christmas-red/20 bg-christmas-red/10 p-3">
+                              <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                <Skull className="w-3.5 h-3.5 text-christmas-red" />
+                                Смерти
+                              </p>
+                              <p className="mt-2 text-lg font-semibold text-christmas-snow">{game.totalDeaths}</p>
+                            </div>
+                            <div className="rounded-lg border border-blue-500/20 bg-blue-500/10 p-3">
+                              <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                <Heart className="w-3.5 h-3.5 text-blue-300" />
+                                Поднятия
+                              </p>
+                              <p className="mt-2 text-lg font-semibold text-christmas-snow">{game.totalRevives}</p>
+                            </div>
+                          </div>
                         </div>
-                        <div className="rounded-lg border border-orange-500/20 bg-orange-500/10 p-3">
-                          <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                            <Zap className="w-3.5 h-3.5 text-orange-300" />
-                            Ноки
-                          </p>
-                          <p className="mt-2 text-lg font-semibold text-christmas-snow">{game.totalDowns}</p>
-                        </div>
-                        <div className="rounded-lg border border-christmas-red/20 bg-christmas-red/10 p-3">
-                          <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                            <Skull className="w-3.5 h-3.5 text-christmas-red" />
-                            Смерти
-                          </p>
-                          <p className="mt-2 text-lg font-semibold text-christmas-snow">{game.totalDeaths}</p>
-                        </div>
-                        <div className="rounded-lg border border-blue-500/20 bg-blue-500/10 p-3">
-                          <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                            <Heart className="w-3.5 h-3.5 text-blue-300" />
-                            Поднятия
-                          </p>
-                          <p className="mt-2 text-lg font-semibold text-christmas-snow">{game.totalRevives}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Card>
-            )
-          })}
-        </Accordion>
-      )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Card>
+                )
+              })}
+            </Accordion>
+          )}
+        </TabsContent>
+
+        <TabsContent value="leaderboards" className="mt-0 space-y-3">
+          <div className="grid gap-2 rounded-lg border border-border/50 bg-background/20 px-3 py-2 text-sm md:grid-cols-[1.2fr_auto_auto] md:items-center">
+            <div className="min-w-0">
+              <p className="font-medium text-christmas-snow">Готовые игровые выводы и рейтинги</p>
+              <p className="text-[11px] text-muted-foreground">Быстрые матчапы по кланам, связкам и закрепленным игрокам</p>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Закреплено: <span className="font-medium text-christmas-snow">{pinnedPlayerIds.length}</span>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Отрядов в срезе: <span className="font-medium text-christmas-snow">{squadFilters.length || "все"}</span>
+            </div>
+          </div>
+          <GameSliceLeaderboards games={filteredGames} pinnedPlayerIds={pinnedPlayerIds} />
+          <PinnedSquadLeaderboards games={filteredGames} pinnedPlayerIds={pinnedPlayerIds} />
+        </TabsContent>
+
+        <TabsContent value="analytics" className="mt-0 space-y-3">
+          <div className="grid gap-2 rounded-lg border border-border/50 bg-background/20 px-3 py-2 text-sm md:grid-cols-[1.2fr_auto_auto] md:items-center">
+            <div className="min-w-0">
+              <p className="font-medium text-christmas-snow">Аналитический срез по выбранным фильтрам</p>
+              <p className="text-[11px] text-muted-foreground">Сравнение карт, кланов, дек и отрядов по динамике матчей</p>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Матчи: <span className="font-medium text-christmas-snow">{filteredGames.length}</span>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Фильтров:{" "}
+              <span className="font-medium text-christmas-snow">
+                {resultFilters.length + typeFilters.length + mapFilters.length + opponentFilters.length + factionFilters.length + squadFilters.length}
+              </span>
+            </div>
+          </div>
+          <EventsAnalyticsPanel games={filteredGames} pinnedPlayerIds={pinnedPlayerIds} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
