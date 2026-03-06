@@ -77,7 +77,7 @@ import {
   RotateCcw,
 } from "lucide-react"
 
-const API_CACHE_KEY = "mdc-api-cache-v4"
+const API_CACHE_KEY = "mdc-api-cache-v5"
 const API_CACHE_TTL_MS = 5 * 60 * 1000
 
 type CachedPayload = {
@@ -395,7 +395,16 @@ export default function YearReviewPage() {
     const intervalId = window.setInterval(() => {
       setSeasonalTheme((currentTheme) => {
         const nextTheme = getSeasonalTheme()
-        return nextTheme.id === currentTheme.id ? currentTheme : nextTheme
+        return nextTheme.id === currentTheme.id &&
+          nextTheme.backgroundImage === currentTheme.backgroundImage &&
+          nextTheme.overlayGradient === currentTheme.overlayGradient &&
+          nextTheme.backgroundOpacity === currentTheme.backgroundOpacity &&
+          nextTheme.backgroundSize === currentTheme.backgroundSize &&
+          nextTheme.backgroundPosition === currentTheme.backgroundPosition &&
+          nextTheme.backgroundRepeat === currentTheme.backgroundRepeat &&
+          nextTheme.backgroundBlendMode === currentTheme.backgroundBlendMode
+          ? currentTheme
+          : nextTheme
       })
     }, 60 * 60 * 1000)
 
@@ -705,10 +714,11 @@ export default function YearReviewPage() {
   )
   const slStats = useMemo(() => (data ? getSLStats(data.player_event_stats, data.events, data.players) : []), [data])
   const bestMatches = useMemo(() => (data ? getBestMatches(data.player_event_stats, data.events, 10) : []), [data])
-  const pastGames = useMemo(
-    () => (data ? getPastGames(data.events, data.player_event_stats, data.players, data.dictionaries?.squads ?? []) : []),
-    [data],
-  )
+  const pastGames = useMemo(() => {
+    if (!data) return []
+    const protocolEvents = rawData?.events ?? data.events
+    return getPastGames(protocolEvents, data.player_event_stats, data.players, data.dictionaries?.squads ?? [])
+  }, [data, rawData])
 
   const roleLeaderboards = useMemo(() => {
     if (!data) return []
@@ -909,9 +919,13 @@ export default function YearReviewPage() {
         style={{
           opacity: seasonalTheme.backgroundOpacity,
           backgroundImage: seasonalTheme.backgroundImage,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
+          backgroundSize: seasonalTheme.backgroundSize,
+          backgroundPosition: seasonalTheme.backgroundPosition,
+          backgroundRepeat: seasonalTheme.backgroundRepeat,
+          backgroundBlendMode: seasonalTheme.backgroundBlendMode,
           backgroundAttachment: "fixed",
+          transition: "opacity 280ms ease-out, filter 280ms ease-out",
+          filter: "saturate(1.02) contrast(1.03)",
         }}
       />
       <div className="fixed inset-0 z-0" style={{ background: seasonalTheme.overlayGradient }} />

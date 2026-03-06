@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EventsAnalyticsPanel } from "@/components/events-analytics-panel"
+import { GameSliceLeaderboards } from "@/components/game-slice-leaderboards"
 import { MultiValueFilter, type MultiValueFilterOption } from "@/components/multi-value-filter"
 import { PinnedSquadLeaderboards } from "@/components/pinned-squad-leaderboards"
 import { Input } from "@/components/ui/input"
@@ -77,6 +78,53 @@ function getGameAnchorId(eventId: string): string {
     .replace(/^-+|-+$/g, "")
 
   return `game-${normalized || "unknown"}`
+}
+
+function formatTicketSummary(game: Pick<PastGameSummary, "tickets_1" | "tickets_2" | "score">): string {
+  const diff =
+    game.score !== null
+      ? game.score
+      : game.tickets_1 !== null && game.tickets_2 !== null
+      ? game.tickets_1 - game.tickets_2
+      : null
+
+  if (diff === null) {
+    return "Нет данных"
+  }
+
+  return `${diff > 0 ? "+" : ""}${diff}`
+}
+
+function normalizeExternalUrl(value: string | null | undefined): string | null {
+  if (!value) {
+    return null
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return null
+  }
+
+  const candidate = /^[a-z]+:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+
+  try {
+    const parsed = new URL(candidate)
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null
+    }
+    return parsed.toString()
+  } catch {
+    return null
+  }
+}
+
+function getLinkHostLabel(value: string): string {
+  try {
+    const parsed = new URL(value)
+    return parsed.hostname.replace(/^www\./i, "")
+  } catch {
+    return value
+  }
 }
 
 export function EventsExplorer({
@@ -375,7 +423,7 @@ export function EventsExplorer({
 
           <div className="text-[11px] text-muted-foreground">
             Каждый фильтр теперь мультивыборный: можно собрать свой набор карт, оппонентов, дек и отрядов, и этот срез
-            сразу применится и к списку игр, и к аналитическим кривым, и к сквадовым топам.
+            сразу применится и к списку игр, и к сравнительным кривым, и к матчевым лидербордам, и к сквадовым топам.
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -397,6 +445,7 @@ export function EventsExplorer({
       </Card>
 
       <EventsAnalyticsPanel games={filteredGames} pinnedPlayerIds={pinnedPlayerIds} />
+      <GameSliceLeaderboards games={filteredGames} pinnedPlayerIds={pinnedPlayerIds} />
       <PinnedSquadLeaderboards games={filteredGames} pinnedPlayerIds={pinnedPlayerIds} />
 
       {focusedGameHiddenByFilters && (
@@ -418,6 +467,8 @@ export function EventsExplorer({
           {visibleGames.map((game) => {
             const resultMeta = getResultMeta(game)
             const isFocused = focusTarget?.eventId === game.event_id
+            const recordingUrl = normalizeExternalUrl(game.cast_url)
+            const tacticsUrl = normalizeExternalUrl(game.tactics_url)
 
             return (
               <Card
@@ -488,7 +539,7 @@ export function EventsExplorer({
 
                   <AccordionContent className="px-4 pb-4">
                     <div className="space-y-4">
-                      <div className="grid grid-cols-1 gap-3 lg:grid-cols-6">
+                      <div className="grid grid-cols-1 gap-3 lg:grid-cols-7">
                         <div className="rounded-lg border border-border/50 bg-background/35 p-3">
                           <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
                             <Calendar className="w-3.5 h-3.5" />
@@ -526,6 +577,13 @@ export function EventsExplorer({
                         </div>
                         <div className="rounded-lg border border-border/50 bg-background/35 p-3">
                           <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                            <Trophy className="w-3.5 h-3.5" />
+                            Билеты
+                          </p>
+                          <p className="mt-2 text-sm font-medium text-christmas-snow">{formatTicketSummary(game)}</p>
+                        </div>
+                        <div className="rounded-lg border border-border/50 bg-background/35 p-3">
+                          <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
                             <Shield className="w-3.5 h-3.5" />
                             Лучший игрок
                           </p>
@@ -536,18 +594,37 @@ export function EventsExplorer({
                         <div className="rounded-lg border border-border/50 bg-background/35 p-3">
                           <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
                             <Trophy className="w-3.5 h-3.5" />
-                            Полный лог
+                            Ссылки
                           </p>
-                          {game.cast_url ? (
-                            <Button
-                              asChild
-                              variant="ghost"
-                              className="mt-1 h-auto px-0 text-sm text-christmas-gold hover:bg-transparent hover:text-christmas-snow"
-                            >
-                              <a href={game.cast_url} target="_blank" rel="noreferrer">
-                                Смотреть запись
-                              </a>
-                            </Button>
+                          {recordingUrl || tacticsUrl ? (
+                            <div className="mt-1 flex flex-wrap gap-3">
+                              {recordingUrl && (
+                                <a
+                                  href={recordingUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(event) => event.stopPropagation()}
+                                  className="inline-flex items-center gap-1 text-sm text-christmas-gold underline-offset-4 hover:text-christmas-snow hover:underline"
+                                  title={recordingUrl}
+                                >
+                                  Запись
+                                  <span className="text-[11px] text-muted-foreground">{getLinkHostLabel(recordingUrl)}</span>
+                                </a>
+                              )}
+                              {tacticsUrl && (
+                                <a
+                                  href={tacticsUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(event) => event.stopPropagation()}
+                                  className="inline-flex items-center gap-1 text-sm text-cyan-200 underline-offset-4 hover:text-christmas-snow hover:underline"
+                                  title={tacticsUrl}
+                                >
+                                  Тактика
+                                  <span className="text-[11px] text-muted-foreground">{getLinkHostLabel(tacticsUrl)}</span>
+                                </a>
+                              )}
+                            </div>
                           ) : (
                             <p className="mt-2 text-sm font-medium text-muted-foreground">Ссылка не указана</p>
                           )}
@@ -555,82 +632,88 @@ export function EventsExplorer({
                       </div>
 
                       <ScrollArea className="rounded-lg border border-border/50 bg-background/30">
-                        <Table className="min-w-[920px]">
-                          <TableHeader>
-                            <TableRow className="border-border/60">
-                              <TableHead>#</TableHead>
-                              <TableHead>Игрок</TableHead>
-                              <TableHead>Роль</TableHead>
-                              <TableHead>K</TableHead>
-                              <TableHead>Dn</TableHead>
-                              <TableHead>D</TableHead>
-                              <TableHead>Rev</TableHead>
-                              <TableHead>K/D</TableHead>
-                              <TableHead>Импакт</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {game.players.map((player) => {
-                              const isHighlighted =
-                                focusTarget?.eventId === game.event_id && focusTarget.playerId === player.player_id
-                              const impactWidth = Math.max(0, Math.min(100, player.impactShare))
+                        {game.players.length === 0 ? (
+                          <div className="p-4 text-sm text-muted-foreground">
+                            Для этого события есть карточка матча, но нет развернутого протокола игроков в `playersevents`.
+                          </div>
+                        ) : (
+                          <Table className="min-w-[920px]">
+                            <TableHeader>
+                              <TableRow className="border-border/60">
+                                <TableHead>#</TableHead>
+                                <TableHead>Игрок</TableHead>
+                                <TableHead>Роль</TableHead>
+                                <TableHead>K</TableHead>
+                                <TableHead>Dn</TableHead>
+                                <TableHead>D</TableHead>
+                                <TableHead>Rev</TableHead>
+                                <TableHead>K/D</TableHead>
+                                <TableHead>Импакт</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {game.players.map((player) => {
+                                const isHighlighted =
+                                  focusTarget?.eventId === game.event_id && focusTarget.playerId === player.player_id
+                                const impactWidth = Math.max(0, Math.min(100, player.impactShare))
 
-                              return (
-                                <TableRow
-                                  key={`${game.event_id}-${player.player_id}`}
-                                  className={isHighlighted ? "bg-christmas-gold/10 hover:bg-christmas-gold/15" : ""}
-                                >
-                                  <TableCell className="font-mono text-christmas-gold">#{player.rank}</TableCell>
-                                  <TableCell className="max-w-[220px]">
-                                    <div className="flex items-center gap-3">
-                                      <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
-                                      <div className="min-w-0">
-                                        <p className="truncate font-medium text-christmas-snow">{player.nickname}</p>
-                                        <p className="truncate text-[11px] text-muted-foreground">{player.tag}</p>
-                                      </div>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="max-w-[220px]">
-                                    <div className="space-y-1">
-                                      <p className="truncate text-sm text-christmas-snow">{player.role || "Без роли"}</p>
-                                      {player.squads.length > 0 && (
-                                        <div className="flex flex-wrap gap-1">
-                                          {player.squad_labels.map((label) => {
-                                            const tone = getSquadToneClasses(label)
-                                            return (
-                                              <Badge key={`${player.player_id}-${label}`} variant="outline" className={tone.badge}>
-                                                {label}
-                                              </Badge>
-                                            )
-                                          })}
+                                return (
+                                  <TableRow
+                                    key={`${game.event_id}-${player.player_id}`}
+                                    className={isHighlighted ? "bg-christmas-gold/10 hover:bg-christmas-gold/15" : ""}
+                                  >
+                                    <TableCell className="font-mono text-christmas-gold">#{player.rank}</TableCell>
+                                    <TableCell className="max-w-[220px]">
+                                      <div className="flex items-center gap-3">
+                                        <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
+                                        <div className="min-w-0">
+                                          <p className="truncate font-medium text-christmas-snow">{player.nickname}</p>
+                                          <p className="truncate text-[11px] text-muted-foreground">{player.tag}</p>
                                         </div>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-christmas-snow">{player.kills}</TableCell>
-                                  <TableCell className="text-orange-300">{player.downs}</TableCell>
-                                  <TableCell className="text-christmas-red">{player.deaths}</TableCell>
-                                  <TableCell className="text-blue-300">{player.revives}</TableCell>
-                                  <TableCell className="text-christmas-snow">{player.kd.toFixed(2)}</TableCell>
-                                  <TableCell className="w-[180px]">
-                                    <div className="space-y-1.5">
-                                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                                        <span>{player.impactScore}</span>
-                                        <span>{Math.round(player.impactShare)}%</span>
                                       </div>
-                                      <div className="h-1.5 overflow-hidden rounded-full bg-background/70">
-                                        <div
-                                          className="h-full rounded-full bg-gradient-to-r from-christmas-red via-christmas-gold to-christmas-green"
-                                          style={{ width: `${impactWidth}%` }}
-                                        />
+                                    </TableCell>
+                                    <TableCell className="max-w-[220px]">
+                                      <div className="space-y-1">
+                                        <p className="truncate text-sm text-christmas-snow">{player.role || "Без роли"}</p>
+                                        {player.squads.length > 0 && (
+                                          <div className="flex flex-wrap gap-1">
+                                            {player.squad_labels.map((label) => {
+                                              const tone = getSquadToneClasses(label)
+                                              return (
+                                                <Badge key={`${player.player_id}-${label}`} variant="outline" className={tone.badge}>
+                                                  {label}
+                                                </Badge>
+                                              )
+                                            })}
+                                          </div>
+                                        )}
                                       </div>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              )
-                            })}
-                          </TableBody>
-                        </Table>
+                                    </TableCell>
+                                    <TableCell className="text-christmas-snow">{player.kills}</TableCell>
+                                    <TableCell className="text-orange-300">{player.downs}</TableCell>
+                                    <TableCell className="text-christmas-red">{player.deaths}</TableCell>
+                                    <TableCell className="text-blue-300">{player.revives}</TableCell>
+                                    <TableCell className="text-christmas-snow">{player.kd.toFixed(2)}</TableCell>
+                                    <TableCell className="w-[180px]">
+                                      <div className="space-y-1.5">
+                                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                          <span>{player.impactScore}</span>
+                                          <span>{Math.round(player.impactShare)}%</span>
+                                        </div>
+                                        <div className="h-1.5 overflow-hidden rounded-full bg-background/70">
+                                          <div
+                                            className="h-full rounded-full bg-gradient-to-r from-christmas-red via-christmas-gold to-christmas-green"
+                                            style={{ width: `${impactWidth}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                )
+                              })}
+                            </TableBody>
+                          </Table>
+                        )}
                       </ScrollArea>
 
                       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">

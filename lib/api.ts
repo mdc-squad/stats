@@ -331,8 +331,12 @@ function getEventCoverageKey(eventId: string): string {
     .map((part) => part.trim())
     .filter(Boolean)
 
+  if (parts.length >= 4) {
+    return normalizeKey(parts.slice(1, 4).join(" | "))
+  }
+
   if (parts.length >= 3) {
-    return normalizeKey(parts.slice(0, 3).join(" | "))
+    return normalizeKey(parts.slice(1, 3).join(" | "))
   }
 
   return normalizeKey(eventId)
@@ -437,6 +441,7 @@ function buildFallbackEventsFromPlayerStats(playerStats: PlayerEventStat[]): Gam
           ally_players: null,
           opponent: factions.opponent,
           cast_url: null,
+          tactics_url: null,
         },
         uniquePlayers: new Set<string>(),
       }
@@ -482,28 +487,24 @@ function extractDateFromVerboseString(dateString: string): string | null {
 }
 
 function extractLink(value: unknown): string | null {
-  const direct = toNullableString(value)
-  if (direct) {
-    return direct
-  }
-
   const record = toRecord(value)
-  if (!record) {
-    return null
+  if (record) {
+    return toNullableString(record.link ?? record.url ?? record.href)
   }
 
-  return toNullableString(record.link ?? record.url ?? record.href ?? record.text)
+  return toNullableString(value)
 }
 
 function normalizeStartedAt(raw: UnknownRecord, eventId: string): string {
   const existing = toNullableString(raw.started_at ?? raw.startedAt)
   if (existing) {
     if (/^\d{4}-\d{2}-\d{2}/.test(existing)) {
-      return existing.includes("T") ? existing : `${existing}T00:00:00`
+      const normalized = existing.includes("T") ? existing : `${existing}T00:00:00`
+      return extractDateFromEventId(eventId) ?? normalized
     }
     const fromVerbose = extractDateFromVerboseString(existing)
     if (fromVerbose) {
-      return fromVerbose
+      return extractDateFromEventId(eventId) ?? fromVerbose
     }
     const fromEventId = extractDateFromEventId(eventId)
     if (fromEventId) {
@@ -514,11 +515,12 @@ function normalizeStartedAt(raw: UnknownRecord, eventId: string): string {
   const dateField = toNullableString(raw.date)
   if (dateField) {
     if (/^\d{4}-\d{2}-\d{2}/.test(dateField)) {
-      return dateField.includes("T") ? dateField : `${dateField}T00:00:00`
+      const normalized = dateField.includes("T") ? dateField : `${dateField}T00:00:00`
+      return extractDateFromEventId(eventId) ?? normalized
     }
     const fromVerbose = extractDateFromVerboseString(dateField)
     if (fromVerbose) {
-      return fromVerbose
+      return extractDateFromEventId(eventId) ?? fromVerbose
     }
   }
 
@@ -562,6 +564,7 @@ function normalizeEvent(raw: UnknownRecord): GameEvent {
     ally_players: toNumber(raw.ally_players, 0) || null,
     opponent: toNullableString(raw.opponent),
     cast_url: extractLink(raw.cast_url),
+    tactics_url: extractLink(raw.tactics_url),
   }
 }
 

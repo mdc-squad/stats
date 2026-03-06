@@ -36,6 +36,7 @@ export interface GameEvent {
   ally_players: number | null
   opponent: string | null
   cast_url: string | null
+  tactics_url: string | null
 }
 
 export interface PlayerEventStat {
@@ -168,6 +169,27 @@ function normalizeEventId(value: string | null | undefined): string {
     .toLowerCase()
 }
 
+function getEventLinkKey(value: string | null | undefined): string {
+  if (!value) {
+    return ""
+  }
+
+  const parts = value
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  if (parts.length >= 4) {
+    return normalizeEventId(parts.slice(1, 4).join(" | "))
+  }
+
+  if (parts.length >= 3) {
+    return normalizeEventId(parts.slice(1, 3).join(" | "))
+  }
+
+  return normalizeEventId(value)
+}
+
 function getEventCoverageKey(value: string | null | undefined): string {
   if (!value) {
     return ""
@@ -180,7 +202,7 @@ function getEventCoverageKey(value: string | null | undefined): string {
 
   // Ignore side order (A vs B / B vs A) for coverage checks.
   if (parts.length >= 3) {
-    return normalizeEventId(parts.slice(0, 3).join(" | "))
+    return normalizeEventId(parts.slice(1, 3).join(" | "))
   }
 
   return normalizeEventId(value)
@@ -211,6 +233,39 @@ function extractEventIdPart(value: string | null | undefined, index: number): st
     .filter(Boolean)
 
   return parts[index] ?? null
+}
+
+function sanitizeOpponentValue(value: string | null | undefined): string | null {
+  if (!value) {
+    return null
+  }
+
+  const normalized = value.trim()
+  if (!normalized) {
+    return null
+  }
+
+  if (/\d{2}\.\d{2}\.\d{4}/.test(normalized)) {
+    return null
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(normalized)) {
+    return null
+  }
+
+  if (/\b(?:mon|tue|wed|thu|fri|sat|sun)\b/i.test(normalized)) {
+    return null
+  }
+
+  if (/\bgmt\b/i.test(normalized)) {
+    return null
+  }
+
+  if (/\bvs\b/i.test(normalized)) {
+    return null
+  }
+
+  return normalized
 }
 
 function deriveMapFromEventId(value: string | null | undefined): string {
@@ -413,8 +468,8 @@ export function filterDataByTags(data: MDCData, selectedTags: string[]): MDCData
 
   const filteredPlayerEventStats = playerEventStats.filter((stat) => stat && playerIds.has(stat.player_id))
 
-  const filteredEventKeys = new Set(filteredPlayerEventStats.map((s) => normalizeEventId(s.event_id)))
-  const eventsLinkedToSelectedPlayers = events.filter((event) => filteredEventKeys.has(normalizeEventId(event.event_id)))
+  const filteredEventKeys = new Set(filteredPlayerEventStats.map((s) => getEventLinkKey(s.event_id)))
+  const eventsLinkedToSelectedPlayers = events.filter((event) => filteredEventKeys.has(getEventLinkKey(event.event_id)))
 
   // API can provide events and player_event_stats with non-overlapping windows.
   // In that case keep all events, otherwise event-based charts become empty.
@@ -852,7 +907,7 @@ export function getWeeklyActivity(
 
 export function getSLStats(playerStats: PlayerEventStat[], events: GameEvent[], players: Player[]): SLStats[] {
   const slData: Record<string, { kills: number; deaths: number; games: number; wins: number }> = {}
-  const eventLookup = new Map(events.map((event) => [normalizeEventId(event.event_id), event]))
+  const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
 
   playerStats.forEach((stat) => {
     if (stat.role !== "SL") return
@@ -865,7 +920,7 @@ export function getSLStats(playerStats: PlayerEventStat[], events: GameEvent[], 
     slData[stat.player_id].deaths += stat.deaths
     slData[stat.player_id].games++
 
-    const event = eventLookup.get(normalizeEventId(stat.event_id))
+    const event = eventLookup.get(getEventLinkKey(stat.event_id))
     if (event?.is_win) slData[stat.player_id].wins++
   })
 
@@ -972,7 +1027,11 @@ export interface PastGameSummary {
   opponent: string | null
   result: string | null
   is_win: boolean | null
+  tickets_1: number | null
+  tickets_2: number | null
+  score: number | null
   cast_url: string | null
+  tactics_url: string | null
   participants: number
   mdc_players: number
   ally_players: number | null
@@ -1056,7 +1115,7 @@ function aggregatePlayerEventStats(playerStats: PlayerEventStat[]): AggregatedPl
   >()
 
   playerStats.forEach((stat) => {
-    const normalizedEventId = normalizeEventId(stat.event_id)
+    const normalizedEventId = getEventLinkKey(stat.event_id)
     if (!normalizedEventId || !stat.player_id) return
 
     const key = `${normalizedEventId}::${stat.player_id}`
@@ -1138,7 +1197,7 @@ export function getPastGames(
   players: Player[],
   squadDomain: string[] = [],
 ): PastGameSummary[] {
-  const eventLookup = new Map(events.map((event) => [normalizeEventId(event.event_id), event]))
+  const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
   const playerLookup = new Map(players.map((player) => [player.player_id, player]))
   const aggregatedStats = aggregatePlayerEventStats(playerStats)
   const statsByEvent = new Map<string, AggregatedPlayerEventStat[]>()
@@ -1151,7 +1210,7 @@ export function getPastGames(
   })
 
   const eventKeys = Array.from(
-    new Set([...events.map((event) => normalizeEventId(event.event_id)), ...statsByEvent.keys()]),
+    new Set([...events.map((event) => getEventLinkKey(event.event_id)), ...statsByEvent.keys()]),
   ).filter(Boolean)
 
   return eventKeys
@@ -1162,7 +1221,7 @@ export function getPastGames(
       const startedAt = event?.started_at || extractDateFromEventId(fallbackEventId) || ""
       const eventType = event?.event_type || extractEventIdPart(fallbackEventId, 0) || "Событие"
       const map = event?.map || deriveMapFromEventId(fallbackEventId)
-      const opponent = event?.opponent || extractEventIdPart(fallbackEventId, 1)
+      const opponent = sanitizeOpponentValue(event?.opponent)
       const fallbackVersus = extractEventIdPart(fallbackEventId, 3)
       const fallbackFactionParts = (fallbackVersus ?? "")
         .split(/\s+vs\s+/i)
@@ -1211,7 +1270,11 @@ export function getPastGames(
         opponent,
         result: event?.result ?? null,
         is_win: event?.is_win ?? null,
+        tickets_1: event?.tickets_1 ?? null,
+        tickets_2: event?.tickets_2 ?? null,
+        score: event?.score ?? null,
         cast_url: event?.cast_url ?? null,
+        tactics_url: event?.tactics_url ?? null,
         participants: rankedPlayers.length,
         mdc_players: event?.mdc_players ?? rankedPlayers.length,
         ally_players: event?.ally_players ?? null,
@@ -1301,7 +1364,7 @@ export function getPlayerGameHistory(
 }
 
 export function getPlayerProgress(playerId: string, playerStats: PlayerEventStat[], events: GameEvent[]) {
-  const eventLookup = new Map(events.map((event) => [normalizeEventId(event.event_id), event]))
+  const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
 
   const stats = aggregatePlayerEventStats(playerStats)
     .filter((stat) => stat.player_id === playerId)
@@ -1332,7 +1395,7 @@ export function getPlayerProgress(playerId: string, playerStats: PlayerEventStat
 }
 
 export function getBestMatches(playerStats: PlayerEventStat[], events: GameEvent[], limit = 10) {
-  const eventLookup = new Map(events.map((event) => [normalizeEventId(event.event_id), event]))
+  const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
 
   return aggregatePlayerEventStats(playerStats)
     .filter((stat) => stat.deaths > 0 || stat.kills > 0)
@@ -1368,10 +1431,10 @@ export function getWeeklyParticipation(
   playerStats: PlayerEventStat[],
 ): { week: string; participants: number; uniqueParticipants: number }[] {
   const weekData: Record<string, Set<string>> = {}
-  const eventLookup = new Map(events.map((event) => [normalizeEventId(event.event_id), event]))
+  const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
 
   playerStats.forEach((stat) => {
-    const event = eventLookup.get(normalizeEventId(stat.event_id))
+    const event = eventLookup.get(getEventLinkKey(stat.event_id))
     const eventDate = event?.started_at || extractDateFromEventId(stat.event_id)
     if (!eventDate) return
 
