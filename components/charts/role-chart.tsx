@@ -6,11 +6,6 @@ import { Users } from "lucide-react"
 
 interface RoleChartProps {
   data: { role: string; count: number }[]
-  coverageSummary?: {
-    coveredEvents: number
-    totalEvents: number
-    coveredEventRate: number
-  }
 }
 
 const COLORS = [
@@ -47,11 +42,8 @@ const CustomTooltip = ({ active, payload, totalCount }: any) => {
   return null
 }
 
-export function RoleChart({ data, coverageSummary }: RoleChartProps) {
+export function RoleChart({ data }: RoleChartProps) {
   const totalCount = data.reduce((sum, item) => sum + item.count, 0)
-  const coverageText = coverageSummary
-    ? `Данные ролей есть в ${coverageSummary.coveredEvents}/${coverageSummary.totalEvents} событий (${(coverageSummary.coveredEventRate * 100).toFixed(1)}%)`
-    : "Источник: API playersevents"
 
   return (
     <Card className="border-christmas-gold/20">
@@ -60,7 +52,6 @@ export function RoleChart({ data, coverageSummary }: RoleChartProps) {
           <Users className="w-4 h-4" />
           Распределение ролей
         </CardTitle>
-        <p className="text-xs text-muted-foreground">{coverageText}</p>
       </CardHeader>
       <CardContent>
         <div className="h-[280px]">

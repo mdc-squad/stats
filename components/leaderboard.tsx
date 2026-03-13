@@ -87,7 +87,8 @@ export function Leaderboard({
         <CardContent className="space-y-2">
           {players.map((player, index) => {
             const value = player.totals[stat] as number
-            const strengths = getPlayerStrengths(player, thresholds)
+            const strengths =
+              index < 3 && player.totals.events >= 10 ? getPlayerStrengths(player, thresholds).slice(0, 2) : []
 
             return (
               <div

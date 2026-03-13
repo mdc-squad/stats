@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PlayerAvatar } from "@/components/player-avatar"
-import type { PlayerEventStat } from "@/lib/data-utils"
+import type { MatchRecordMetric, PlayerEventStat } from "@/lib/data-utils"
 import { Download, Star, Trophy } from "lucide-react"
 import { toPng } from "html-to-image"
 
@@ -19,9 +19,32 @@ interface BestMatch extends PlayerEventStat {
 interface BestMatchesProps {
   matches: BestMatch[]
   players: { player_id: string; steam_id: string }[]
+  title?: string
+  metric?: MatchRecordMetric
 }
 
-export function BestMatches({ matches, players }: BestMatchesProps) {
+function getMetricValue(match: BestMatch, metric: MatchRecordMetric): string {
+  if (metric === "kd") {
+    return match.kd.toFixed(2)
+  }
+
+  return match[metric].toLocaleString("ru-RU")
+}
+
+function getMetricLabel(metric: MatchRecordMetric): string {
+  if (metric === "kd") return "K/D"
+  if (metric === "kills") return "Убийства"
+  if (metric === "downs") return "Ноки"
+  if (metric === "revives") return "Хил"
+  return "Техника"
+}
+
+export function BestMatches({
+  matches,
+  players,
+  title = "Рекорды по K/D",
+  metric = "kd",
+}: BestMatchesProps) {
   const cardRef = useRef<HTMLDivElement>(null)
 
   const handleExport = async () => {
@@ -59,7 +82,7 @@ export function BestMatches({ matches, players }: BestMatchesProps) {
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
             <Star className="w-4 h-4" />
-            Лучшие матчи по K/D
+            {title}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -84,10 +107,10 @@ export function BestMatches({ matches, players }: BestMatchesProps) {
               </div>
               <div className="text-right">
                 <Badge variant="outline" className="font-mono text-christmas-gold border-christmas-gold/30">
-                  {match.kd.toFixed(2)}
+                  {getMetricLabel(metric)}: {getMetricValue(match, metric)}
                 </Badge>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {match.kills}K / {match.deaths}D
+                  {match.kills}K / {match.deaths}D / {match.downs}Н
                 </p>
               </div>
             </div>

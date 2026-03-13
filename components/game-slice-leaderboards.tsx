@@ -256,7 +256,8 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
         }
       }
 
-      if (!game.opponent) {
+      const opponent = game.opponent
+      if (!opponent) {
         return
       }
 
@@ -265,13 +266,13 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
           return
         }
 
-        const playerKey = `${player.player_id}::${game.opponent}`
+        const playerKey = `${player.player_id}::${opponent}`
         if (!playerOpponentMap.has(playerKey)) {
           playerOpponentMap.set(playerKey, {
             player_id: player.player_id,
             nickname: player.nickname,
             steam_id: player.steam_id,
-            opponent: game.opponent,
+            opponent,
             matches: 0,
             resolvedMatches: 0,
             wins: 0,

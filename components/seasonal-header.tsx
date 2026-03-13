@@ -38,7 +38,6 @@ export function SeasonalHeader({ playersCount, eventsCount, theme }: SeasonalHea
             <div className="min-w-0">
               <h1 className="text-2xl font-bold text-christmas-snow leading-tight">MDC CLAN</h1>
               <p className="text-sm text-christmas-gold font-medium truncate">{theme.subtitle}</p>
-              <p className="text-[11px] text-muted-foreground truncate">{theme.contextLabel}</p>
             </div>
           </div>
 
@@ -54,20 +53,6 @@ export function SeasonalHeader({ playersCount, eventsCount, theme }: SeasonalHea
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="flex justify-center gap-4 pb-2">
-        {Array.from({ length: 12 }).map((_, i) => (
-          <div
-            key={i}
-            className="w-2 h-2 rounded-full christmas-light"
-            style={{
-              backgroundColor:
-                i % 3 === 0 ? "var(--christmas-red)" : i % 3 === 1 ? "var(--christmas-green)" : "var(--christmas-gold)",
-              animationDelay: `${i * 0.15}s`,
-            }}
-          />
-        ))}
       </div>
     </header>
   )

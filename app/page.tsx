@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Leaderboard } from "@/components/leaderboard"
 import { AvgStatLeaderboard } from "@/components/avg-stat-leaderboard"
 import { MapChart } from "@/components/charts/map-chart"
@@ -35,7 +36,6 @@ import {
   getEventTypeStats,
   getOverallStats,
   getRoleStats,
-  getRoleDataCoverage,
   getMonthlyActivity,
   getDailyActivity,
   getWeeklyParticipation,
@@ -44,10 +44,10 @@ import {
   getPastGames,
   getPlayerGameHistory,
   getPlayerProgress,
-  getBestMatches,
   getUniqueTags,
   getUniqueRoles,
   filterDataByTags,
+  filterDataByDateRange,
   getTopByWinRate,
   getTopByVehicle,
   getTopByKDA,
@@ -56,6 +56,8 @@ import {
   getMaxKDByRole,
   getAverageValues,
   calculateRelativeThresholds,
+  getTopMatchRecords,
+  type RoleLeaderboardMetric,
 } from "@/lib/data-utils"
 import { fetchAllData, type SyncProgressUpdate } from "@/lib/api"
 import { getSeasonalTheme, type SeasonalTheme } from "@/lib/seasonal-theme"
@@ -154,6 +156,46 @@ type SyncReport = {
 }
 
 type ThemeVariableStyle = React.CSSProperties & Record<`--${string}`, string>
+
+type StatsPeriod = "all" | "30d" | "90d" | "180d" | "365d"
+
+const STATS_PERIOD_OPTIONS: Array<{ value: StatsPeriod; label: string; summary: string }> = [
+  { value: "all", label: "За всё время", summary: "Срез: за всё время" },
+  { value: "30d", label: "30 дней", summary: "Срез: последние 30 дней" },
+  { value: "90d", label: "90 дней", summary: "Срез: последние 90 дней" },
+  { value: "180d", label: "180 дней", summary: "Срез: последние 180 дней" },
+  { value: "365d", label: "365 дней", summary: "Срез: последние 365 дней" },
+]
+
+const ROLE_METRIC_OPTIONS: Array<{ value: RoleLeaderboardMetric; label: string }> = [
+  { value: "kd", label: "K/D" },
+  { value: "kda", label: "KDA" },
+  { value: "kills", label: "Убийства" },
+  { value: "downs", label: "Ноки" },
+  { value: "revives", label: "Хил" },
+  { value: "vehicle", label: "Техника" },
+]
+
+function buildDateRangeForPeriod(period: StatsPeriod): { from?: Date; to?: Date } {
+  if (period === "all") {
+    return {}
+  }
+
+  const days = Number(period.replace("d", ""))
+  const to = new Date()
+  to.setHours(23, 59, 59, 999)
+
+  const from = new Date(to)
+  from.setDate(from.getDate() - (days - 1))
+  from.setHours(0, 0, 0, 0)
+
+  return { from, to }
+}
+
+function isLectureEventType(value: string): boolean {
+  const normalized = value.toLowerCase()
+  return normalized.includes("лекц") || normalized.includes("lecture")
+}
 
 function normalizeTextKey(value: string): string {
   return value
@@ -375,6 +417,8 @@ export default function YearReviewPage() {
   const [rawData, setRawData] = useState<MDCData | null>(null)
   const [seasonalTheme, setSeasonalTheme] = useState<SeasonalTheme>(() => getSeasonalTheme())
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [selectedPeriod, setSelectedPeriod] = useState<StatsPeriod>("all")
+  const [selectedRoleMetric, setSelectedRoleMetric] = useState<RoleLeaderboardMetric>("kd")
   const [activeTab, setActiveTab] = useState("leaderboards")
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
   const [selectedPlayersForChart, setSelectedPlayersForChart] = useState<string[]>([])
@@ -681,10 +725,32 @@ export default function YearReviewPage() {
     }
   }, [availableTags, selectedTags.length])
 
-  const data = useMemo(() => {
+  const tagFilteredData = useMemo(() => {
     if (!rawData) return null
     return filterDataByTags(rawData, selectedTags)
   }, [rawData, selectedTags])
+
+  const selectedPeriodOption = useMemo(
+    () => STATS_PERIOD_OPTIONS.find((option) => option.value === selectedPeriod) ?? STATS_PERIOD_OPTIONS[0],
+    [selectedPeriod],
+  )
+
+  const periodRange = useMemo(() => buildDateRangeForPeriod(selectedPeriod), [selectedPeriod])
+
+  const data = useMemo(() => {
+    if (!tagFilteredData) return null
+    return filterDataByDateRange(tagFilteredData, periodRange)
+  }, [periodRange, tagFilteredData])
+
+  useEffect(() => {
+    if (!data) {
+      return
+    }
+
+    const availablePlayerIds = new Set(data.players.map((player) => player.player_id))
+    setSelectedPlayers((current) => current.filter((playerId) => availablePlayerIds.has(playerId)))
+    setSelectedPlayersForChart((current) => current.filter((playerId) => availablePlayerIds.has(playerId)))
+  }, [data])
 
   const uniqueRoles = useMemo(() => {
     if (!data) return []
@@ -700,10 +766,6 @@ export default function YearReviewPage() {
     [data],
   )
   const roleStats = useMemo(() => (data ? getRoleStats(data.player_event_stats, data.dictionaries?.roles ?? []) : []), [data])
-  const roleDataCoverage = useMemo(
-    () => (data ? getRoleDataCoverage(data.events, data.player_event_stats) : null),
-    [data],
-  )
   const monthlyActivity = useMemo(() => (data ? getMonthlyActivity(data.events) : []), [data])
 
   // New detailed stats
@@ -713,7 +775,25 @@ export default function YearReviewPage() {
     [data],
   )
   const slStats = useMemo(() => (data ? getSLStats(data.player_event_stats, data.events, data.players) : []), [data])
-  const bestMatches = useMemo(() => (data ? getBestMatches(data.player_event_stats, data.events, 10) : []), [data])
+  const recordMatchesByMetric = useMemo(
+    () =>
+      data
+        ? {
+            kd: getTopMatchRecords(data.player_event_stats, data.events, "kd", 10),
+            kills: getTopMatchRecords(data.player_event_stats, data.events, "kills", 10),
+            downs: getTopMatchRecords(data.player_event_stats, data.events, "downs", 10),
+            revives: getTopMatchRecords(data.player_event_stats, data.events, "revives", 10),
+            vehicle: getTopMatchRecords(data.player_event_stats, data.events, "vehicle", 10),
+          }
+        : {
+            kd: [],
+            kills: [],
+            downs: [],
+            revives: [],
+            vehicle: [],
+          },
+    [data],
+  )
   const pastGames = useMemo(() => {
     if (!data) return []
     const protocolEvents = rawData?.events ?? data.events
@@ -722,11 +802,20 @@ export default function YearReviewPage() {
 
   const roleLeaderboards = useMemo(() => {
     if (!data) return []
-    return uniqueRoles.map((role) => ({
-      role,
-      players: getTopByRole(data.player_event_stats, data.players, role, 10, data.dictionaries?.roles ?? []),
-    }))
-  }, [data, uniqueRoles])
+    return uniqueRoles
+      .filter((role) => role.trim().replace(/\s+/g, " ").toLowerCase() !== "без кита")
+      .map((role) => ({
+        role,
+        players: getTopByRole(
+          data.player_event_stats,
+          data.players,
+          role,
+          10,
+          data.dictionaries?.roles ?? [],
+          selectedRoleMetric,
+        ),
+      }))
+  }, [data, selectedRoleMetric, uniqueRoles])
 
   const maxRoleKD = useMemo(() => {
     if (!data) return {}
@@ -934,16 +1023,13 @@ export default function YearReviewPage() {
       <div className="fixed inset-0 z-0" style={{ background: seasonalTheme.overlayGradient }} />
 
       {seasonalTheme.showSnowfall && <Snowfall />}
-      <SeasonalHeader playersCount={data.meta.counts.players} eventsCount={data.meta.counts.events} theme={seasonalTheme} />
+      <SeasonalHeader playersCount={data.players.length} eventsCount={data.events.length} theme={seasonalTheme} />
 
       <main className="container mx-auto px-4 py-6 space-y-6 relative z-10">
         <section className="space-y-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">{cacheInfoText}</p>
-              <p className="text-[11px] text-muted-foreground">
-                Текущая авто-тема: {seasonalTheme.subtitle} ({seasonalTheme.seasonLabel}).
-              </p>
               <p className="text-[11px] text-muted-foreground">
                 Обновлять статистику имеет смысл после завершенной игры, когда данные уже добавлены в таблицу.
               </p>
@@ -1059,7 +1145,30 @@ export default function YearReviewPage() {
           )}
         </section>
 
-        <OverallStatsPanel stats={overallStats} />
+        <Card className="border-christmas-gold/20 bg-card/60">
+          <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-christmas-snow">Период среза</p>
+              <p className="text-xs text-muted-foreground">{selectedPeriodOption.summary}</p>
+            </div>
+            <div className="w-full sm:w-[220px]">
+              <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as StatsPeriod)}>
+                <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
+                  <SelectValue placeholder="Период" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATS_PERIOD_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        <OverallStatsPanel stats={overallStats} periodLabel={selectedPeriodOption.summary} />
 
         {/* Event Types Summary */}
         <section>
@@ -1070,9 +1179,11 @@ export default function YearReviewPage() {
                 <CardContent className="p-4 text-center">
                   <p className="text-2xl mb-1">{et.type}</p>
                   <p className="text-xl font-bold text-christmas-snow">{et.count}</p>
-                  <p className="text-xs text-christmas-gold">
-                    {et.wins} побед ({et.resolved > 0 ? `${((et.wins / et.resolved) * 100).toFixed(0)}%` : "н/д"})
-                  </p>
+                  {!isLectureEventType(et.type) && (
+                    <p className="text-xs text-christmas-gold">
+                      {et.wins} побед ({et.resolved > 0 ? `${((et.wins / et.resolved) * 100).toFixed(0)}%` : "н/д"})
+                    </p>
+                  )}
                   <p className="text-[10px] text-muted-foreground mt-1">
                     результатов: {et.resolved}/{et.count}
                   </p>
@@ -1083,7 +1194,11 @@ export default function YearReviewPage() {
         </section>
 
         {/* Daily Activity Chart - Full Width */}
-        <DailyActivityChart data={dailyActivity} />
+        <DailyActivityChart
+          wins={overallStats.wins}
+          losses={overallStats.losses}
+          periodLabel={selectedPeriodOption.summary}
+        />
 
         {/* Charts Section */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
@@ -1092,24 +1207,9 @@ export default function YearReviewPage() {
           <WinrateProgressChart data={dailyActivity} />
         </section>
 
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           <MapChart data={mapStats} />
-          <RoleChart
-            data={roleStats}
-            coverageSummary={
-              roleDataCoverage
-                ? {
-                    coveredEvents: roleDataCoverage.coveredEvents,
-                    totalEvents: roleDataCoverage.totalEvents,
-                    coveredEventRate: roleDataCoverage.coveredEventRate,
-                  }
-                : undefined
-            }
-          />
-          <BestMatches
-            matches={bestMatches}
-            players={(Array.isArray(data.players) ? data.players : []).map((p) => ({ player_id: p.player_id, steam_id: p.steam_id }))}
-          />
+          <RoleChart data={roleStats} />
         </section>
 
         {/* Tabs for different views - Removed export tab */}
@@ -1132,6 +1232,12 @@ export default function YearReviewPage() {
               className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-christmas-gold/30 bg-christmas-gold/10 text-christmas-snow data-[state=active]:bg-christmas-gold data-[state=active]:border-christmas-gold data-[state=active]:text-black hover:bg-christmas-gold/20 transition-all"
             >
               Squad Leaders
+            </TabsTrigger>
+            <TabsTrigger
+              value="records"
+              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-rose-500/30 bg-rose-500/10 text-christmas-snow data-[state=active]:bg-rose-500 data-[state=active]:border-rose-500 data-[state=active]:text-white hover:bg-rose-500/20 transition-all"
+            >
+              Рекорды
             </TabsTrigger>
             <TabsTrigger
               value="progress"
@@ -1254,41 +1360,40 @@ export default function YearReviewPage() {
 
           {/* Roles Tab */}
           <TabsContent value="roles" className="space-y-4">
-            <p className="text-sm text-muted-foreground bg-card/50 p-3 rounded-lg border border-christmas-gold/20">
-              Показаны игроки с лучшим K/D в каждой роли (минимум 3 записи в роли). K/D и KDA считаются только по
-              записям `playersevents` с указанной ролью.
-            </p>
-            {roleDataCoverage && roleDataCoverage.totalEvents > 0 && (
-              <div
-                className={`text-xs p-3 rounded-lg border ${
-                  roleDataCoverage.coveredEventRate < 0.5
-                    ? "text-amber-200 bg-amber-500/10 border-amber-500/40"
-                    : "text-muted-foreground bg-card/30 border-border"
-                }`}
-              >
-                <p>
-                  Покрытие ролей: в {roleDataCoverage.coveredEvents}/{roleDataCoverage.totalEvents} событий есть хотя бы
-                  одна запись роли ({(roleDataCoverage.coveredEventRate * 100).toFixed(1)}%).
-                </p>
-                <p>
-                  Всего role-записей: {roleDataCoverage.totalRoleRecords.toLocaleString("ru-RU")} (строки
-                  `playersevents` с заполненной ролью).
-                </p>
-                <p>
-                  В среднем: {roleDataCoverage.averageRoleRecordsPerCoveredEvent.toFixed(1)} role-записей на событие, где
-                  есть данные по ролям.
-                </p>
-                {roleDataCoverage.extraCoveredEvents > 0 && (
-                  <p>
-                    Дополнительно найдено {roleDataCoverage.extraCoveredEvents.toLocaleString("ru-RU")} event_id из
-                    `playersevents`, которых нет в списке `/events`.
-                  </p>
-                )}
-              </div>
-            )}
+            <Card className="border-christmas-gold/20 bg-card/60">
+              <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-christmas-snow">Метрика ролей</p>
+                  <p className="text-xs text-muted-foreground">В топы попадают только игроки с 10+ играми на роли</p>
+                </div>
+                <div className="w-full sm:w-[220px]">
+                  <Select
+                    value={selectedRoleMetric}
+                    onValueChange={(value) => setSelectedRoleMetric(value as RoleLeaderboardMetric)}
+                  >
+                    <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
+                      <SelectValue placeholder="Метрика" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLE_METRIC_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {nonEmptyRoleLeaderboards.map(({ role, players }) => (
-                <RoleLeaderboard key={role} players={players} role={role} icon={getRoleIcon(role)} />
+                <RoleLeaderboard
+                  key={role}
+                  players={players}
+                  role={role}
+                  metric={selectedRoleMetric}
+                  icon={getRoleIcon(role)}
+                />
               ))}
             </div>
             {nonEmptyRoleLeaderboards.length === 0 && (
@@ -1305,6 +1410,41 @@ export default function YearReviewPage() {
               <SLLeaderboard
                 slStats={[...slStats].sort((a, b) => b.slWinRate - a.slWinRate).slice(0, 10)}
                 title="Топ SL по Win Rate"
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="records" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+              <BestMatches
+                title="Рекорды по K/D"
+                metric="kd"
+                matches={recordMatchesByMetric.kd}
+                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
+              />
+              <BestMatches
+                title="Рекорды по убийствам"
+                metric="kills"
+                matches={recordMatchesByMetric.kills}
+                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
+              />
+              <BestMatches
+                title="Рекорды по нокам"
+                metric="downs"
+                matches={recordMatchesByMetric.downs}
+                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
+              />
+              <BestMatches
+                title="Рекорды по хилу"
+                metric="revives"
+                matches={recordMatchesByMetric.revives}
+                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
+              />
+              <BestMatches
+                title="Рекорды по технике"
+                metric="vehicle"
+                matches={recordMatchesByMetric.vehicle}
+                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
               />
             </div>
           </TabsContent>

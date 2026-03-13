@@ -3,7 +3,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Trophy, Shield, Crosshair, Skull, Target, Zap, Car, TrendingUp, Cross } from "lucide-react"
-import { EVENT_TYPE_ICONS } from "@/lib/data-utils"
 
 interface OverallStatsPanelProps {
   stats: {
@@ -20,9 +19,10 @@ interface OverallStatsPanelProps {
     averageKDA: number
     activePlayers: number
   }
+  periodLabel?: string
 }
 
-export function OverallStatsPanel({ stats }: OverallStatsPanelProps) {
+export function OverallStatsPanel({ stats, periodLabel = "за всё время" }: OverallStatsPanelProps) {
   const statItems = [
     {
       label: "Всего событий",
@@ -44,7 +44,7 @@ export function OverallStatsPanel({ stats }: OverallStatsPanelProps) {
       color: "text-christmas-red",
     },
     {
-      label: "Поднятий",
+      label: "Хила",
       value: stats.totalRevives.toLocaleString(),
       icon: <Cross className="w-5 h-5" />,
       color: "text-orange-400",
@@ -69,20 +69,19 @@ export function OverallStatsPanel({ stats }: OverallStatsPanelProps) {
     },
     {
       label: "Техника",
-      value: stats.totalVehicle,
+      value: stats.totalVehicle.toLocaleString(),
       icon: <Car className="w-5 h-5" />,
       color: "text-blue-400",
     },
     {
       label: "Средний K/D",
-      value: (stats.totalKills/stats.totalDeaths).toFixed(2),
+      value: stats.averageKD.toFixed(2),
       icon: <Target className="w-5 h-5" />,
       color: "text-christmas-gold",
     },
     {
       label: "Средний KDA",
-      value: (stats.totalDowns/stats.totalDeaths).toFixed(2),
-      // stats.averageKDA.toFixed(2),
+      value: stats.averageKDA.toFixed(2),
       icon: <TrendingUp className="w-5 h-5" />,
       color: "text-purple-400",
     },
@@ -95,6 +94,7 @@ export function OverallStatsPanel({ stats }: OverallStatsPanelProps) {
           <TrendingUp className="w-5 h-5 text-christmas-gold" />
           Общая статистика клана
         </CardTitle>
+        <p className="text-xs text-muted-foreground">{periodLabel}</p>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-10 gap-3">

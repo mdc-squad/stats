@@ -136,6 +136,15 @@ export interface RoleDataCoverage {
   extraCoveredEvents: number
 }
 
+export interface DataDateRange {
+  from?: Date | null
+  to?: Date | null
+}
+
+export type RoleLeaderboardMetric = "kd" | "kda" | "kills" | "downs" | "revives" | "vehicle"
+
+export type MatchRecordMetric = "kd" | "kills" | "downs" | "revives" | "vehicle"
+
 function toDateKey(value: string | null | undefined): string {
   if (!value) {
     return "1970-01-01"
@@ -222,6 +231,10 @@ function extractDateFromEventId(value: string | null | undefined): string | null
   return `${yyyy}-${mm}-${dd}T${hh}:${min}:00`
 }
 
+function getComparableDate(value: string | null | undefined): Date | null {
+  return parseSafeDate(value) ?? parseSafeDate(extractDateFromEventId(value))
+}
+
 function extractEventIdPart(value: string | null | undefined, index: number): string | null {
   if (!value) {
     return null
@@ -295,6 +308,40 @@ function stripMapLayerSuffix(value: string): string {
   return value
     .replace(/\s+(?:AAS|RAAS|Invasion|Skirmish|Rivals|Destruction|TC|Insurgency|Seed)\b.*$/i, "")
     .trim()
+}
+
+function normalizeTypeForPlayerCounts(value: string | null | undefined): keyof Player["raw_counts_by_type"] | null {
+  const normalized = normalizeMapNameKey(value ?? "")
+
+  if (normalized.includes("турнир") || normalized.includes("tournament")) return "🏆ТУРНИР"
+  if (normalized.includes("skirmish")) return "⚔️SKIRMISH"
+  if (normalized.includes("clanmix")) return "🏹CLANMIX"
+  if (normalized.includes("ивент") || normalized.includes("event")) return "🎈ИВЕНТ"
+  if (normalized.includes("трениров") || normalized.includes("training")) return "🎯ТРЕНИРОВКА"
+  if (normalized.includes("лекц") || normalized.includes("lecture")) return "📚ЛЕКЦИЯ"
+
+  return null
+}
+
+function bumpCounter(counter: Map<string, number>, value: string | null | undefined): void {
+  const normalized = value?.trim()
+  if (!normalized) {
+    return
+  }
+
+  counter.set(normalized, (counter.get(normalized) ?? 0) + 1)
+}
+
+function pickMostFrequentValues(counter: Map<string, number>, limit = 1): string[] {
+  return Array.from(counter.entries())
+    .sort((left, right) => {
+      if (right[1] !== left[1]) {
+        return right[1] - left[1]
+      }
+      return left[0].localeCompare(right[0], "ru")
+    })
+    .slice(0, limit)
+    .map(([value]) => value)
 }
 
 function buildDomainLookup(domainValues: string[], observedValues: string[]): {
@@ -490,6 +537,232 @@ export function filterDataByTags(data: MDCData, selectedTags: string[]): MDCData
       },
     },
   }
+}
+
+export function filterDataByDateRange(data: MDCData, range: DataDateRange = {}): MDCData {
+  const events = Array.isArray(data.events) ? data.events : []
+  const playerStats = Array.isArray(data.player_event_stats) ? data.player_event_stats : []
+  const hasRange = Boolean(range.from || range.to)
+  const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
+
+  const isInRange = (date: Date | null): boolean => {
+    if (!hasRange) {
+      return true
+    }
+    if (!date) {
+      return false
+    }
+    if (range.from && date < range.from) {
+      return false
+    }
+    if (range.to && date > range.to) {
+      return false
+    }
+    return true
+  }
+
+  const filteredEvents = events.filter((event) => isInRange(getComparableDate(event.started_at || event.event_id)))
+  const filteredEventKeys = new Set(filteredEvents.map((event) => getEventLinkKey(event.event_id)).filter(Boolean))
+  const filteredPlayerStats = playerStats.filter((stat) => {
+    const eventKey = getEventLinkKey(stat.event_id)
+    if (eventKey && filteredEventKeys.has(eventKey)) {
+      return true
+    }
+    if (eventKey && eventLookup.has(eventKey)) {
+      return false
+    }
+    return isInRange(getComparableDate(stat.event_id))
+  })
+  const derivedPlayers = derivePlayersFromStats(data.players, filteredPlayerStats, filteredEvents)
+
+  return {
+    ...data,
+    events: filteredEvents,
+    player_event_stats: filteredPlayerStats,
+    players: derivedPlayers,
+    meta: {
+      ...data.meta,
+      counts: {
+        ...data.meta.counts,
+        events: filteredEvents.length,
+        players: derivedPlayers.length,
+        player_event_stats: filteredPlayerStats.length,
+      },
+    },
+  }
+}
+
+function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventStat[], events: GameEvent[]): Player[] {
+  const basePlayersById = new Map(basePlayers.map((player) => [player.player_id, player]))
+  const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
+  const aggregates = new Map<
+    string,
+    {
+      player_id: string
+      nickname: string
+      tag: string
+      latestActivityAt: string
+      kills: number
+      deaths: number
+      downs: number
+      revives: number
+      vehicle: number
+      wins: number
+      losses: number
+      eventKeys: Set<string>
+      resolvedEventKeys: Set<string>
+      roleCounts: Map<string, number>
+      specializationCounts: Map<string, number>
+      factionCounts: Map<string, number>
+      mapCounts: Map<string, number>
+      typeEventKeys: Record<keyof Player["raw_counts_by_type"], Set<string>>
+    }
+  >()
+
+  playerStats.forEach((stat) => {
+    if (!stat?.player_id) {
+      return
+    }
+
+    if (!aggregates.has(stat.player_id)) {
+      aggregates.set(stat.player_id, {
+        player_id: stat.player_id,
+        nickname: stat.nickname,
+        tag: stat.tag,
+        latestActivityAt: "",
+        kills: 0,
+        deaths: 0,
+        downs: 0,
+        revives: 0,
+        vehicle: 0,
+        wins: 0,
+        losses: 0,
+        eventKeys: new Set<string>(),
+        resolvedEventKeys: new Set<string>(),
+        roleCounts: new Map<string, number>(),
+        specializationCounts: new Map<string, number>(),
+        factionCounts: new Map<string, number>(),
+        mapCounts: new Map<string, number>(),
+        typeEventKeys: {
+          "🏆ТУРНИР": new Set<string>(),
+          "⚔️SKIRMISH": new Set<string>(),
+          "🏹CLANMIX": new Set<string>(),
+          "🎈ИВЕНТ": new Set<string>(),
+          "🎯ТРЕНИРОВКА": new Set<string>(),
+          "📚ЛЕКЦИЯ": new Set<string>(),
+        },
+      })
+    }
+
+    const current = aggregates.get(stat.player_id)
+    if (!current) {
+      return
+    }
+
+    const eventKey = getEventLinkKey(stat.event_id) || normalizeEventId(stat.event_id)
+    const event = eventLookup.get(eventKey)
+    const activityDate = event?.started_at || extractDateFromEventId(stat.event_id) || ""
+
+    current.nickname = current.nickname || stat.nickname
+    current.tag = current.tag || stat.tag
+    if (activityDate && activityDate > current.latestActivityAt) {
+      current.latestActivityAt = activityDate
+    }
+
+    current.kills += stat.kills
+    current.deaths += stat.deaths
+    current.downs += stat.downs
+    current.revives += stat.revives
+    current.vehicle += stat.vehicle
+    current.eventKeys.add(eventKey || `${stat.player_id}::${stat.event_id}`)
+
+    const canonicalMap =
+      event?.map?.trim() ||
+      (() => {
+        const fallbackMap = deriveMapFromEventId(stat.event_id)
+        return fallbackMap !== "Unknown" ? fallbackMap : ""
+      })()
+    const canonicalFaction = event?.faction_1?.trim() || ""
+    const eventTypeKey = normalizeTypeForPlayerCounts(event?.event_type || extractEventIdPart(stat.event_id, 0))
+
+    bumpCounter(current.roleCounts, stat.role)
+    bumpCounter(current.specializationCounts, stat.specialization)
+    bumpCounter(current.mapCounts, canonicalMap)
+    bumpCounter(current.factionCounts, canonicalFaction)
+
+    if (eventTypeKey) {
+      current.typeEventKeys[eventTypeKey].add(eventKey || `${stat.player_id}::${stat.event_id}`)
+    }
+
+    if (event && event.is_win !== null && !current.resolvedEventKeys.has(eventKey)) {
+      current.resolvedEventKeys.add(eventKey)
+      if (event.is_win) {
+        current.wins += 1
+      } else {
+        current.losses += 1
+      }
+    }
+  })
+
+  return Array.from(aggregates.values())
+    .map((aggregate) => {
+      const basePlayer = basePlayersById.get(aggregate.player_id)
+      const eventCount = aggregate.eventKeys.size
+      const topRoles = pickMostFrequentValues(aggregate.roleCounts, 2)
+      const topSpecialization = pickMostFrequentValues(aggregate.specializationCounts, 1)[0] ?? ""
+      const topFaction = pickMostFrequentValues(aggregate.factionCounts, 1)[0] ?? null
+      const topMap = pickMostFrequentValues(aggregate.mapCounts, 1)[0] ?? basePlayer?.favorites.map ?? "Не указана"
+      const kd = aggregate.deaths > 0 ? aggregate.kills / aggregate.deaths : aggregate.kills
+      const kda = aggregate.deaths > 0 ? aggregate.downs / aggregate.deaths : aggregate.downs
+
+      return {
+        player_id: aggregate.player_id,
+        nickname: basePlayer?.nickname || aggregate.nickname || "Unknown",
+        tag: basePlayer?.tag || aggregate.tag || "",
+        discord: basePlayer?.discord ?? "",
+        steam_id: basePlayer?.steam_id ?? "",
+        note: basePlayer?.note ?? null,
+        joined_at: basePlayer?.joined_at ?? "",
+        last_active_at: aggregate.latestActivityAt || basePlayer?.last_active_at || "",
+        tenure: basePlayer?.tenure ?? "",
+        totals: {
+          revives: aggregate.revives,
+          downs: aggregate.downs,
+          kills: aggregate.kills,
+          deaths: aggregate.deaths,
+          vehicle: aggregate.vehicle,
+          events: eventCount,
+          wins: aggregate.wins,
+          losses: aggregate.losses,
+          win_rate: eventCount > 0 ? aggregate.wins / eventCount : 0,
+          kd,
+          kda,
+        },
+        favorites: {
+          role_1: topRoles[0] ?? basePlayer?.favorites.role_1 ?? null,
+          role_2: topRoles[1] ?? basePlayer?.favorites.role_2 ?? null,
+          specialization: topSpecialization || basePlayer?.favorites.specialization || "",
+          faction: topFaction ?? basePlayer?.favorites.faction ?? null,
+          map: topMap,
+        },
+        valid_ratio: basePlayer?.valid_ratio ?? 0,
+        raw_counts_by_type: {
+          "🏆ТУРНИР": aggregate.typeEventKeys["🏆ТУРНИР"].size,
+          "⚔️SKIRMISH": aggregate.typeEventKeys["⚔️SKIRMISH"].size,
+          "🏹CLANMIX": aggregate.typeEventKeys["🏹CLANMIX"].size,
+          "🎈ИВЕНТ": aggregate.typeEventKeys["🎈ИВЕНТ"].size,
+          "🎯ТРЕНИРОВКА": aggregate.typeEventKeys["🎯ТРЕНИРОВКА"].size,
+          "📚ЛЕКЦИЯ": aggregate.typeEventKeys["📚ЛЕКЦИЯ"].size,
+        },
+      }
+    })
+    .filter((player) => player.totals.events > 0)
+    .sort((left, right) => {
+      if (right.totals.events !== left.totals.events) {
+        return right.totals.events - left.totals.events
+      }
+      return left.nickname.localeCompare(right.nickname, "ru")
+    })
 }
 
 export function getTopPlayersByStat(players: Player[], stat: keyof Player["totals"], limit = 10): Player[] {
@@ -949,13 +1222,19 @@ export function getTopByRole(
   role: string,
   limit = 5,
   roleDomain: string[] = [],
+  metric: RoleLeaderboardMetric = "kd",
 ) {
-  const roleData: Record<string, { kills: number; deaths: number; downs: number; games: number }> = {}
+  const roleData: Record<string, { kills: number; deaths: number; downs: number; revives: number; vehicle: number; games: number }> = {}
   const rawObservedRoles = playerStats
     .map((stat) => stat.role?.trim() ?? "")
     .filter(Boolean)
   const { lookup, entries } = buildDomainLookup(roleDomain, rawObservedRoles)
   const targetRole = resolveRoleName(role, lookup, entries)
+  const normalizedTargetRole = normalizeMapNameKey(targetRole)
+
+  if (!targetRole || normalizedTargetRole === normalizeMapNameKey("Без кита")) {
+    return []
+  }
 
   playerStats.forEach((stat) => {
     const statRole = stat.role?.trim()
@@ -965,20 +1244,22 @@ export function getTopByRole(
     if (!canonicalRole || canonicalRole !== targetRole) return
 
     if (!roleData[stat.player_id]) {
-      roleData[stat.player_id] = { kills: 0, deaths: 0, downs: 0, games: 0 }
+      roleData[stat.player_id] = { kills: 0, deaths: 0, downs: 0, revives: 0, vehicle: 0, games: 0 }
     }
     roleData[stat.player_id].kills += stat.kills
     roleData[stat.player_id].deaths += stat.deaths
     roleData[stat.player_id].downs += stat.downs
+    roleData[stat.player_id].revives += stat.revives
+    roleData[stat.player_id].vehicle += stat.vehicle
     roleData[stat.player_id].games++
   })
 
-  const totalRoleGames = Object.values(roleData).reduce((sum, data) => sum + data.games, 0)
-
   return Object.entries(roleData)
-    .filter(([, d]) => d.games >= 3)
+    .filter(([, d]) => d.games >= 10)
     .map(([playerId, d]) => {
       const player = players.find((p) => p.player_id === playerId)
+      const kd = d.deaths > 0 ? d.kills / d.deaths : d.kills
+      const kda = d.deaths > 0 ? d.downs / d.deaths : d.downs
       return {
         player_id: playerId,
         nickname: player?.nickname || "Unknown",
@@ -986,14 +1267,37 @@ export function getTopByRole(
         kills: d.kills,
         deaths: d.deaths,
         downs: d.downs,
+        revives: d.revives,
+        vehicle: d.vehicle,
         games: d.games,
-        roleTotalEntries: totalRoleGames,
-        roleSharePercent: totalRoleGames > 0 ? (d.games / totalRoleGames) * 100 : 0,
-        kd: d.deaths > 0 ? d.kills / d.deaths : d.kills,
-        kda: d.deaths > 0 ? (d.downs) / d.deaths : d.downs,
+        kd,
+        kda,
+        metricValue:
+          metric === "kills"
+            ? d.kills
+            : metric === "downs"
+            ? d.downs
+            : metric === "revives"
+            ? d.revives
+            : metric === "vehicle"
+            ? d.vehicle
+            : metric === "kda"
+            ? kda
+            : kd,
       }
     })
-    .sort((a, b) => b.kd - a.kd)
+    .sort((left, right) => {
+      if (right.metricValue !== left.metricValue) {
+        return right.metricValue - left.metricValue
+      }
+      if (right.games !== left.games) {
+        return right.games - left.games
+      }
+      if (right.kd !== left.kd) {
+        return right.kd - left.kd
+      }
+      return left.nickname.localeCompare(right.nickname, "ru")
+    })
     .slice(0, limit)
 }
 
@@ -1394,11 +1698,21 @@ export function getPlayerProgress(playerId: string, playerStats: PlayerEventStat
   })
 }
 
-export function getBestMatches(playerStats: PlayerEventStat[], events: GameEvent[], limit = 10) {
+export function getTopMatchRecords(
+  playerStats: PlayerEventStat[],
+  events: GameEvent[],
+  metric: MatchRecordMetric,
+  limit = 10,
+) {
   const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
 
   return aggregatePlayerEventStats(playerStats)
-    .filter((stat) => stat.deaths > 0 || stat.kills > 0)
+    .filter((stat) => {
+      if (metric === "kd") {
+        return stat.deaths > 0 || stat.kills > 0
+      }
+      return stat[metric] > 0
+    })
     .map((stat) => {
       const event = eventLookup.get(stat.normalized_event_id)
       const fallbackEventType = extractEventIdPart(stat.event_id, 0) || ""
@@ -1413,8 +1727,26 @@ export function getBestMatches(playerStats: PlayerEventStat[], events: GameEvent
         isWin: event?.is_win ?? null,
       }
     })
-    .sort((left, right) => right.kd - left.kd)
+    .sort((left, right) => {
+      const leftValue = metric === "kd" ? left.kd : left[metric]
+      const rightValue = metric === "kd" ? right.kd : right[metric]
+
+      if (rightValue !== leftValue) {
+        return rightValue - leftValue
+      }
+      if (right.kills !== left.kills) {
+        return right.kills - left.kills
+      }
+      if (left.deaths !== right.deaths) {
+        return left.deaths - right.deaths
+      }
+      return left.nickname.localeCompare(right.nickname, "ru")
+    })
     .slice(0, limit)
+}
+
+export function getBestMatches(playerStats: PlayerEventStat[], events: GameEvent[], limit = 10) {
+  return getTopMatchRecords(playerStats, events, "kd", limit)
 }
 
 export const EVENT_TYPE_ICONS: Record<string, { icon: string; name: string }> = {
@@ -1501,12 +1833,12 @@ export function getMaxKDByRole(playerStats: PlayerEventStat[]): Record<string, n
     playerRoleStats[stat.player_id][stat.role].games++
   })
 
-  // Calculate max K/D for each role (minimum 3 games)
+  // Calculate max K/D for each role (minimum 10 games for reliable comparisons)
   const maxKDByRole: Record<string, number> = {}
 
   Object.values(playerRoleStats).forEach((roles) => {
     Object.entries(roles).forEach(([role, stats]) => {
-      if (stats.games < 3) return
+      if (stats.games < 10) return
       const kd = stats.deaths > 0 ? stats.kills / stats.deaths : stats.kills
       if (!maxKDByRole[role] || kd > maxKDByRole[role]) {
         maxKDByRole[role] = kd

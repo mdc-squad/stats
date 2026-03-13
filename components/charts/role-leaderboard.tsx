@@ -6,6 +6,7 @@ import { useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { PlayerAvatar } from "@/components/player-avatar"
+import type { RoleLeaderboardMetric } from "@/lib/data-utils"
 
 interface RolePlayer {
   player_id: string
@@ -14,20 +15,39 @@ interface RolePlayer {
   kills: number
   deaths: number
   downs: number
+  revives: number
+  vehicle: number
   games: number
-  roleTotalEntries: number
-  roleSharePercent: number
   kd: number
   kda: number
+  metricValue: number
 }
 
 interface RoleLeaderboardProps {
   players: RolePlayer[]
   role: string
+  metric: RoleLeaderboardMetric
   icon?: React.ReactNode
 }
 
-export function RoleLeaderboard({ players, role, icon }: RoleLeaderboardProps) {
+const METRIC_LABELS: Record<RoleLeaderboardMetric, string> = {
+  kd: "K/D",
+  kda: "KDA",
+  kills: "Убийства",
+  downs: "Ноки",
+  revives: "Хил",
+  vehicle: "Техника",
+}
+
+function formatMetricValue(player: RolePlayer, metric: RoleLeaderboardMetric): string {
+  if (metric === "kd" || metric === "kda") {
+    return player.metricValue.toFixed(2)
+  }
+
+  return player.metricValue.toLocaleString("ru-RU")
+}
+
+export function RoleLeaderboard({ players, role, metric, icon }: RoleLeaderboardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
 
   if (players.length === 0) return null
@@ -38,8 +58,6 @@ export function RoleLeaderboard({ players, role, icon }: RoleLeaderboardProps) {
     if (index === 2) return "🥉"
     return `${index + 1}.`
   }
-
-  const formatEntries = (count: number) => count.toLocaleString("ru-RU")
 
   return (
     <div className="relative group">
@@ -52,9 +70,7 @@ export function RoleLeaderboard({ players, role, icon }: RoleLeaderboardProps) {
             {icon}
             Топ {role}
           </CardTitle>
-          <p className="text-[10px] text-muted-foreground">
-            K/D по роли {role}. Процент показывает долю записей этой роли в текущей выборке `playersevents`.
-          </p>
+          <p className="text-[10px] text-muted-foreground">Минимум 10 игр на роли • сортировка по {METRIC_LABELS[metric]}</p>
         </CardHeader>
         <CardContent className="space-y-2">
           {players.map((player, index) => (
@@ -66,16 +82,15 @@ export function RoleLeaderboard({ players, role, icon }: RoleLeaderboardProps) {
               <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate text-christmas-snow">{player.nickname}</p>
-                <p className="text-xs text-muted-foreground">
-                  {player.roleSharePercent.toFixed(1)}% всех участий в роли ({formatEntries(player.games)} из{" "}
-                  {formatEntries(player.roleTotalEntries)})
-                </p>
+                <p className="text-xs text-muted-foreground">{player.games.toLocaleString("ru-RU")} игр на роли</p>
               </div>
               <div className="text-right">
                 <Badge variant="outline" className="font-mono text-christmas-gold border-christmas-gold/30">
-                  {player.kd.toFixed(2)}
+                  {METRIC_LABELS[metric]}: {formatMetricValue(player, metric)}
                 </Badge>
-                <p className="text-[9px] text-muted-foreground mt-1">KDA: {player.kda.toFixed(2)}</p>
+                <p className="text-[9px] text-muted-foreground mt-1">
+                  K/D: {player.kd.toFixed(2)} • KDA: {player.kda.toFixed(2)}
+                </p>
               </div>
             </div>
           ))}

@@ -712,17 +712,20 @@ export function EventsAnalyticsPanel({ games, pinnedPlayerIds }: EventsAnalytics
                       borderRadius: "10px",
                       color: "var(--foreground)",
                     }}
-                    formatter={(value: number | null, name: string) => {
+                    formatter={(value, name) => {
+                      const numericValue =
+                        typeof value === "number" ? value : typeof value === "string" ? Number(value) : null
+                      const safeName = String(name)
                       const baselineLabel = String(analytics.chartData[0]?.baselineLabel ?? "")
-                      if (name === baselineLabel) {
+                      if (safeName === baselineLabel) {
                         if (baselineLabel === "Кумулятивный K/D") {
-                          return [value?.toFixed(2) ?? "н/д", name]
+                          return [numericValue?.toFixed(2) ?? "н/д", safeName]
                         }
 
-                        return [value === null || value === undefined ? "н/д" : `${value.toFixed(1)}%`, name]
+                        return [numericValue === null || Number.isNaN(numericValue) ? "н/д" : `${numericValue.toFixed(1)}%`, safeName]
                       }
 
-                      return [formatMetricValue(metric, value), name]
+                      return [formatMetricValue(metric, numericValue), safeName]
                     }}
                     labelFormatter={(label, payload) => {
                       const point = payload?.[0]?.payload as { eventLabel?: string } | undefined
