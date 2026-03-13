@@ -4,6 +4,7 @@ import type React from "react"
 import { Download } from "lucide-react" // Declare the Download variable here
 
 import { useRef } from "react"
+import { AchievementBadges } from "@/components/achievement-badges"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PlayerAvatar } from "@/components/player-avatar"
@@ -20,6 +21,7 @@ interface AvgStatLeaderboardProps {
   className?: string
   icon?: React.ReactNode
   variant?: "default" | "christmas"
+  playerAchievements?: Record<string, string[]>
 }
 
 export function AvgStatLeaderboard({
@@ -31,6 +33,7 @@ export function AvgStatLeaderboard({
   className,
   icon,
   variant = "default",
+  playerAchievements,
 }: AvgStatLeaderboardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
 
@@ -89,6 +92,7 @@ export function AvgStatLeaderboard({
           {players.map((player, index) => {
             const avgValue = player[avgStat] as number
             const totalValue = player.totals[totalStat] as number
+            const achievements = playerAchievements?.[player.player_id] ?? []
 
             return (
               <div
@@ -102,6 +106,14 @@ export function AvgStatLeaderboard({
                 <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm truncate text-christmas-snow">{player.nickname}</p>
+                  {achievements.length > 0 && (
+                    <AchievementBadges
+                      achievements={achievements}
+                      variant="secondary"
+                      badgeClassName="text-[10px] px-1 py-0"
+                      containerClassName="mt-1"
+                    />
+                  )}
                   <p className="text-xs text-muted-foreground">
                     Всего: {totalValue} | {player.totals.events} событий
                   </p>

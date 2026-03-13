@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef } from "react"
+import { AchievementBadges } from "@/components/achievement-badges"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,9 +13,10 @@ import { toPng } from "html-to-image"
 interface SLLeaderboardProps {
   slStats: SLStats[]
   title?: string
+  playerAchievements?: Record<string, string[]>
 }
 
-export function SLLeaderboard({ slStats, title = "Топ Squad Leaders" }: SLLeaderboardProps) {
+export function SLLeaderboard({ slStats, title = "Топ Squad Leaders", playerAchievements }: SLLeaderboardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
 
   const getMedal = (index: number) => {
@@ -57,7 +59,8 @@ export function SLLeaderboard({ slStats, title = "Топ Squad Leaders" }: SLLea
             {title}
           </CardTitle>
           <p className="text-[10px] text-muted-foreground">
-            Участие SL = запись в `playersevents`, где роль игрока указана как SL.
+            Участие SL = запись в `playersevents`, где роль игрока указана как SL. В топ попадают только игроки с
+            более чем 10 боевыми событиями.
           </p>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -70,6 +73,14 @@ export function SLLeaderboard({ slStats, title = "Топ Squad Leaders" }: SLLea
               <PlayerAvatar steamId={sl.steam_id} nickname={sl.nickname} size="sm" />
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate text-christmas-snow">{sl.nickname}</p>
+                {(playerAchievements?.[sl.player_id]?.length ?? 0) > 0 && (
+                  <AchievementBadges
+                    achievements={playerAchievements?.[sl.player_id] ?? []}
+                    variant="secondary"
+                    badgeClassName="text-[10px] px-1 py-0"
+                    containerClassName="mt-1"
+                  />
+                )}
                 <div className="flex gap-2 text-xs text-muted-foreground">
                   <span>{sl.slGames.toLocaleString("ru-RU")} участий SL</span>
                   <span>WR в роли SL: {(sl.slWinRate * 100).toFixed(0)}%</span>

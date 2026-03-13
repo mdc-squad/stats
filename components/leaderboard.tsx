@@ -3,9 +3,9 @@
 import type React from "react"
 import { useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { AchievementBadges } from "@/components/achievement-badges"
 import { PlayerAvatar } from "@/components/player-avatar"
-import { type Player, type RelativeThresholds, getPlayerStrengths } from "@/lib/data-utils"
+import { type Player } from "@/lib/data-utils"
 import { cn } from "@/lib/utils"
 import { toPng } from "html-to-image"
 import { Button } from "@/components/ui/button"
@@ -18,7 +18,7 @@ interface LeaderboardProps {
   className?: string
   icon?: React.ReactNode
   variant?: "default" | "christmas"
-  thresholds?: RelativeThresholds
+  playerAchievements?: Record<string, string[]>
 }
 
 export function Leaderboard({
@@ -29,7 +29,7 @@ export function Leaderboard({
   className,
   icon,
   variant = "default",
-  thresholds,
+  playerAchievements,
 }: LeaderboardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
 
@@ -87,8 +87,7 @@ export function Leaderboard({
         <CardContent className="space-y-2">
           {players.map((player, index) => {
             const value = player.totals[stat] as number
-            const strengths =
-              index < 3 && player.totals.events >= 10 ? getPlayerStrengths(player, thresholds).slice(0, 2) : []
+            const achievements = playerAchievements?.[player.player_id] ?? []
 
             return (
               <div
@@ -102,14 +101,13 @@ export function Leaderboard({
                 <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm truncate text-christmas-snow">{player.nickname}</p>
-                  {strengths.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {strengths.slice(0, 2).map((s) => (
-                        <Badge key={s} variant="secondary" className="text-[10px] px-1 py-0">
-                          {s}
-                        </Badge>
-                      ))}
-                    </div>
+                  {achievements.length > 0 && (
+                    <AchievementBadges
+                      achievements={achievements}
+                      variant="secondary"
+                      badgeClassName="text-[10px] px-1 py-0"
+                      containerClassName="mt-1"
+                    />
                   )}
                 </div>
                 <span className="font-mono text-sm font-bold text-christmas-gold">

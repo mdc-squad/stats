@@ -48,6 +48,7 @@ import {
   getUniqueRoles,
   filterDataByTags,
   filterDataByDateRange,
+  filterDataToCompetitiveEvents,
   getTopByWinRate,
   getTopByVehicle,
   getTopByKDA,
@@ -55,7 +56,6 @@ import {
   getTopByAvgRevives,
   getMaxKDByRole,
   getAverageValues,
-  calculateRelativeThresholds,
   getTopMatchRecords,
   type RoleLeaderboardMetric,
 } from "@/lib/data-utils"
@@ -75,7 +75,6 @@ import {
   Syringe,
   Car,
   TrendingUp,
-  RefreshCw,
   RotateCcw,
 } from "lucide-react"
 
@@ -123,7 +122,7 @@ function clearCachedData(): void {
   }
 }
 
-type SyncMode = "auto" | "refresh" | "reset"
+type SyncMode = "auto" | "reset"
 
 type SyncProgressState = SyncProgressUpdate & {
   active: boolean
@@ -175,6 +174,8 @@ const ROLE_METRIC_OPTIONS: Array<{ value: RoleLeaderboardMetric; label: string }
   { value: "revives", label: "Хил" },
   { value: "vehicle", label: "Техника" },
 ]
+
+const MIN_COMPETITIVE_EVENTS_FOR_TOPS = 11
 
 function buildDateRangeForPeriod(period: StatsPeriod): { from?: Date; to?: Date } {
   if (period === "all") {
@@ -459,7 +460,7 @@ export default function YearReviewPage() {
 
   const loadData = useCallback(async (forceRefresh = false, resetCache = false) => {
     const cached = readCachedData()
-    const syncMode: SyncMode = resetCache ? "reset" : forceRefresh ? "refresh" : "auto"
+    const syncMode: SyncMode = resetCache ? "reset" : "auto"
 
     if (resetCache) {
       clearCachedData()
@@ -471,7 +472,7 @@ export default function YearReviewPage() {
     }
 
     // In regular page reload flow, keep cached snapshot and skip network sync.
-    // API sync is manual via "Обновить API" or "Сбросить кэш и обновить API".
+    // Manual sync always clears the local cache and performs a full reload.
     if (!forceRefresh && !resetCache && cached) {
       return
     }
@@ -566,7 +567,7 @@ export default function YearReviewPage() {
 
       if (event.shiftKey && !event.ctrlKey && !event.metaKey && event.code === "KeyR") {
         event.preventDefault()
-        void loadData(true, false)
+        void loadData(true, true)
       }
     }
 
@@ -742,6 +743,11 @@ export default function YearReviewPage() {
     return filterDataByDateRange(tagFilteredData, periodRange)
   }, [periodRange, tagFilteredData])
 
+  const competitiveData = useMemo(() => {
+    if (!data) return null
+    return filterDataToCompetitiveEvents(data)
+  }, [data])
+
   useEffect(() => {
     if (!data) {
       return
@@ -757,6 +763,12 @@ export default function YearReviewPage() {
     const playerStats = Array.isArray(data.player_event_stats) ? data.player_event_stats : []
     return getUniqueRoles(playerStats, data.dictionaries?.roles ?? [])
   }, [data])
+
+  const competitiveUniqueRoles = useMemo(() => {
+    if (!competitiveData) return []
+    const playerStats = Array.isArray(competitiveData.player_event_stats) ? competitiveData.player_event_stats : []
+    return getUniqueRoles(playerStats, competitiveData.dictionaries?.roles ?? [])
+  }, [competitiveData])
 
   // Core stats
   const overallStats = useMemo(() => (data ? getOverallStats(data) : null), [data])
@@ -774,16 +786,64 @@ export default function YearReviewPage() {
     () => (data ? getWeeklyParticipation(data.events, data.player_event_stats) : []),
     [data],
   )
-  const slStats = useMemo(() => (data ? getSLStats(data.player_event_stats, data.events, data.players) : []), [data])
-  const recordMatchesByMetric = useMemo(
+  const eligibleClanPlayers = useMemo(
+    () => (data ? data.players.filter((player) => player.is_mdc_member) : []),
+    [data],
+  )
+  const eligibleClanPlayerIds = useMemo(
+    () => new Set(eligibleClanPlayers.map((player) => player.player_id)),
+    [eligibleClanPlayers],
+  )
+  const eligibleClanPlayerStats = useMemo(
     () =>
       data
+        ? data.player_event_stats.filter((stat) => eligibleClanPlayerIds.has(stat.player_id))
+        : [],
+    [data, eligibleClanPlayerIds],
+  )
+  const competitiveClanPlayers = useMemo(
+    () => (competitiveData ? competitiveData.players.filter((player) => player.is_mdc_member) : []),
+    [competitiveData],
+  )
+  const competitiveClanPlayerIds = useMemo(
+    () => new Set(competitiveClanPlayers.map((player) => player.player_id)),
+    [competitiveClanPlayers],
+  )
+  const competitiveClanPlayerStats = useMemo(
+    () =>
+      competitiveData
+        ? competitiveData.player_event_stats.filter((stat) => competitiveClanPlayerIds.has(stat.player_id))
+        : [],
+    [competitiveData, competitiveClanPlayerIds],
+  )
+  const qualifiedCompetitiveClanPlayers = useMemo(
+    () => competitiveClanPlayers.filter((player) => player.totals.events >= MIN_COMPETITIVE_EVENTS_FOR_TOPS),
+    [competitiveClanPlayers],
+  )
+  const qualifiedCompetitiveClanPlayerIds = useMemo(
+    () => new Set(qualifiedCompetitiveClanPlayers.map((player) => player.player_id)),
+    [qualifiedCompetitiveClanPlayers],
+  )
+  const qualifiedCompetitiveClanPlayerStats = useMemo(
+    () => competitiveClanPlayerStats.filter((stat) => qualifiedCompetitiveClanPlayerIds.has(stat.player_id)),
+    [competitiveClanPlayerStats, qualifiedCompetitiveClanPlayerIds],
+  )
+  const slStats = useMemo(
+    () =>
+      competitiveData
+        ? getSLStats(qualifiedCompetitiveClanPlayerStats, competitiveData.events, qualifiedCompetitiveClanPlayers)
+        : [],
+    [competitiveData, qualifiedCompetitiveClanPlayerStats, qualifiedCompetitiveClanPlayers],
+  )
+  const recordMatchesByMetric = useMemo(
+    () =>
+      competitiveData
         ? {
-            kd: getTopMatchRecords(data.player_event_stats, data.events, "kd", 10),
-            kills: getTopMatchRecords(data.player_event_stats, data.events, "kills", 10),
-            downs: getTopMatchRecords(data.player_event_stats, data.events, "downs", 10),
-            revives: getTopMatchRecords(data.player_event_stats, data.events, "revives", 10),
-            vehicle: getTopMatchRecords(data.player_event_stats, data.events, "vehicle", 10),
+            kd: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kd", 10),
+            kills: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kills", 10),
+            downs: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "downs", 10),
+            revives: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "revives", 10),
+            vehicle: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "vehicle", 10),
           }
         : {
             kd: [],
@@ -792,7 +852,7 @@ export default function YearReviewPage() {
             revives: [],
             vehicle: [],
           },
-    [data],
+    [competitiveData, qualifiedCompetitiveClanPlayerStats],
   )
   const pastGames = useMemo(() => {
     if (!data) return []
@@ -801,39 +861,75 @@ export default function YearReviewPage() {
   }, [data, rawData])
 
   const roleLeaderboards = useMemo(() => {
-    if (!data) return []
-    return uniqueRoles
+    if (!competitiveData) return []
+    return competitiveUniqueRoles
       .filter((role) => role.trim().replace(/\s+/g, " ").toLowerCase() !== "без кита")
       .map((role) => ({
         role,
         players: getTopByRole(
-          data.player_event_stats,
-          data.players,
+          qualifiedCompetitiveClanPlayerStats,
+          qualifiedCompetitiveClanPlayers,
           role,
           10,
-          data.dictionaries?.roles ?? [],
+          competitiveData.dictionaries?.roles ?? [],
           selectedRoleMetric,
         ),
       }))
-  }, [data, selectedRoleMetric, uniqueRoles])
+  }, [
+    competitiveData,
+    competitiveUniqueRoles,
+    qualifiedCompetitiveClanPlayerStats,
+    qualifiedCompetitiveClanPlayers,
+    selectedRoleMetric,
+  ])
 
   const maxRoleKD = useMemo(() => {
     if (!data) return {}
-    return getMaxKDByRole(data.player_event_stats)
-  }, [data])
+    return getMaxKDByRole(eligibleClanPlayerStats)
+  }, [data, eligibleClanPlayerStats])
 
   // Basic leaderboards
-  const topKills = useMemo(() => (data ? getTopPlayersByStat(data.players, "kills", 10) : []), [data])
-  const topKD = useMemo(() => (data ? getTopPlayersByStat(data.players, "kd", 10) : []), [data])
-  const topWinRate = useMemo(() => (data ? getTopByWinRate(data.players, 5, 10) : []), [data])
-  const topEvents = useMemo(() => (data ? getTopPlayersByStat(data.players, "events", 10) : []), [data])
-  const topRevives = useMemo(() => (data ? getTopPlayersByStat(data.players, "revives", 10) : []), [data])
-  const topDowns = useMemo(() => (data ? getTopPlayersByStat(data.players, "downs", 10) : []), [data])
-  const topVehicle = useMemo(() => (data ? getTopByVehicle(data.players, 5) : []), [data])
-  const topKDA = useMemo(() => (data ? getTopByKDA(data.players, 10) : []), [data])
+  const topKills = useMemo(() => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "kills", 10), [qualifiedCompetitiveClanPlayers])
+  const topKD = useMemo(() => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "kd", 10), [qualifiedCompetitiveClanPlayers])
+  const topWinRate = useMemo(() => getTopByWinRate(qualifiedCompetitiveClanPlayers, MIN_COMPETITIVE_EVENTS_FOR_TOPS, 10), [qualifiedCompetitiveClanPlayers])
+  const topEvents = useMemo(() => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "events", 10), [qualifiedCompetitiveClanPlayers])
+  const topRevives = useMemo(() => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "revives", 10), [qualifiedCompetitiveClanPlayers])
+  const topDowns = useMemo(() => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "downs", 10), [qualifiedCompetitiveClanPlayers])
+  const topVehicle = useMemo(() => getTopByVehicle(qualifiedCompetitiveClanPlayers, 5), [qualifiedCompetitiveClanPlayers])
+  const topKDA = useMemo(() => getTopByKDA(qualifiedCompetitiveClanPlayers, 10), [qualifiedCompetitiveClanPlayers])
 
-  const topAvgVehicle = useMemo(() => (data ? getTopByAvgVehicle(data.players, 3, 10) : []), [data])
-  const topAvgRevives = useMemo(() => (data ? getTopByAvgRevives(data.players, 3, 10) : []), [data])
+  const topAvgVehicle = useMemo(() => getTopByAvgVehicle(qualifiedCompetitiveClanPlayers, MIN_COMPETITIVE_EVENTS_FOR_TOPS, 10), [qualifiedCompetitiveClanPlayers])
+  const topAvgRevives = useMemo(() => getTopByAvgRevives(qualifiedCompetitiveClanPlayers, MIN_COMPETITIVE_EVENTS_FOR_TOPS, 10), [qualifiedCompetitiveClanPlayers])
+  const playerAchievements = useMemo(() => {
+    const byPlayerId = new Map<string, string[]>()
+
+    const register = (players: Array<{ player_id: string; totals: { events: number } }>, achievement: string) => {
+      players.slice(0, 3).forEach((player) => {
+        if (player.totals.events < MIN_COMPETITIVE_EVENTS_FOR_TOPS) {
+          return
+        }
+
+        const current = byPlayerId.get(player.player_id) ?? []
+        if (!current.includes(achievement)) {
+          current.push(achievement)
+          byPlayerId.set(player.player_id, current)
+        }
+      })
+    }
+
+    register(topKills, "Убийца")
+    register(topKD, "Высокий K/D")
+    register(topKDA, "Доминатор")
+    register(topWinRate, "Победитель")
+    register(topEvents, "Оплот клана")
+    register(topRevives, "Спасатель")
+    register(topDowns, "Штурмовик")
+    register(topVehicle, "Гроза техники")
+    register(topAvgVehicle, "Истребитель брони")
+    register(topAvgRevives, "Ангел-хранитель")
+
+    return Object.fromEntries(byPlayerId)
+  }, [topAvgRevives, topAvgVehicle, topDowns, topEvents, topKDA, topKD, topKills, topRevives, topVehicle, topWinRate])
 
   // Player progress chart data
   const selectedProgressEntries = useMemo(() => {
@@ -900,11 +996,6 @@ export default function YearReviewPage() {
       }
     }
     return getAverageValues(data.players)
-  }, [data])
-
-  const relativeThresholds = useMemo(() => {
-    if (!data) return undefined
-    return calculateRelativeThresholds(data.players)
   }, [data])
 
   const maxValues = useMemo(() => {
@@ -1034,7 +1125,7 @@ export default function YearReviewPage() {
                 Обновлять статистику имеет смысл после завершенной игры, когда данные уже добавлены в таблицу.
               </p>
               <p className="text-[11px] text-muted-foreground">
-                Сброс кэша нужен только при изменении структуры API/словарей.
+                Ручное обновление очищает локальный кэш и полностью пересканирует данные API.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -1042,21 +1133,11 @@ export default function YearReviewPage() {
                 size="sm"
                 variant="outline"
                 className="border-christmas-gold/30 bg-background/50 hover:bg-christmas-gold/10 text-christmas-snow"
-                onClick={() => void loadData(true, false)}
-                disabled={isRefreshing}
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-                {isRefreshing ? "Синхронизируем..." : "Обновить API (Shift+R)"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-muted/40 bg-background/50 hover:bg-muted/10 text-muted-foreground"
                 onClick={() => void loadData(true, true)}
                 disabled={isRefreshing}
               >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Сбросить кэш
+                <RotateCcw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+                {isRefreshing ? "Синхронизируем..." : "Сбросить кэш и обновить (Shift+R)"}
               </Button>
             </div>
           </div>
@@ -1273,11 +1354,16 @@ export default function YearReviewPage() {
 
           {/* Leaderboards Tab */}
           <TabsContent value="leaderboards" className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              В соревновательные топы попадают только игроки с более чем {MIN_COMPETITIVE_EVENTS_FOR_TOPS - 1}
+              боевыми событиями. Лекции в квалификацию не входят.
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Leaderboard
                 title="Топ по убийствам"
                 players={topKills}
                 stat="kills"
+                playerAchievements={playerAchievements}
                 icon={<Crosshair className="w-4 h-4" />}
                 variant="christmas"
               />
@@ -1286,6 +1372,7 @@ export default function YearReviewPage() {
                 players={topKD}
                 stat="kd"
                 formatValue={(v) => v.toFixed(2)}
+                playerAchievements={playerAchievements}
                 icon={<Target className="w-4 h-4" />}
                 variant="christmas"
               />
@@ -1294,22 +1381,25 @@ export default function YearReviewPage() {
                 players={topKDA}
                 stat="kda"
                 formatValue={(v) => v.toFixed(2)}
+                playerAchievements={playerAchievements}
                 icon={<TrendingUp className="w-4 h-4" />}
                 variant="christmas"
               />
               <Leaderboard
-                title="Топ победителей (5+ событий)"
+                title="Топ победителей (>10 боевых событий)"
                 players={topWinRate}
                 stat="win_rate"
                 formatValue={(v) => `${(v * 100).toFixed(0)}%`}
+                playerAchievements={playerAchievements}
                 icon={<Trophy className="w-4 h-4" />}
                 variant="christmas"
               />
               <Leaderboard
-                title="Топ по активности"
+                title="Топ по боевой активности"
                 players={topEvents}
                 stat="events"
-                formatValue={(v) => `${v} событий`}
+                formatValue={(v) => `${v} боевых событий`}
+                playerAchievements={playerAchievements}
                 icon={<Calendar className="w-4 h-4" />}
                 variant="christmas"
               />
@@ -1317,6 +1407,7 @@ export default function YearReviewPage() {
                 title="Топ медики"
                 players={topRevives}
                 stat="revives"
+                playerAchievements={playerAchievements}
                 icon={<Heart className="w-4 h-4" />}
                 variant="christmas"
               />
@@ -1324,6 +1415,7 @@ export default function YearReviewPage() {
                 title="Топ по нокам"
                 players={topDowns}
                 stat="downs"
+                playerAchievements={playerAchievements}
                 icon={<Zap className="w-4 h-4" />}
                 variant="christmas"
               />
@@ -1331,6 +1423,7 @@ export default function YearReviewPage() {
                 title="Топ по выбитой технике"
                 players={topVehicle}
                 stat="vehicle"
+                playerAchievements={playerAchievements}
                 icon={<Car className="w-4 h-4" />}
                 variant="christmas"
                 className="bg-gradient-to-br from-blue-500/10 via-card to-blue-500/5"
@@ -1341,6 +1434,7 @@ export default function YearReviewPage() {
                 avgStat="avgVehicle"
                 totalStat="vehicle"
                 formatValue={(v) => v.toFixed(2)}
+                playerAchievements={playerAchievements}
                 icon={<Car className="w-4 h-4" />}
                 variant="christmas"
                 className="bg-gradient-to-br from-orange-500/10 via-card to-orange-500/5"
@@ -1351,6 +1445,7 @@ export default function YearReviewPage() {
                 avgStat="avgRevives"
                 totalStat="revives"
                 formatValue={(v) => v.toFixed(2)}
+                playerAchievements={playerAchievements}
                 icon={<Syringe className="w-4 h-4" />}
                 variant="christmas"
                 className="bg-gradient-to-br from-pink-500/10 via-card to-pink-500/5"
@@ -1364,7 +1459,10 @@ export default function YearReviewPage() {
               <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-medium text-christmas-snow">Метрика ролей</p>
-                  <p className="text-xs text-muted-foreground">В топы попадают только игроки с 10+ играми на роли</p>
+                  <p className="text-xs text-muted-foreground">
+                    В топы попадают только игроки с более чем {MIN_COMPETITIVE_EVENTS_FOR_TOPS - 1} боевыми
+                    событиями и 10+ играми на роли
+                  </p>
                 </div>
                 <div className="w-full sm:w-[220px]">
                   <Select
@@ -1392,6 +1490,7 @@ export default function YearReviewPage() {
                   players={players}
                   role={role}
                   metric={selectedRoleMetric}
+                  playerAchievements={playerAchievements}
                   icon={getRoleIcon(role)}
                 />
               ))}
@@ -1406,10 +1505,11 @@ export default function YearReviewPage() {
           {/* SL Tab */}
           <TabsContent value="sl" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <SLLeaderboard slStats={slStats} title="Топ Squad Leaders по играм" />
+              <SLLeaderboard slStats={slStats} title="Топ Squad Leaders по играм" playerAchievements={playerAchievements} />
               <SLLeaderboard
                 slStats={[...slStats].sort((a, b) => b.slWinRate - a.slWinRate).slice(0, 10)}
                 title="Топ SL по Win Rate"
+                playerAchievements={playerAchievements}
               />
             </div>
           </TabsContent>
@@ -1488,6 +1588,7 @@ export default function YearReviewPage() {
                       player={player}
                       rank={index + 1}
                       footerLabel={seasonalTheme.summaryLabel}
+                      achievements={playerAchievements[player.player_id] ?? []}
                       maxValues={maxValues}
                       avgValues={avgValues}
                       maxRoleKD={maxRoleKD}
@@ -1543,6 +1644,7 @@ export default function YearReviewPage() {
                     player={player}
                     rank={index + 1}
                     footerLabel={seasonalTheme.summaryLabel}
+                    achievements={playerAchievements[player.player_id] ?? []}
                     maxValues={maxValues}
                     avgValues={avgValues}
                     maxRoleKD={maxRoleKD}

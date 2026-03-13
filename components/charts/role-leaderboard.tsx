@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useRef } from "react"
+import { AchievementBadges } from "@/components/achievement-badges"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { PlayerAvatar } from "@/components/player-avatar"
@@ -28,6 +29,7 @@ interface RoleLeaderboardProps {
   role: string
   metric: RoleLeaderboardMetric
   icon?: React.ReactNode
+  playerAchievements?: Record<string, string[]>
 }
 
 const METRIC_LABELS: Record<RoleLeaderboardMetric, string> = {
@@ -47,7 +49,7 @@ function formatMetricValue(player: RolePlayer, metric: RoleLeaderboardMetric): s
   return player.metricValue.toLocaleString("ru-RU")
 }
 
-export function RoleLeaderboard({ players, role, metric, icon }: RoleLeaderboardProps) {
+export function RoleLeaderboard({ players, role, metric, icon, playerAchievements }: RoleLeaderboardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
 
   if (players.length === 0) return null
@@ -82,6 +84,14 @@ export function RoleLeaderboard({ players, role, metric, icon }: RoleLeaderboard
               <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate text-christmas-snow">{player.nickname}</p>
+                {(playerAchievements?.[player.player_id]?.length ?? 0) > 0 && (
+                  <AchievementBadges
+                    achievements={playerAchievements?.[player.player_id] ?? []}
+                    variant="secondary"
+                    badgeClassName="text-[10px] px-1 py-0"
+                    containerClassName="mt-1"
+                  />
+                )}
                 <p className="text-xs text-muted-foreground">{player.games.toLocaleString("ru-RU")} игр на роли</p>
               </div>
               <div className="text-right">

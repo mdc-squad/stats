@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useRef } from "react"
+import { AchievementBadges } from "@/components/achievement-badges"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -11,8 +12,6 @@ import {
   type Player,
   type PlayerEventStat,
   type PlayerGameHistoryEntry,
-  type RelativeThresholds,
-  getPlayerStrengths,
 } from "@/lib/data-utils"
 import { getSquadToneClasses } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
@@ -23,9 +22,9 @@ interface PlayerCardProps {
   player: Player
   rank?: number
   footerLabel?: string
+  achievements?: string[]
   playerStats?: PlayerEventStat[]
   maxRoleKD?: Record<string, number>
-  thresholds?: RelativeThresholds
   maxValues?: {
     kills: number
     deaths: number
@@ -83,9 +82,9 @@ export function PlayerCard({
   player,
   rank,
   footerLabel = DEFAULT_FOOTER_LABEL,
+  achievements = [],
   playerStats = [],
   maxRoleKD = {},
-  thresholds,
   maxValues = DEFAULT_MAX_VALUES,
   avgValues = DEFAULT_AVG_VALUES,
   matchHistory = [],
@@ -94,7 +93,6 @@ export function PlayerCard({
 }: PlayerCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const isExpanded = layout === "expanded"
-  const strengths = getPlayerStrengths(player, thresholds)
   const squadSummary = useMemo(() => {
     const bySquad = new Map<string, number>()
 
@@ -263,20 +261,15 @@ export function PlayerCard({
                     })}
                   </div>
 
-                  {strengths.length > 0 && (
+                  {achievements.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Сильные стороны</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {strengths.map((s) => (
-                          <Badge
-                            key={s}
-                            variant="outline"
-                            className="border-christmas-gold/30 text-[10px] text-christmas-snow"
-                          >
-                            {s}
-                          </Badge>
-                        ))}
-                      </div>
+                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Достижения</p>
+                      <AchievementBadges
+                        achievements={achievements}
+                        variant="outline"
+                        badgeClassName="border-christmas-gold/30 text-[10px] text-christmas-snow"
+                        containerClassName="gap-1.5"
+                      />
                     </div>
                   )}
 
@@ -373,14 +366,13 @@ export function PlayerCard({
                 <span>Карта: {player.favorites.map || "Не указана"}</span>
               </div>
 
-              {strengths.length > 0 && (
-                <div className="mb-4 flex flex-wrap gap-1">
-                  {strengths.map((s) => (
-                    <Badge key={s} variant="outline" className="border-christmas-gold/30 text-[10px] text-christmas-snow">
-                      {s}
-                    </Badge>
-                  ))}
-                </div>
+              {achievements.length > 0 && (
+                <AchievementBadges
+                  achievements={achievements}
+                  variant="outline"
+                  badgeClassName="border-christmas-gold/30 text-[10px] text-christmas-snow"
+                  containerClassName="mb-4"
+                />
               )}
 
               {squadSummary.length > 0 && (

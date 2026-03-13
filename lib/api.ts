@@ -590,11 +590,15 @@ function normalizePlayer(raw: UnknownRecord): Player {
   const winRate = toNumber(totalsRecord?.win_rate ?? raw.win_rate, events > 0 ? wins / events : 0)
   const kd = toNumber(totalsRecord?.kd ?? raw.kd, deaths > 0 ? kills / deaths : kills)
   const kda = toNumber(totalsRecord?.kda ?? raw.kda, deaths > 0 ? downs / deaths : downs)
+  const placementFields = [raw.ELOPlace, raw.TBFPlace, raw.OPPlace]
+  const normalizedPlacements = placementFields.map((value) => toString(value, "").trim().toLowerCase())
+  const isMdcMember = !normalizedPlacements.some((value) => value === "не mdc")
 
   return {
     player_id: playerId,
     nickname,
     tag,
+    is_mdc_member: isMdcMember,
     discord: toString(raw.discord, ""),
     steam_id: steamId,
     note: toNullableString(raw.note),

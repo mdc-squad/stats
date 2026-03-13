@@ -60,6 +60,7 @@ export interface Player {
   player_id: string
   nickname: string
   tag: string
+  is_mdc_member: boolean
   discord: string
   steam_id: string
   note: string | null
@@ -539,6 +540,50 @@ export function filterDataByTags(data: MDCData, selectedTags: string[]): MDCData
   }
 }
 
+function isLectureEventTypeValue(value: string | null | undefined): boolean {
+  const normalized = (value ?? "").trim().toLowerCase()
+  return normalized.includes("лекц") || normalized.includes("lecture")
+}
+
+export function filterDataToCompetitiveEvents(data: MDCData): MDCData {
+  const events = Array.isArray(data.events) ? data.events : []
+  const playerStats = Array.isArray(data.player_event_stats) ? data.player_event_stats : []
+  const knownEventKeys = new Set(events.map((event) => getEventLinkKey(event.event_id)).filter(Boolean))
+  const competitiveEvents = events.filter((event) => !isLectureEventTypeValue(event.event_type))
+  const competitiveEventKeys = new Set(competitiveEvents.map((event) => getEventLinkKey(event.event_id)).filter(Boolean))
+
+  const competitivePlayerStats = playerStats.filter((stat) => {
+    const eventKey = getEventLinkKey(stat.event_id)
+    if (eventKey && competitiveEventKeys.has(eventKey)) {
+      return true
+    }
+    if (eventKey && knownEventKeys.has(eventKey)) {
+      return false
+    }
+
+    const fallbackEventType = extractEventIdPart(stat.event_id, 0)
+    return !isLectureEventTypeValue(fallbackEventType)
+  })
+
+  const derivedPlayers = derivePlayersFromStats(data.players, competitivePlayerStats, competitiveEvents)
+
+  return {
+    ...data,
+    events: competitiveEvents,
+    player_event_stats: competitivePlayerStats,
+    players: derivedPlayers,
+    meta: {
+      ...data.meta,
+      counts: {
+        ...data.meta.counts,
+        events: competitiveEvents.length,
+        players: derivedPlayers.length,
+        player_event_stats: competitivePlayerStats.length,
+      },
+    },
+  }
+}
+
 export function filterDataByDateRange(data: MDCData, range: DataDateRange = {}): MDCData {
   const events = Array.isArray(data.events) ? data.events : []
   const playerStats = Array.isArray(data.player_event_stats) ? data.player_event_stats : []
@@ -719,6 +764,7 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
         player_id: aggregate.player_id,
         nickname: basePlayer?.nickname || aggregate.nickname || "Unknown",
         tag: basePlayer?.tag || aggregate.tag || "",
+        is_mdc_member: basePlayer?.is_mdc_member ?? true,
         discord: basePlayer?.discord ?? "",
         steam_id: basePlayer?.steam_id ?? "",
         note: basePlayer?.note ?? null,
