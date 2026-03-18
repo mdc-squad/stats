@@ -830,6 +830,10 @@ export default function YearReviewPage() {
     () => (data ? data.players.filter((player) => player.is_mdc_member) : []),
     [data],
   )
+  const clanRosterCount = useMemo(
+    () => (rawData ? rawData.players.filter((player) => player.is_mdc_member).length : eligibleClanPlayers.length),
+    [eligibleClanPlayers.length, rawData],
+  )
   const eligibleClanPlayerIds = useMemo(
     () => new Set(eligibleClanPlayers.map((player) => player.player_id)),
     [eligibleClanPlayers],
@@ -1183,7 +1187,7 @@ export default function YearReviewPage() {
       <div className="fixed inset-0 z-0" style={{ background: seasonalTheme.overlayGradient }} />
 
       {seasonalTheme.showSnowfall && <Snowfall />}
-      <SeasonalHeader playersCount={data.players.length} eventsCount={data.events.length} theme={seasonalTheme} />
+      <SeasonalHeader playersCount={clanRosterCount} eventsCount={data.events.length} theme={seasonalTheme} />
 
       <main className="container mx-auto px-4 py-6 space-y-6 relative z-10">
         <section className="space-y-3">

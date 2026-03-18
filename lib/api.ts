@@ -95,6 +95,19 @@ function toNullableNumber(value: unknown): number | null {
   return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : null
 }
 
+function normalizeClanRosterTag(value: string): string {
+  return value
+    .trim()
+    .replace(/^[^0-9A-Za-zА-Яа-яЁё]+/u, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+}
+
+function isRecognizedMdcRosterTag(value: string): boolean {
+  const normalized = normalizeClanRosterTag(value)
+  return normalized === "mdc︱" || normalized === "mdck︱" || normalized === "неактив"
+}
+
 function normalizeKey(value: string): string {
   return value.trim().toLowerCase()
 }
@@ -607,13 +620,7 @@ function normalizePlayer(raw: UnknownRecord): Player {
   const winRate = toNumber(totalsRecord?.win_rate ?? raw.win_rate, events > 0 ? wins / events : 0)
   const kd = toNumber(totalsRecord?.kd ?? raw.kd, deaths > 0 ? kills / deaths : kills)
   const kda = toNumber(totalsRecord?.kda ?? raw.kda, deaths > 0 ? downs / deaths : downs)
-  const placementFields = [raw.ELOPlace, raw.TBFPlace, raw.OPPlace]
-  const normalizedPlacements = placementFields.map((value) => toString(value, "").trim().toLowerCase())
-  const normalizedTag = tag.trim().toLowerCase()
-  const isMdcMemberByTag = normalizedTag.includes("mdc") || normalizedTag.includes("неактив")
-  const isMdcMember = normalizedTag
-    ? isMdcMemberByTag
-    : !normalizedPlacements.some((value) => value === "не mdc")
+  const isMdcMember = isRecognizedMdcRosterTag(tag)
 
   return {
     player_id: playerId,
