@@ -10,6 +10,7 @@ interface AchievementBadgesProps {
   variant?: "default" | "secondary" | "destructive" | "outline"
   badgeClassName?: string
   containerClassName?: string
+  layout?: "row" | "column"
 }
 
 export function AchievementBadges({
@@ -17,13 +18,20 @@ export function AchievementBadges({
   variant = "secondary",
   badgeClassName,
   containerClassName,
+  layout = "row",
 }: AchievementBadgesProps) {
   if (achievements.length === 0) {
     return null
   }
 
   return (
-    <div className={cn("flex flex-wrap gap-1", containerClassName)}>
+    <div
+      className={cn(
+        "flex gap-1",
+        layout === "column" ? "flex-col items-start" : "flex-wrap",
+        containerClassName,
+      )}
+    >
       {achievements.map((achievement) => (
         <Tooltip key={achievement}>
           <TooltipTrigger asChild>

@@ -79,6 +79,7 @@ export function SLLeaderboard({ slStats, title = "Топ Squad Leaders", playerA
                     variant="secondary"
                     badgeClassName="text-[10px] px-1 py-0"
                     containerClassName="mt-1"
+                    layout="column"
                   />
                 )}
                 <div className="flex gap-2 text-xs text-muted-foreground">

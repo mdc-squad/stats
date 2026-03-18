@@ -98,6 +98,7 @@ export function RoleLeaderboard({ players, role, metric, icon, playerAchievement
                           variant="secondary"
                           badgeClassName="text-[10px] px-1 py-0"
                           containerClassName="mt-1"
+                          layout="column"
                         />
                       )}
                       <p className="mt-1 text-xs text-muted-foreground">{player.games.toLocaleString("ru-RU")} игр на роли</p>

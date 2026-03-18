@@ -108,6 +108,7 @@ export function Leaderboard({
                       variant="secondary"
                       badgeClassName="text-[10px] px-1 py-0"
                       containerClassName="mt-1"
+                      layout="column"
                     />
                   )}
                 </div>

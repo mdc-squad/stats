@@ -112,6 +112,7 @@ export function AvgStatLeaderboard({
                       variant="secondary"
                       badgeClassName="text-[10px] px-1 py-0"
                       containerClassName="mt-1"
+                      layout="column"
                     />
                   )}
                   <p className="text-xs text-muted-foreground">
