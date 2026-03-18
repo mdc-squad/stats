@@ -1,7 +1,8 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, Crosshair, Skull, Target, Zap, Car, TrendingUp, Cross, Heart, Trophy } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Calendar, CircleHelp, Crosshair, Skull, Target, Zap, Car, TrendingUp, Cross, Heart, Trophy } from "lucide-react"
 
 interface OverallStatsPanelProps {
   stats: {
@@ -87,10 +88,32 @@ export function OverallStatsPanel({ stats, periodLabel = "за всё время
   return (
     <Card className="border-christmas-gold/30 bg-gradient-to-br from-card via-card to-christmas-green/5">
       <CardHeader className="pb-2.5">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2 text-christmas-snow">
-          <TrendingUp className="w-5 h-5 text-christmas-gold" />
-          Общая статистика клана
-        </CardTitle>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-lg font-semibold flex items-center gap-2 text-christmas-snow">
+              <TrendingUp className="w-5 h-5 text-christmas-gold" />
+              Общая статистика клана
+            </CardTitle>
+          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/35 text-muted-foreground transition-colors hover:border-christmas-gold/40 hover:text-christmas-gold"
+                aria-label="Пояснение по формулам статистики"
+              >
+                <CircleHelp className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs border border-border bg-card text-card-foreground">
+              <p className="font-medium text-christmas-snow">Как считаются метрики</p>
+              <p className="mt-1 leading-relaxed text-muted-foreground">KDA = ноки / смерти. Если смертей нет, значение равно числу ноков.</p>
+              <p className="mt-2 leading-relaxed text-muted-foreground">
+                Импакт = 5 × убийства + 3 × ноки + 2 × поднятия + 4 × техника - 1.5 × смерти.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
         <p className="text-xs text-muted-foreground">{periodLabel}</p>
       </CardHeader>
       <CardContent className="space-y-3">

@@ -346,25 +346,6 @@ function parseSafeDate(value: string | null | undefined): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
-function getNextRecommendedSyncDate(referenceDate: Date): Date {
-  const recommendedDays = [3, 5, 6, 0] // Wed, Fri, Sat, Sun
-  const base = new Date(referenceDate)
-  base.setHours(0, 0, 0, 0)
-
-  let minDiff = 8
-  for (const weekday of recommendedDays) {
-    const rawDiff = (weekday - base.getDay() + 7) % 7
-    const diff = rawDiff === 0 ? 7 : rawDiff
-    if (diff < minDiff) {
-      minDiff = diff
-    }
-  }
-
-  const result = new Date(base)
-  result.setDate(base.getDate() + minDiff)
-  return result
-}
-
 function buildSyncReport(
   previous: MDCData | null,
   current: MDCData,
@@ -461,7 +442,7 @@ export default function YearReviewPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null)
   const [syncProgress, setSyncProgress] = useState<SyncProgressState | null>(null)
-  const [lastSyncReport, setLastSyncReport] = useState<SyncReport | null>(null)
+  const [, setLastSyncReport] = useState<SyncReport | null>(null)
   const rawDataRef = useRef<MDCData | null>(null)
 
   useEffect(() => {
@@ -616,21 +597,6 @@ export default function YearReviewPage() {
     return `Обновлено: ${new Date(lastUpdatedAt).toLocaleTimeString("ru-RU")}`
   }, [lastUpdatedAt])
 
-  const lastUpdatedAtLabel = useMemo(() => {
-    if (!lastUpdatedAt) {
-      return "нет данных о синхронизации"
-    }
-
-    return new Date(lastUpdatedAt).toLocaleString("ru-RU", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    })
-  }, [lastUpdatedAt])
-
   const isCacheProbablyStale = useMemo(() => {
     if (!lastUpdatedAt) return true
     return Date.now() - lastUpdatedAt > API_CACHE_TTL_MS
@@ -659,6 +625,25 @@ export default function YearReviewPage() {
     return isCacheProbablyStale ? "text-christmas-gold" : "text-christmas-green"
   }, [isCacheProbablyStale, syncProgress])
 
+  const syncCompactLabel = useMemo(() => {
+    if (syncProgressLabel) {
+      return syncProgressLabel
+    }
+
+    return isCacheProbablyStale ? "Кэш устарел, можно обновить данные" : "Кэш актуален"
+  }, [isCacheProbablyStale, syncProgressLabel])
+
+  const syncCompactHint = useMemo(() => {
+    if (syncProgress?.stage === "error") {
+      return "Повторите обновление после завершённой игры."
+    }
+    if (syncProgress?.active) {
+      return "Идёт обновление локального кэша и пересчёт статистики."
+    }
+
+    return `${cacheInfoText} • обновляйте после завершённой игры`
+  }, [cacheInfoText, syncProgress])
+
   const syncProgressStyle = useMemo(
     () =>
       ({
@@ -671,55 +656,6 @@ export default function YearReviewPage() {
       }) as ThemeVariableStyle,
     [syncProgress],
   )
-
-  const lastSyncPagesLabel = useMemo(() => {
-    const pagesDone = syncProgress?.pagesDone ?? lastSyncReport?.protocolPagesDone ?? null
-    const pagesTotal = syncProgress?.pagesTotal ?? lastSyncReport?.protocolPagesTotal ?? null
-
-    if (pagesTotal && pagesTotal > 0) {
-      return `${pagesDone ?? pagesTotal}/${pagesTotal} стр.`
-    }
-    if (pagesDone && pagesDone > 0) {
-      return `${pagesDone} стр.`
-    }
-    return "н/д"
-  }, [lastSyncReport, syncProgress])
-
-  const lastSyncRoleRecordsCount = useMemo(() => {
-    if (lastSyncReport) return lastSyncReport.currentRoleRecords
-    if (rawData) return rawData.player_event_stats.length
-    return 0
-  }, [lastSyncReport, rawData])
-
-  const lastSyncDurationLabel = useMemo(() => {
-    if (!lastSyncReport?.durationMs || lastSyncReport.durationMs <= 0) {
-      return "н/д"
-    }
-
-    const seconds = Math.max(1, Math.round(lastSyncReport.durationMs / 1000))
-    if (seconds < 60) {
-      return `${seconds} сек.`
-    }
-
-    const minutes = Math.floor(seconds / 60)
-    const restSeconds = seconds % 60
-    if (restSeconds === 0) {
-      return `${minutes} мин.`
-    }
-
-    return `${minutes} мин. ${restSeconds} сек.`
-  }, [lastSyncReport])
-
-  const nextRecommendedUpdateLabel = useMemo(() => {
-    const referenceDate = lastUpdatedAt ? new Date(lastUpdatedAt) : new Date()
-    const nextDate = getNextRecommendedSyncDate(referenceDate)
-    return nextDate.toLocaleDateString("ru-RU", {
-      weekday: "long",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })
-  }, [lastUpdatedAt])
 
   const seasonalVariables = useMemo(
     () =>
@@ -739,10 +675,6 @@ export default function YearReviewPage() {
       }) as ThemeVariableStyle,
     [seasonalTheme],
   )
-
-  const latestWeekNewEvents = useMemo(() => {
-    return lastSyncReport?.addedEventsLastWeek ?? []
-  }, [lastSyncReport])
 
   const clanData = useMemo(() => {
     if (!rawData) return null
@@ -1359,113 +1291,37 @@ export default function YearReviewPage() {
       <SeasonalHeader playersCount={clanRosterCount} eventsCount={data.events.length} theme={seasonalTheme} />
 
       <main className="container mx-auto px-4 py-6 space-y-6 relative z-10">
-        <section className="space-y-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">{cacheInfoText}</p>
-              <p className="text-[11px] text-muted-foreground">
-                Обновлять статистику имеет смысл после завершенной игры, когда данные уже добавлены в таблицу.
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Ручное обновление очищает локальный кэш и полностью пересканирует данные API.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-christmas-gold/30 bg-background/50 hover:bg-christmas-gold/10 text-christmas-snow"
-                onClick={() => void loadData(true, true)}
-                disabled={isRefreshing}
-              >
-                <RotateCcw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-                {isRefreshing ? "Синхронизируем..." : "Сбросить кэш и обновить (Shift+R)"}
-              </Button>
-            </div>
-          </div>
-
+        <section>
           <Card className="border-christmas-gold/20 bg-card/60">
-            <CardContent className="pt-4 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <p className={`text-xs ${syncStatusClassName}`}>
-                  {syncProgressLabel ?? "Синхронизация не выполняется"}
-                </p>
-                <p className={`text-[11px] ${syncMetaClassName}`}>
-                  {syncProgress ? `${Math.round(syncProgress.percent)}%` : isCacheProbablyStale ? "кэш устарел" : "кэш актуален"}
-                </p>
+            <CardContent className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className={`truncate text-xs font-medium ${syncStatusClassName}`}>{syncCompactLabel}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{syncCompactHint}</p>
+                  </div>
+                  <p className={`shrink-0 text-[11px] font-medium ${syncMetaClassName}`}>
+                    {syncProgress ? `${Math.round(syncProgress.percent)}%` : isCacheProbablyStale ? "нужна синхр." : "готово"}
+                  </p>
+                </div>
+                <div className="mt-2" style={syncProgressStyle}>
+                  <Progress value={syncProgress?.percent ?? 100} className="h-1.5 bg-muted/30" />
+                </div>
               </div>
-              <div style={syncProgressStyle}>
-                <Progress value={syncProgress?.percent ?? 100} className="h-2 bg-muted/30" />
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-christmas-gold/30 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10"
+                  onClick={() => void loadData(true, true)}
+                  disabled={isRefreshing}
+                >
+                  <RotateCcw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+                  {isRefreshing ? "Синхронизируем..." : "Обновить (Shift+R)"}
+                </Button>
               </div>
-              <p className="text-[11px] text-muted-foreground">Последняя полная синхронизация: {lastUpdatedAtLabel}</p>
-              <p className="text-[11px] text-muted-foreground">
-                Крайняя сводка: страницы протокола {lastSyncPagesLabel}, role-записей{" "}
-                {lastSyncRoleRecordsCount.toLocaleString("ru-RU")}, длительность {lastSyncDurationLabel}.
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Рекомендуем следующее обновление: {nextRecommendedUpdateLabel} (обычно после игр пт-вс, иногда после
-                тренировки в среду).
-              </p>
             </CardContent>
           </Card>
-
-          {lastSyncReport && (
-            <Card className="border-christmas-green/20 bg-card/60">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-christmas-snow">Ретроспектива синхронизации (7 дней)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {lastSyncReport.isReset && (
-                  <p className="text-xs text-amber-200">Локальный кэш был сброшен перед этой синхронизацией.</p>
-                )}
-                {lastSyncReport.isInitial ? (
-                  <p className="text-xs text-muted-foreground">
-                    Базовая загрузка выполнена. Событий в базе: {lastSyncReport.currentEvents}.
-                  </p>
-                ) : (
-                  <>
-                    <p className="text-xs text-muted-foreground">
-                      Добавлено событий с прошлого обновления: {lastSyncReport.addedEventsTotal}. Всего событий:
-                      {" "}
-                      {lastSyncReport.currentEvents} (было {lastSyncReport.previousEvents}).
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      За последние 7 дней добавлено: {latestWeekNewEvents.length}.
-                    </p>
-                    {latestWeekNewEvents.length > 0 && (
-                      <div className="space-y-1">
-                        {latestWeekNewEvents.map((event) => {
-                          const dateLabel =
-                            parseSafeDate(event.started_at)?.toLocaleString("ru-RU", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            }) ?? event.started_at
-
-                          const resultLabel =
-                            event.is_win === true
-                              ? "Победа"
-                              : event.is_win === false
-                              ? "Поражение"
-                              : event.result?.toString() || "Результат не указан"
-
-                          return (
-                            <div
-                              key={`${event.event_id}-${event.started_at}`}
-                              className="text-[11px] text-muted-foreground rounded border border-border/50 px-2 py-1 bg-background/40"
-                            >
-                              {dateLabel} • {resultLabel} • {event.event_id}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </section>
 
         <Card className="border-christmas-gold/20 bg-card/60">
@@ -1605,23 +1461,6 @@ export default function YearReviewPage() {
                 </label>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-christmas-green/20 bg-card/50">
-          <CardContent className="grid gap-3 pt-4 md:grid-cols-2">
-            <div className="rounded-lg border border-border/50 bg-background/30 px-3 py-2.5">
-              <p className="text-[11px] uppercase tracking-wider text-christmas-gold">Справочная инфа</p>
-              <p className="mt-1 text-sm text-christmas-snow">KDA считается как ноки / смерти.</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Если смертей нет, значение равно числу ноков без дополнительных поправок.
-              </p>
-            </div>
-            <div className="rounded-lg border border-border/50 bg-background/30 px-3 py-2.5">
-              <p className="text-[11px] uppercase tracking-wider text-christmas-gold">Как считается импакт</p>
-              <p className="mt-1 text-sm text-christmas-snow">5 × убийства + 3 × ноки + 2 × поднятия + 4 × техника - 1.5 × смерти</p>
-              <p className="mt-1 text-xs text-muted-foreground">Итог округляется до целого и не может быть меньше нуля.</p>
-            </div>
           </CardContent>
         </Card>
 
