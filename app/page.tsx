@@ -61,6 +61,8 @@ import {
   getMaxKDByRole,
   getAverageValues,
   getTopMatchRecords,
+  getEventMatchupLabel,
+  getEventSizeLabel,
   type RoleLeaderboardMetric,
 } from "@/lib/data-utils"
 import { fetchAllData, type SyncProgressUpdate } from "@/lib/api"
@@ -186,6 +188,7 @@ const ROLE_METRIC_OPTIONS: Array<{ value: RoleLeaderboardMetric; label: string }
 ]
 
 const MIN_COMPETITIVE_EVENTS_FOR_TOPS = 11
+const RECORD_MATCH_LIMIT = 30
 
 function buildDateRangeForPeriod(period: StatsPeriod): { from?: Date; to?: Date } {
   if (period === "all" || period === "custom") {
@@ -445,6 +448,9 @@ export default function YearReviewPage() {
   const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([])
   const [selectedMaps, setSelectedMaps] = useState<string[]>([])
   const [selectedOpponents, setSelectedOpponents] = useState<string[]>([])
+  const [selectedModes, setSelectedModes] = useState<string[]>([])
+  const [selectedMatchups, setSelectedMatchups] = useState<string[]>([])
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([])
   const [selectedRoleMetric, setSelectedRoleMetric] = useState<RoleLeaderboardMetric>("kd")
   const [activeTab, setActiveTab] = useState("leaderboards")
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
@@ -840,6 +846,30 @@ export default function YearReviewPage() {
     [dateFilteredData],
   )
 
+  const modeOptions = useMemo<MultiValueFilterOption[]>(
+    () =>
+      Array.from(new Set((dateFilteredData?.events ?? []).map((event) => event.mode?.trim() ?? "").filter(Boolean)))
+        .sort((left, right) => left.localeCompare(right, "ru"))
+        .map((value) => ({ value, label: value })),
+    [dateFilteredData],
+  )
+
+  const matchupOptions = useMemo<MultiValueFilterOption[]>(
+    () =>
+      Array.from(new Set((dateFilteredData?.events ?? []).map((event) => getEventMatchupLabel(event)).filter(Boolean)))
+        .sort((left, right) => left.localeCompare(right, "ru"))
+        .map((value) => ({ value, label: value })),
+    [dateFilteredData],
+  )
+
+  const sizeOptions = useMemo<MultiValueFilterOption[]>(
+    () =>
+      Array.from(new Set((dateFilteredData?.events ?? []).map((event) => getEventSizeLabel(event)).filter(Boolean)))
+        .sort((left, right) => left.localeCompare(right, "ru", { numeric: true }))
+        .map((value) => ({ value, label: value })),
+    [dateFilteredData],
+  )
+
   const data = useMemo(() => {
     if (!dateFilteredData) return null
     return filterDataByEventSlice(dateFilteredData, {
@@ -847,8 +877,11 @@ export default function YearReviewPage() {
       eventTypes: selectedEventTypes,
       maps: selectedMaps,
       opponents: selectedOpponents,
+      modes: selectedModes,
+      matchups: selectedMatchups,
+      sizes: selectedSizes,
     })
-  }, [dateFilteredData, selectedEventTypes, selectedMaps, selectedOpponents, selectedResultFilters])
+  }, [dateFilteredData, selectedEventTypes, selectedMaps, selectedMatchups, selectedModes, selectedOpponents, selectedResultFilters, selectedSizes])
 
   const competitiveData = useMemo(() => {
     if (!data) return null
@@ -861,6 +894,9 @@ export default function YearReviewPage() {
       selectedEventTypes.length ||
       selectedMaps.length ||
       selectedOpponents.length ||
+      selectedModes.length ||
+      selectedMatchups.length ||
+      selectedSizes.length ||
       selectedPeriod !== "all" ||
       customDateFrom ||
       customDateTo,
@@ -884,9 +920,28 @@ export default function YearReviewPage() {
     if (selectedOpponents.length > 0) {
       segments.push(`оппоненты: ${selectedOpponents.length}`)
     }
+    if (selectedModes.length > 0) {
+      segments.push(`режимы: ${selectedModes.length}`)
+    }
+    if (selectedMatchups.length > 0) {
+      segments.push(`матчапы: ${selectedMatchups.length}`)
+    }
+    if (selectedSizes.length > 0) {
+      segments.push(`форматы: ${selectedSizes.length}`)
+    }
 
     return segments.join(" • ")
-  }, [periodSummaryLabel, selectedEventTypes.length, selectedMaps.length, selectedOpponents.length, selectedResultFilters.length, selectedTags.length])
+  }, [
+    periodSummaryLabel,
+    selectedEventTypes.length,
+    selectedMaps.length,
+    selectedMatchups.length,
+    selectedModes.length,
+    selectedOpponents.length,
+    selectedResultFilters.length,
+    selectedSizes.length,
+    selectedTags.length,
+  ])
 
   const resetSliceFilters = useCallback(() => {
     setSelectedTags([])
@@ -897,6 +952,9 @@ export default function YearReviewPage() {
     setSelectedEventTypes([])
     setSelectedMaps([])
     setSelectedOpponents([])
+    setSelectedModes([])
+    setSelectedMatchups([])
+    setSelectedSizes([])
   }, [])
 
   useEffect(() => {
@@ -994,14 +1052,14 @@ export default function YearReviewPage() {
     () =>
       competitiveData
         ? {
-            kd: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kd", 10),
-            kda: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kda", 10),
-            kills: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kills", 10),
-            downs: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "downs", 10),
-            deaths: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "deaths", 10),
-            revives: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "revives", 10),
-            heals: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "heals", 10),
-            vehicle: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "vehicle", 10),
+            kd: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kd", RECORD_MATCH_LIMIT),
+            kda: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kda", RECORD_MATCH_LIMIT),
+            kills: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kills", RECORD_MATCH_LIMIT),
+            downs: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "downs", RECORD_MATCH_LIMIT),
+            deaths: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "deaths", RECORD_MATCH_LIMIT),
+            revives: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "revives", RECORD_MATCH_LIMIT),
+            heals: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "heals", RECORD_MATCH_LIMIT),
+            vehicle: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "vehicle", RECORD_MATCH_LIMIT),
           }
         : {
             kd: [],
@@ -1428,7 +1486,7 @@ export default function YearReviewPage() {
                 Сбросить фильтры
               </Button>
             </div>
-            <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,0.9fr)_repeat(5,minmax(0,1fr))]">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
               <div className="space-y-2">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
                 <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as StatsPeriod)}>
@@ -1475,6 +1533,16 @@ export default function YearReviewPage() {
                 />
               </div>
               <div className="space-y-2">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Режим</p>
+                <MultiValueFilter
+                  options={modeOptions}
+                  selected={selectedModes}
+                  onSelectionChange={setSelectedModes}
+                  placeholder="Любые режимы"
+                  searchPlaceholder="Поиск по режимам..."
+                />
+              </div>
+              <div className="space-y-2">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Карта</p>
                 <MultiValueFilter
                   options={mapOptions}
@@ -1482,6 +1550,16 @@ export default function YearReviewPage() {
                   onSelectionChange={setSelectedMaps}
                   placeholder="Любые карты"
                   searchPlaceholder="Поиск по картам..."
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Матчап</p>
+                <MultiValueFilter
+                  options={matchupOptions}
+                  selected={selectedMatchups}
+                  onSelectionChange={setSelectedMatchups}
+                  placeholder="Любые матчапы"
+                  searchPlaceholder="Поиск по матчапам..."
                 />
               </div>
               <div className="space-y-2">
@@ -1494,29 +1572,56 @@ export default function YearReviewPage() {
                   searchPlaceholder="Поиск по кланам и оппонентам..."
                 />
               </div>
+              <div className="space-y-2">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Формат</p>
+                <MultiValueFilter
+                  options={sizeOptions}
+                  selected={selectedSizes}
+                  onSelectionChange={setSelectedSizes}
+                  placeholder="Любые размеры"
+                  searchPlaceholder="Поиск по форматам..."
+                />
+              </div>
             </div>
             {selectedPeriod === "custom" && (
               <div className="grid gap-3 sm:grid-cols-2 lg:max-w-[420px]">
-                  <label className="space-y-1">
-                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
-                    <Input
-                      type="date"
-                      value={customDateFrom}
-                      onChange={(event) => setCustomDateFrom(event.target.value)}
-                      className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
-                    />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
-                    <Input
-                      type="date"
-                      value={customDateTo}
-                      onChange={(event) => setCustomDateTo(event.target.value)}
-                      className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
-                    />
-                  </label>
+                <label className="space-y-1">
+                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
+                  <Input
+                    type="date"
+                    value={customDateFrom}
+                    onChange={(event) => setCustomDateFrom(event.target.value)}
+                    className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
+                  <Input
+                    type="date"
+                    value={customDateTo}
+                    onChange={(event) => setCustomDateTo(event.target.value)}
+                    className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                  />
+                </label>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-christmas-green/20 bg-card/50">
+          <CardContent className="grid gap-3 pt-4 md:grid-cols-2">
+            <div className="rounded-lg border border-border/50 bg-background/30 px-3 py-2.5">
+              <p className="text-[11px] uppercase tracking-wider text-christmas-gold">Справочная инфа</p>
+              <p className="mt-1 text-sm text-christmas-snow">KDA считается как ноки / смерти.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Если смертей нет, значение равно числу ноков без дополнительных поправок.
+              </p>
+            </div>
+            <div className="rounded-lg border border-border/50 bg-background/30 px-3 py-2.5">
+              <p className="text-[11px] uppercase tracking-wider text-christmas-gold">Как считается импакт</p>
+              <p className="mt-1 text-sm text-christmas-snow">5 × убийства + 3 × ноки + 2 × поднятия + 4 × техника - 1.5 × смерти</p>
+              <p className="mt-1 text-xs text-muted-foreground">Итог округляется до целого и не может быть меньше нуля.</p>
+            </div>
           </CardContent>
         </Card>
 
@@ -1525,21 +1630,16 @@ export default function YearReviewPage() {
         {/* Event Types Summary */}
         <section>
           <h2 className="text-lg font-semibold mb-4 text-christmas-snow">Статистика по типам событий</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-6">
             {eventTypeStats.map((et) => (
               <Card key={et.type} className="border-christmas-gold/20">
-                <CardContent className="p-4 text-center">
-                  <p className="text-2xl mb-1">{et.type}</p>
-                  <p className="text-xl font-bold text-christmas-snow">{et.count}</p>
+                <CardContent className="p-3 text-center">
+                  <p className="mb-1 text-xl">{et.type}</p>
+                  <p className="text-lg font-bold text-christmas-snow">{et.count}</p>
                   {!isLectureEventType(et.type) && (
-                    <div className="space-y-0.5">
-                      <p className="text-xs text-christmas-gold">{et.wins} побед</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {et.resolved > 0
-                          ? `из ${et.resolved} с результатом • WR ${((et.wins / et.resolved) * 100).toFixed(0)}%`
-                          : "результат не определён"}
-                      </p>
-                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {et.resolved > 0 ? `WR ${((et.wins / et.resolved) * 100).toFixed(0)}%` : "без результата"}
+                    </p>
                   )}
                 </CardContent>
               </Card>
@@ -1555,13 +1655,13 @@ export default function YearReviewPage() {
         />
 
         {/* Charts Section */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+        <section className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 items-start">
           <ActivityChart data={monthlyActivity} />
           <WeeklyActivityChart data={weeklyParticipation} />
           <WinrateProgressChart data={dailyActivity} />
         </section>
 
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+        <section className="grid grid-cols-1 gap-3 md:grid-cols-2 items-start">
           <MapChart data={mapStats} />
           <RoleChart data={roleStats} />
         </section>
@@ -1625,7 +1725,7 @@ export default function YearReviewPage() {
               В соревновательные топы попадают только игроки с более чем {MIN_COMPETITIVE_EVENTS_FOR_TOPS - 1}
               боевыми событиями. Лекции в квалификацию не входят.
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
               <Leaderboard
                 title="Топ по убийствам"
                 players={topKills}
@@ -1788,7 +1888,7 @@ export default function YearReviewPage() {
           </TabsContent>
 
           <TabsContent value="records" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               <BestMatches
                 title="Рекорды по K/D"
                 metric="kd"

@@ -148,6 +148,9 @@ export interface EventSliceFilters {
   eventTypes?: string[]
   maps?: string[]
   opponents?: string[]
+  modes?: string[]
+  matchups?: string[]
+  sizes?: string[]
   results?: Array<"win" | "loss" | "unknown">
 }
 
@@ -184,6 +187,27 @@ function parseSafeDate(value: string | null | undefined): Date | null {
   }
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? null : date
+}
+
+export function getEventMatchupLabel(event: Pick<GameEvent, "faction_1" | "faction_2">): string {
+  return getFactionMatchup(event.faction_1, event.faction_2)?.trim() ?? ""
+}
+
+export function getEventSizeLabel(event: Pick<GameEvent, "team_size" | "enemy_size">): string {
+  const teamSize =
+    typeof event.team_size === "number" && Number.isFinite(event.team_size) && event.team_size > 0
+      ? String(event.team_size)
+      : "?"
+  const enemySize =
+    typeof event.enemy_size === "number" && Number.isFinite(event.enemy_size) && event.enemy_size > 0
+      ? String(event.enemy_size)
+      : "?"
+
+  if (teamSize === "?" && enemySize === "?") {
+    return ""
+  }
+
+  return `${teamSize}x${enemySize}`
 }
 
 function toFiniteNumber(value: unknown): number {
@@ -696,7 +720,13 @@ export function filterDataByEventSlice(data: MDCData, filters: EventSliceFilters
   const events = Array.isArray(data.events) ? data.events : []
   const playerStats = Array.isArray(data.player_event_stats) ? data.player_event_stats : []
   const hasFilters = Boolean(
-    filters.eventTypes?.length || filters.maps?.length || filters.opponents?.length || filters.results?.length,
+    filters.eventTypes?.length ||
+      filters.maps?.length ||
+      filters.opponents?.length ||
+      filters.modes?.length ||
+      filters.matchups?.length ||
+      filters.sizes?.length ||
+      filters.results?.length,
   )
 
   if (!hasFilters) {
@@ -707,12 +737,18 @@ export function filterDataByEventSlice(data: MDCData, filters: EventSliceFilters
   const eventTypeSet = new Set((filters.eventTypes ?? []).map((value) => value.trim()).filter(Boolean))
   const mapSet = new Set((filters.maps ?? []).map((value) => value.trim()).filter(Boolean))
   const opponentSet = new Set((filters.opponents ?? []).map((value) => value.trim()).filter(Boolean))
+  const modeSet = new Set((filters.modes ?? []).map((value) => value.trim()).filter(Boolean))
+  const matchupSet = new Set((filters.matchups ?? []).map((value) => value.trim()).filter(Boolean))
+  const sizeSet = new Set((filters.sizes ?? []).map((value) => value.trim()).filter(Boolean))
   const resultSet = new Set(filters.results ?? [])
 
   const filteredEvents = events.filter((event) => {
     const eventType = event.event_type?.trim() ?? ""
     const map = event.map?.trim() ?? ""
     const opponent = event.opponent?.trim() ?? ""
+    const mode = event.mode?.trim() ?? ""
+    const matchup = getEventMatchupLabel(event)
+    const size = getEventSizeLabel(event)
     const resultKey = event.is_win === true ? "win" : event.is_win === false ? "loss" : "unknown"
 
     if (eventTypeSet.size > 0 && !eventTypeSet.has(eventType)) {
@@ -722,6 +758,15 @@ export function filterDataByEventSlice(data: MDCData, filters: EventSliceFilters
       return false
     }
     if (opponentSet.size > 0 && !opponentSet.has(opponent)) {
+      return false
+    }
+    if (modeSet.size > 0 && !modeSet.has(mode)) {
+      return false
+    }
+    if (matchupSet.size > 0 && !matchupSet.has(matchup)) {
+      return false
+    }
+    if (sizeSet.size > 0 && !sizeSet.has(size)) {
       return false
     }
     if (resultSet.size > 0 && !resultSet.has(resultKey)) {
@@ -1147,11 +1192,6 @@ export function getOverallStats(data: MDCData) {
   const wins = eventsWithResult.filter((e) => e.is_win).length
   const losses = eventsWithResult.filter((e) => !e.is_win).length
 
-  // Calculate average KDA
-  const playersWithKDA = players.filter((p) => p && p.totals && p.totals.events >= 1)
-  const averageKDA =
-    playersWithKDA.length > 0 ? playersWithKDA.reduce((sum, p) => sum + (p?.totals?.kda || 0), 0) / playersWithKDA.length : 0
-
   return {
     totalKills,
     totalDeaths,
@@ -1164,7 +1204,7 @@ export function getOverallStats(data: MDCData) {
     losses,
     winRate: eventsWithResult.length > 0 ? (wins / eventsWithResult.length) * 100 : 0,
     averageKD: totalDeaths > 0 ? totalKills / totalDeaths : 0,
-    averageKDA,
+    averageKDA: totalDeaths > 0 ? totalDowns / totalDeaths : totalDowns,
     activePlayers: players.filter((p) => p && p.totals && p.totals.events >= 3).length,
   }
 }
