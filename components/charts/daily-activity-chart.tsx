@@ -1,48 +1,13 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts"
 import { Calendar } from "lucide-react"
 
 interface DailyActivityChartProps {
   wins: number
   losses: number
   periodLabel?: string
-}
-
-interface SliceTooltipProps {
-  active?: boolean
-  payload?: Array<{
-    value: number
-    payload: {
-      name: string
-      value: number
-      color: string
-    }
-  }>
-  totalMatches: number
-}
-
-function SliceTooltip({ active, payload, totalMatches }: SliceTooltipProps) {
-  if (!active || !payload?.length) {
-    return null
-  }
-
-  const point = payload[0]?.payload
-  if (!point) {
-    return null
-  }
-
-  const percentage = totalMatches > 0 ? (point.value / totalMatches) * 100 : 0
-
-  return (
-    <div className="rounded-lg border border-border bg-card/95 px-3 py-2 shadow-lg backdrop-blur">
-      <p className="text-sm font-medium text-christmas-snow">{point.name}</p>
-      <p className="text-xs text-muted-foreground">
-        {point.value} матчей • {percentage.toFixed(1)}%
-      </p>
-    </div>
-  )
 }
 
 export function DailyActivityChart({ wins, losses, periodLabel = "за всё время" }: DailyActivityChartProps) {
@@ -99,7 +64,6 @@ export function DailyActivityChart({ wins, losses, periodLabel = "за всё в
                   <Cell key={entry.name} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip content={<SliceTooltip totalMatches={totalMatches} />} cursor={false} position={{ x: 12, y: 12 }} />
             </PieChart>
           </ResponsiveContainer>
 

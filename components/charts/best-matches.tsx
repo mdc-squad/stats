@@ -91,7 +91,7 @@ export function BestMatches({
 }: BestMatchesProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const [showAll, setShowAll] = useState(false)
-  const defaultVisiblePlayers = 8
+  const defaultVisiblePlayers = 10
 
   const handleExport = async () => {
     if (!cardRef.current) return
@@ -117,10 +117,7 @@ export function BestMatches({
     }
   }
 
-  const getSteamId = (playerId: string) => {
-    const player = players.find((p) => p.player_id === playerId)
-    return player?.steam_id || ""
-  }
+  const playerSteamIds = useMemo(() => new Map(players.map((player) => [player.player_id, player.steam_id])), [players])
 
   const groupedRecords = useMemo<AggregatedRecordEntry[]>(() => {
     const grouped = new Map<string, AggregatedRecordEntry>()
@@ -131,7 +128,7 @@ export function BestMatches({
         grouped.set(match.player_id, {
           player_id: match.player_id,
           nickname: match.nickname,
-          steam_id: getSteamId(match.player_id),
+          steam_id: playerSteamIds.get(match.player_id) ?? "",
           bestMatch: match,
           records: [match],
         })
@@ -160,14 +157,14 @@ export function BestMatches({
         }
         return left.nickname.localeCompare(right.nickname, "ru")
       })
-  }, [matches, metric, players])
+  }, [matches, metric, playerSteamIds])
 
   const canExpand = groupedRecords.length > defaultVisiblePlayers
   const visibleRecords = showAll ? groupedRecords : groupedRecords.slice(0, defaultVisiblePlayers)
 
   return (
     <div className="relative group">
-      <Card ref={cardRef} className="flex h-[360px] flex-col">
+      <Card ref={cardRef} className="flex h-[360px] flex-col overflow-hidden">
         <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-2.5 pr-14">
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-christmas-gold">
@@ -236,7 +233,7 @@ export function BestMatches({
                         <summary className="cursor-pointer text-[11px] text-muted-foreground marker:text-christmas-gold">
                           Все рекорды игрока
                         </summary>
-                        <div className="mt-2 space-y-1.5">
+                        <div className="mt-2 max-h-40 space-y-1.5 overflow-y-auto pr-1">
                           {entry.records.map((match) => (
                             <div
                               key={`${match.event_id}-${match.player_id}-${match.role}-${match.map}`}
