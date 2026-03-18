@@ -17,6 +17,7 @@ interface RolePlayer {
   deaths: number
   downs: number
   revives: number
+  heals: number
   vehicle: number
   games: number
   kd: number
@@ -37,7 +38,8 @@ const METRIC_LABELS: Record<RoleLeaderboardMetric, string> = {
   kda: "KDA",
   kills: "Убийства",
   downs: "Ноки",
-  revives: "Хил",
+  revives: "Поднятия",
+  heals: "Хил",
   vehicle: "Техника",
 }
 
@@ -78,29 +80,40 @@ export function RoleLeaderboard({ players, role, metric, icon, playerAchievement
           {players.map((player, index) => (
             <div
               key={player.player_id}
-              className={`flex items-center gap-3 rounded-md p-2 transition-colors ${index < 3 ? "bg-secondary/50" : ""}`}
+              className={`rounded-md p-2 transition-colors ${index < 3 ? "bg-secondary/50" : ""}`}
             >
-              <span className="w-6 text-center font-mono text-sm text-christmas-snow">{getMedal(index)}</span>
-              <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate text-christmas-snow">{player.nickname}</p>
-                {(playerAchievements?.[player.player_id]?.length ?? 0) > 0 && (
-                  <AchievementBadges
-                    achievements={playerAchievements?.[player.player_id] ?? []}
-                    variant="secondary"
-                    badgeClassName="text-[10px] px-1 py-0"
-                    containerClassName="mt-1"
-                  />
-                )}
-                <p className="text-xs text-muted-foreground">{player.games.toLocaleString("ru-RU")} игр на роли</p>
-              </div>
-              <div className="text-right">
-                <Badge variant="outline" className="font-mono text-christmas-gold border-christmas-gold/30">
-                  {METRIC_LABELS[metric]}: {formatMetricValue(player, metric)}
-                </Badge>
-                <p className="text-[9px] text-muted-foreground mt-1">
-                  K/D: {player.kd.toFixed(2)} • KDA: {player.kda.toFixed(2)}
-                </p>
+              <div className="flex items-start gap-3">
+                <span className="w-6 pt-1 text-center font-mono text-sm text-christmas-snow">{getMedal(index)}</span>
+                <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate text-christmas-snow">{player.nickname}</p>
+                      {(playerAchievements?.[player.player_id]?.length ?? 0) > 0 && (
+                        <AchievementBadges
+                          achievements={playerAchievements?.[player.player_id] ?? []}
+                          variant="secondary"
+                          badgeClassName="text-[10px] px-1 py-0"
+                          containerClassName="mt-1"
+                        />
+                      )}
+                      <p className="mt-1 text-xs text-muted-foreground">{player.games.toLocaleString("ru-RU")} игр на роли</p>
+                    </div>
+                    <Badge variant="outline" className="font-mono text-christmas-gold border-christmas-gold/30">
+                      {METRIC_LABELS[metric]}: {formatMetricValue(player, metric)}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
+                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">K/D {player.kd.toFixed(2)}</Badge>
+                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">KDA {player.kda.toFixed(2)}</Badge>
+                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">K {player.kills}</Badge>
+                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">Dn {player.downs}</Badge>
+                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">D {player.deaths}</Badge>
+                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">Подн {player.revives}</Badge>
+                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">Хил {player.heals}</Badge>
+                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">Тех {player.vehicle}</Badge>
+                  </div>
+                </div>
               </div>
             </div>
           ))}

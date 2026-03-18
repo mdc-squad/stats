@@ -7,24 +7,47 @@ export type SquadToneKey =
   | "purple"
   | "pink"
   | "cyan"
+  | "brown"
   | "black"
   | "white"
   | "neutral"
 
-export function getSquadLabel(squadNo: number, squadDomain: string[] = []): string {
-  if (!Number.isFinite(squadNo) || squadNo <= 0) {
+export type SquadIdentifier = number | string | null | undefined
+
+function normalizeSquadToken(value: SquadIdentifier): string {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value)
+  }
+
+  if (typeof value === "string") {
+    return value.trim()
+  }
+
+  return ""
+}
+
+export function getSquadLabel(squadNo: SquadIdentifier, squadDomain: string[] = []): string {
+  const normalized = normalizeSquadToken(squadNo)
+  if (!normalized) {
     return "Без отряда"
   }
 
   const domain = squadDomain.map((value) => value.trim()).filter(Boolean)
-  return domain[squadNo - 1] ?? `Сквад ${squadNo}`
+  const numericValue = Number(normalized)
+  if (Number.isFinite(numericValue) && numericValue > 0 && String(Math.trunc(numericValue)) === normalized) {
+    return domain[numericValue - 1] ?? `Сквад ${numericValue}`
+  }
+
+  const byKey = new Map(domain.map((value) => [value.toLowerCase(), value]))
+  return byKey.get(normalized.toLowerCase()) ?? normalized
 }
 
-export function getSquadLabels(squadNos: number[], squadDomain: string[] = []): string[] {
+export function getSquadLabels(squadNos: SquadIdentifier[], squadDomain: string[] = []): string[] {
   return Array.from(
     new Set(
       squadNos
-        .filter((value) => Number.isFinite(value) && value > 0)
+        .map((value) => normalizeSquadToken(value))
+        .filter(Boolean)
         .map((value) => getSquadLabel(value, squadDomain)),
     ),
   )
@@ -56,6 +79,7 @@ export function getSquadToneKey(label: string | null | undefined): SquadToneKey 
   if (normalized.includes("purple") || normalized.includes("violet") || normalized.includes("фиол")) return "purple"
   if (normalized.includes("pink") || normalized.includes("роз")) return "pink"
   if (normalized.includes("cyan") || normalized.includes("teal") || normalized.includes("бирюз")) return "cyan"
+  if (normalized.includes("brown") || normalized.includes("корич")) return "brown"
   if (normalized.includes("black") || normalized.includes("черн")) return "black"
   if (normalized.includes("white") || normalized.includes("бел")) return "white"
 
@@ -115,6 +139,12 @@ export function getSquadToneClasses(label: string | null | undefined): {
         badge: "border-cyan-500/40 bg-cyan-500/10 text-cyan-200",
         panel: "border-cyan-500/20 bg-cyan-500/10",
         dot: "bg-cyan-400",
+      }
+    case "brown":
+      return {
+        badge: "border-amber-700/40 bg-amber-900/20 text-amber-100",
+        panel: "border-amber-700/20 bg-amber-900/15",
+        dot: "bg-amber-600",
       }
     case "black":
       return {

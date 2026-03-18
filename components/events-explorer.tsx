@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { PastGameSummary, Player } from "@/lib/data-utils"
 import { getSquadToneClasses } from "@/lib/squad-utils"
-import { Calendar, Crosshair, Filter, Heart, Search, Shield, Skull, Trophy, Users, Zap } from "lucide-react"
+import { Calendar, Crosshair, Filter, Heart, Search, Shield, Trophy, Users } from "lucide-react"
 
 interface EventsExplorerProps {
   games: PastGameSummary[]
@@ -660,7 +660,7 @@ export function EventsExplorer({
 
                       <AccordionContent className="px-2.5 pb-2.5">
                         <div className="space-y-3">
-                          <div className="grid grid-cols-1 gap-2 lg:grid-cols-7">
+                          <div className="grid grid-cols-1 gap-2 lg:grid-cols-8">
                             <div className="rounded-lg border border-border/50 bg-background/35 p-2.5">
                               <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
                                 <Calendar className="w-3.5 h-3.5" />
@@ -695,6 +695,13 @@ export function EventsExplorer({
                               <p className="mt-2 text-sm font-medium text-christmas-snow">
                                 {game.totalDowns} / {game.totalRevives}
                               </p>
+                            </div>
+                            <div className="rounded-lg border border-border/50 bg-background/35 p-2.5">
+                              <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                                <Heart className="w-3.5 h-3.5" />
+                                Хил
+                              </p>
+                              <p className="mt-2 text-sm font-medium text-christmas-snow">{game.totalHeals}</p>
                             </div>
                             <div className="rounded-lg border border-border/50 bg-background/35 p-2.5">
                               <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -758,7 +765,7 @@ export function EventsExplorer({
                                 Для этого события есть карточка матча, но нет развернутого протокола игроков в `playersevents`.
                               </div>
                             ) : (
-                              <Table className="min-w-[920px]">
+                              <Table className="min-w-[1020px]">
                                 <TableHeader>
                                   <TableRow className="border-border/60">
                                     <TableHead>#</TableHead>
@@ -768,6 +775,7 @@ export function EventsExplorer({
                                     <TableHead>Dn</TableHead>
                                     <TableHead>D</TableHead>
                                     <TableHead>Rev</TableHead>
+                                    <TableHead>Хил</TableHead>
                                     <TableHead>K/D</TableHead>
                                     <TableHead>Импакт</TableHead>
                                   </TableRow>
@@ -814,6 +822,7 @@ export function EventsExplorer({
                                         <TableCell className="text-orange-300">{player.downs}</TableCell>
                                         <TableCell className="text-christmas-red">{player.deaths}</TableCell>
                                         <TableCell className="text-blue-300">{player.revives}</TableCell>
+                                        <TableCell className="text-rose-200">{player.heals}</TableCell>
                                         <TableCell className="text-christmas-snow">{player.kd.toFixed(2)}</TableCell>
                                         <TableCell className="w-[180px]">
                                           <div className="space-y-1.5">
@@ -837,36 +846,6 @@ export function EventsExplorer({
                             )}
                           </ScrollArea>
 
-                          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                            <div className="rounded-lg border border-christmas-green/20 bg-christmas-green/10 p-2.5">
-                              <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                                <Crosshair className="w-3.5 h-3.5 text-christmas-green" />
-                                Убийства
-                              </p>
-                              <p className="mt-2 text-lg font-semibold text-christmas-snow">{game.totalKills}</p>
-                            </div>
-                            <div className="rounded-lg border border-orange-500/20 bg-orange-500/10 p-2.5">
-                              <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                                <Zap className="w-3.5 h-3.5 text-orange-300" />
-                                Ноки
-                              </p>
-                              <p className="mt-2 text-lg font-semibold text-christmas-snow">{game.totalDowns}</p>
-                            </div>
-                            <div className="rounded-lg border border-christmas-red/20 bg-christmas-red/10 p-2.5">
-                              <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                                <Skull className="w-3.5 h-3.5 text-christmas-red" />
-                                Смерти
-                              </p>
-                              <p className="mt-2 text-lg font-semibold text-christmas-snow">{game.totalDeaths}</p>
-                            </div>
-                            <div className="rounded-lg border border-blue-500/20 bg-blue-500/10 p-2.5">
-                              <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                                <Heart className="w-3.5 h-3.5 text-blue-300" />
-                                Поднятия
-                              </p>
-                              <p className="mt-2 text-lg font-semibold text-christmas-snow">{game.totalRevives}</p>
-                            </div>
-                          </div>
                         </div>
                       </AccordionContent>
                     </AccordionItem>

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
 import { Leaderboard } from "@/components/leaderboard"
 import { AvgStatLeaderboard } from "@/components/avg-stat-leaderboard"
 import { MapChart } from "@/components/charts/map-chart"
@@ -17,7 +18,6 @@ import { DailyActivityChart } from "@/components/charts/daily-activity-chart"
 import { WeeklyActivityChart } from "@/components/charts/weekly-activity-chart"
 import { WinrateProgressChart } from "@/components/charts/winrate-progress-chart"
 import { PlayerProgressChart } from "@/components/charts/player-progress-chart"
-import { SLLeaderboard } from "@/components/charts/sl-leaderboard"
 import { RoleLeaderboard } from "@/components/charts/role-leaderboard"
 import { BestMatches } from "@/components/charts/best-matches"
 import { PlayerCard } from "@/components/player-card"
@@ -54,6 +54,7 @@ import {
   getTopByKDA,
   getTopByAvgVehicle,
   getTopByAvgRevives,
+  getTopByAvgHeals,
   getMaxKDByRole,
   getAverageValues,
   getTopMatchRecords,
@@ -78,7 +79,7 @@ import {
   RotateCcw,
 } from "lucide-react"
 
-const API_CACHE_KEY = "mdc-api-cache-v5"
+const API_CACHE_KEY = "mdc-api-cache-v6"
 const API_CACHE_TTL_MS = 5 * 60 * 1000
 
 type CachedPayload = {
@@ -156,14 +157,16 @@ type SyncReport = {
 
 type ThemeVariableStyle = React.CSSProperties & Record<`--${string}`, string>
 
-type StatsPeriod = "all" | "30d" | "90d" | "180d" | "365d"
+type StatsPeriod = "all" | "7d" | "30d" | "90d" | "180d" | "365d" | "custom"
 
 const STATS_PERIOD_OPTIONS: Array<{ value: StatsPeriod; label: string; summary: string }> = [
   { value: "all", label: "За всё время", summary: "Срез: за всё время" },
+  { value: "7d", label: "7 дней", summary: "Срез: последние 7 дней" },
   { value: "30d", label: "30 дней", summary: "Срез: последние 30 дней" },
   { value: "90d", label: "90 дней", summary: "Срез: последние 90 дней" },
   { value: "180d", label: "180 дней", summary: "Срез: последние 180 дней" },
   { value: "365d", label: "365 дней", summary: "Срез: последние 365 дней" },
+  { value: "custom", label: "Произвольно", summary: "Срез: произвольный диапазон" },
 ]
 
 const ROLE_METRIC_OPTIONS: Array<{ value: RoleLeaderboardMetric; label: string }> = [
@@ -171,14 +174,15 @@ const ROLE_METRIC_OPTIONS: Array<{ value: RoleLeaderboardMetric; label: string }
   { value: "kda", label: "KDA" },
   { value: "kills", label: "Убийства" },
   { value: "downs", label: "Ноки" },
-  { value: "revives", label: "Хил" },
+  { value: "revives", label: "Поднятия" },
+  { value: "heals", label: "Хил" },
   { value: "vehicle", label: "Техника" },
 ]
 
 const MIN_COMPETITIVE_EVENTS_FOR_TOPS = 11
 
 function buildDateRangeForPeriod(period: StatsPeriod): { from?: Date; to?: Date } {
-  if (period === "all") {
+  if (period === "all" || period === "custom") {
     return {}
   }
 
@@ -191,6 +195,16 @@ function buildDateRangeForPeriod(period: StatsPeriod): { from?: Date; to?: Date 
   from.setHours(0, 0, 0, 0)
 
   return { from, to }
+}
+
+function buildDateRangeFromCustomInput(fromValue: string, toValue: string): { from?: Date; to?: Date } {
+  const from = fromValue ? new Date(`${fromValue}T00:00:00`) : undefined
+  const to = toValue ? new Date(`${toValue}T23:59:59.999`) : undefined
+
+  return {
+    from: from && !Number.isNaN(from.getTime()) ? from : undefined,
+    to: to && !Number.isNaN(to.getTime()) ? to : undefined,
+  }
 }
 
 function isLectureEventType(value: string): boolean {
@@ -419,6 +433,8 @@ export default function YearReviewPage() {
   const [seasonalTheme, setSeasonalTheme] = useState<SeasonalTheme>(() => getSeasonalTheme())
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [selectedPeriod, setSelectedPeriod] = useState<StatsPeriod>("all")
+  const [customDateFrom, setCustomDateFrom] = useState("")
+  const [customDateTo, setCustomDateTo] = useState("")
   const [selectedRoleMetric, setSelectedRoleMetric] = useState<RoleLeaderboardMetric>("kd")
   const [activeTab, setActiveTab] = useState("leaderboards")
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
@@ -736,7 +752,31 @@ export default function YearReviewPage() {
     [selectedPeriod],
   )
 
-  const periodRange = useMemo(() => buildDateRangeForPeriod(selectedPeriod), [selectedPeriod])
+  const periodSummaryLabel = useMemo(() => {
+    if (selectedPeriod !== "custom") {
+      return selectedPeriodOption.summary
+    }
+
+    if (customDateFrom && customDateTo) {
+      return `Срез: ${customDateFrom} - ${customDateTo}`
+    }
+    if (customDateFrom) {
+      return `Срез: с ${customDateFrom}`
+    }
+    if (customDateTo) {
+      return `Срез: до ${customDateTo}`
+    }
+
+    return selectedPeriodOption.summary
+  }, [customDateFrom, customDateTo, selectedPeriod, selectedPeriodOption.summary])
+
+  const periodRange = useMemo(
+    () =>
+      selectedPeriod === "custom"
+        ? buildDateRangeFromCustomInput(customDateFrom, customDateTo)
+        : buildDateRangeForPeriod(selectedPeriod),
+    [customDateFrom, customDateTo, selectedPeriod],
+  )
 
   const data = useMemo(() => {
     if (!tagFilteredData) return null
@@ -840,16 +880,22 @@ export default function YearReviewPage() {
       competitiveData
         ? {
             kd: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kd", 10),
+            kda: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kda", 10),
             kills: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kills", 10),
             downs: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "downs", 10),
+            deaths: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "deaths", 10),
             revives: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "revives", 10),
+            heals: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "heals", 10),
             vehicle: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "vehicle", 10),
           }
         : {
             kd: [],
+            kda: [],
             kills: [],
             downs: [],
+            deaths: [],
             revives: [],
+            heals: [],
             vehicle: [],
           },
     [competitiveData, qualifiedCompetitiveClanPlayerStats],
@@ -893,12 +939,14 @@ export default function YearReviewPage() {
   const topKD = useMemo(() => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "kd", 10), [qualifiedCompetitiveClanPlayers])
   const topWinRate = useMemo(() => getTopByWinRate(qualifiedCompetitiveClanPlayers, MIN_COMPETITIVE_EVENTS_FOR_TOPS, 10), [qualifiedCompetitiveClanPlayers])
   const topEvents = useMemo(() => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "events", 10), [qualifiedCompetitiveClanPlayers])
+  const topHeals = useMemo(() => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "heals", 10), [qualifiedCompetitiveClanPlayers])
   const topRevives = useMemo(() => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "revives", 10), [qualifiedCompetitiveClanPlayers])
   const topDowns = useMemo(() => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "downs", 10), [qualifiedCompetitiveClanPlayers])
   const topVehicle = useMemo(() => getTopByVehicle(qualifiedCompetitiveClanPlayers, 5), [qualifiedCompetitiveClanPlayers])
   const topKDA = useMemo(() => getTopByKDA(qualifiedCompetitiveClanPlayers, 10), [qualifiedCompetitiveClanPlayers])
 
   const topAvgVehicle = useMemo(() => getTopByAvgVehicle(qualifiedCompetitiveClanPlayers, MIN_COMPETITIVE_EVENTS_FOR_TOPS, 10), [qualifiedCompetitiveClanPlayers])
+  const topAvgHeals = useMemo(() => getTopByAvgHeals(qualifiedCompetitiveClanPlayers, MIN_COMPETITIVE_EVENTS_FOR_TOPS, 10), [qualifiedCompetitiveClanPlayers])
   const topAvgRevives = useMemo(() => getTopByAvgRevives(qualifiedCompetitiveClanPlayers, MIN_COMPETITIVE_EVENTS_FOR_TOPS, 10), [qualifiedCompetitiveClanPlayers])
   const playerAchievements = useMemo(() => {
     const byPlayerId = new Map<string, string[]>()
@@ -917,6 +965,20 @@ export default function YearReviewPage() {
       })
     }
 
+    const registerSL = (leaders: Array<{ player_id: string; slGames: number }>, achievement: string) => {
+      leaders.slice(0, 3).forEach((leader) => {
+        if (leader.slGames < 3) {
+          return
+        }
+
+        const current = byPlayerId.get(leader.player_id) ?? []
+        if (!current.includes(achievement)) {
+          current.push(achievement)
+          byPlayerId.set(leader.player_id, current)
+        }
+      })
+    }
+
     register(topKills, "Убийца")
     register(topKD, "Высокий K/D")
     register(topKDA, "Доминатор")
@@ -927,9 +989,10 @@ export default function YearReviewPage() {
     register(topVehicle, "Гроза техники")
     register(topAvgVehicle, "Истребитель брони")
     register(topAvgRevives, "Ангел-хранитель")
+    registerSL(slStats, "Сквад-лидер")
 
     return Object.fromEntries(byPlayerId)
-  }, [topAvgRevives, topAvgVehicle, topDowns, topEvents, topKDA, topKD, topKills, topRevives, topVehicle, topWinRate])
+  }, [slStats, topAvgRevives, topAvgVehicle, topDowns, topEvents, topKDA, topKD, topKills, topRevives, topVehicle, topWinRate])
 
   // Player progress chart data
   const selectedProgressEntries = useMemo(() => {
@@ -1065,9 +1128,15 @@ export default function YearReviewPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
+        <div className="w-full max-w-md px-4 text-center space-y-4">
           <Sparkles className="w-16 h-16 text-christmas-green mx-auto animate-pulse" />
-          <p className="text-christmas-gold">{seasonalTheme.loadingLabel}</p>
+          <div className="space-y-2">
+            <p className="text-christmas-gold">{syncProgress?.message ?? seasonalTheme.loadingLabel}</p>
+            <Progress value={syncProgress?.percent ?? 5} className="h-2 bg-muted/30" />
+            <p className="text-xs text-muted-foreground">
+              {Math.round(syncProgress?.percent ?? 5)}% • подготовка статистики и матчевого протокола
+            </p>
+          </div>
         </div>
       </div>
     )
@@ -1227,29 +1296,53 @@ export default function YearReviewPage() {
         </section>
 
         <Card className="border-christmas-gold/20 bg-card/60">
-          <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <CardContent className="flex flex-col gap-3 pt-4">
             <div>
               <p className="text-sm font-medium text-christmas-snow">Период среза</p>
-              <p className="text-xs text-muted-foreground">{selectedPeriodOption.summary}</p>
+              <p className="text-xs text-muted-foreground">{periodSummaryLabel}</p>
             </div>
-            <div className="w-full sm:w-[220px]">
-              <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as StatsPeriod)}>
-                <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
-                  <SelectValue placeholder="Период" />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATS_PERIOD_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="w-full sm:w-[220px]">
+                <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as StatsPeriod)}>
+                  <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
+                    <SelectValue placeholder="Период" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATS_PERIOD_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {selectedPeriod === "custom" && (
+                <div className="grid w-full gap-3 sm:grid-cols-2 lg:max-w-[420px]">
+                  <label className="space-y-1">
+                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
+                    <Input
+                      type="date"
+                      value={customDateFrom}
+                      onChange={(event) => setCustomDateFrom(event.target.value)}
+                      className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
+                    <Input
+                      type="date"
+                      value={customDateTo}
+                      onChange={(event) => setCustomDateTo(event.target.value)}
+                      className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                    />
+                  </label>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        <OverallStatsPanel stats={overallStats} periodLabel={selectedPeriodOption.summary} />
+        <OverallStatsPanel stats={overallStats} periodLabel={periodSummaryLabel} />
 
         {/* Event Types Summary */}
         <section>
@@ -1261,13 +1354,15 @@ export default function YearReviewPage() {
                   <p className="text-2xl mb-1">{et.type}</p>
                   <p className="text-xl font-bold text-christmas-snow">{et.count}</p>
                   {!isLectureEventType(et.type) && (
-                    <p className="text-xs text-christmas-gold">
-                      {et.wins} побед ({et.resolved > 0 ? `${((et.wins / et.resolved) * 100).toFixed(0)}%` : "н/д"})
-                    </p>
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-christmas-gold">{et.wins} побед</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {et.resolved > 0
+                          ? `из ${et.resolved} с результатом • WR ${((et.wins / et.resolved) * 100).toFixed(0)}%`
+                          : "результат не определён"}
+                      </p>
+                    </div>
                   )}
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    результатов: {et.resolved}/{et.count}
-                  </p>
                 </CardContent>
               </Card>
             ))}
@@ -1278,7 +1373,7 @@ export default function YearReviewPage() {
         <DailyActivityChart
           wins={overallStats.wins}
           losses={overallStats.losses}
-          periodLabel={selectedPeriodOption.summary}
+          periodLabel={periodSummaryLabel}
         />
 
         {/* Charts Section */}
@@ -1307,12 +1402,6 @@ export default function YearReviewPage() {
               className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-christmas-green/30 bg-christmas-green/10 text-christmas-snow data-[state=active]:bg-christmas-green data-[state=active]:border-christmas-green data-[state=active]:text-white hover:bg-christmas-green/20 transition-all"
             >
               По ролям
-            </TabsTrigger>
-            <TabsTrigger
-              value="sl"
-              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-christmas-gold/30 bg-christmas-gold/10 text-christmas-snow data-[state=active]:bg-christmas-gold data-[state=active]:border-christmas-gold data-[state=active]:text-black hover:bg-christmas-gold/20 transition-all"
-            >
-              Squad Leaders
             </TabsTrigger>
             <TabsTrigger
               value="records"
@@ -1404,11 +1493,19 @@ export default function YearReviewPage() {
                 variant="christmas"
               />
               <Leaderboard
-                title="Топ медики"
+                title="Топ по поднятиям"
                 players={topRevives}
                 stat="revives"
                 playerAchievements={playerAchievements}
                 icon={<Heart className="w-4 h-4" />}
+                variant="christmas"
+              />
+              <Leaderboard
+                title="Топ по хилу"
+                players={topHeals}
+                stat="heals"
+                playerAchievements={playerAchievements}
+                icon={<Syringe className="w-4 h-4" />}
                 variant="christmas"
               />
               <Leaderboard
@@ -1440,6 +1537,17 @@ export default function YearReviewPage() {
                 className="bg-gradient-to-br from-orange-500/10 via-card to-orange-500/5"
               />
               <AvgStatLeaderboard
+                title="Топ по среднему хилу за матч"
+                players={topAvgHeals}
+                avgStat="avgHeals"
+                totalStat="heals"
+                formatValue={(v) => v.toFixed(2)}
+                playerAchievements={playerAchievements}
+                icon={<Heart className="w-4 h-4" />}
+                variant="christmas"
+                className="bg-gradient-to-br from-rose-500/10 via-card to-rose-500/5"
+              />
+              <AvgStatLeaderboard
                 title="Топ по среднему поднятию за матч"
                 players={topAvgRevives}
                 avgStat="avgRevives"
@@ -1458,10 +1566,9 @@ export default function YearReviewPage() {
             <Card className="border-christmas-gold/20 bg-card/60">
               <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-christmas-snow">Метрика ролей</p>
+                  <p className="text-sm font-medium text-christmas-snow">Сортировка ролей</p>
                   <p className="text-xs text-muted-foreground">
-                    В топы попадают только игроки с более чем {MIN_COMPETITIVE_EVENTS_FOR_TOPS - 1} боевыми
-                    событиями и 10+ играми на роли
+                    Внутри карточки показаны все основные показатели роли. Селектор меняет только порядок игроков.
                   </p>
                 </div>
                 <div className="w-full sm:w-[220px]">
@@ -1502,24 +1609,18 @@ export default function YearReviewPage() {
             )}
           </TabsContent>
 
-          {/* SL Tab */}
-          <TabsContent value="sl" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <SLLeaderboard slStats={slStats} title="Топ Squad Leaders по играм" playerAchievements={playerAchievements} />
-              <SLLeaderboard
-                slStats={[...slStats].sort((a, b) => b.slWinRate - a.slWinRate).slice(0, 10)}
-                title="Топ SL по Win Rate"
-                playerAchievements={playerAchievements}
-              />
-            </div>
-          </TabsContent>
-
           <TabsContent value="records" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
               <BestMatches
                 title="Рекорды по K/D"
                 metric="kd"
                 matches={recordMatchesByMetric.kd}
+                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
+              />
+              <BestMatches
+                title="Рекорды по KDA"
+                metric="kda"
+                matches={recordMatchesByMetric.kda}
                 players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
               />
               <BestMatches
@@ -1535,9 +1636,21 @@ export default function YearReviewPage() {
                 players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
               />
               <BestMatches
-                title="Рекорды по хилу"
+                title="Рекорды по смертям"
+                metric="deaths"
+                matches={recordMatchesByMetric.deaths}
+                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
+              />
+              <BestMatches
+                title="Рекорды по поднятиям"
                 metric="revives"
                 matches={recordMatchesByMetric.revives}
+                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
+              />
+              <BestMatches
+                title="Рекорды по хилу"
+                metric="heals"
+                matches={recordMatchesByMetric.heals}
                 players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
               />
               <BestMatches

@@ -1,20 +1,17 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Calendar, Trophy, Shield, Crosshair, Skull, Target, Zap, Car, TrendingUp, Cross } from "lucide-react"
+import { Calendar, Crosshair, Skull, Target, Zap, Car, TrendingUp, Cross, Heart } from "lucide-react"
 
 interface OverallStatsPanelProps {
   stats: {
+    totalHeals: number
     totalKills: number
     totalDeaths: number
     totalRevives: number
     totalDowns: number
     totalVehicle: number
     totalEvents: number
-    wins: number
-    losses: number
-    winRate: number
     averageKD: number
     averageKDA: number
     activePlayers: number
@@ -31,23 +28,16 @@ export function OverallStatsPanel({ stats, periodLabel = "за всё время
       color: "text-christmas-gold",
     },
     {
-      label: "Побед",
-      value: stats.wins,
-      subtitle: `${stats.winRate.toFixed(1)}% WR`,
-      icon: <Trophy className="w-5 h-5" />,
-      color: "text-christmas-green",
-    },
-    {
-      label: "Поражений",
-      value: stats.losses,
-      icon: <Shield className="w-5 h-5" />,
-      color: "text-christmas-red",
-    },
-    {
       label: "Хила",
-      value: stats.totalRevives.toLocaleString(),
+      value: stats.totalHeals.toLocaleString(),
       icon: <Cross className="w-5 h-5" />,
-      color: "text-orange-400",
+      color: "text-rose-300",
+    },
+    {
+      label: "Поднятий",
+      value: stats.totalRevives.toLocaleString(),
+      icon: <Heart className="w-5 h-5" />,
+      color: "text-sky-300",
     },
     {
       label: "Ноков",
@@ -97,17 +87,12 @@ export function OverallStatsPanel({ stats, periodLabel = "за всё время
         <p className="text-xs text-muted-foreground">{periodLabel}</p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-10 gap-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-9">
           {statItems.map((item) => (
             <div key={item.label} className="text-center p-3 rounded-lg bg-background/50 border border-border/50">
               <div className={`${item.color} opacity-80 flex justify-center mb-2`}>{item.icon}</div>
               <p className="text-xl font-bold text-christmas-snow">{item.value}</p>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{item.label}</p>
-              {item.subtitle && (
-                <Badge variant="outline" className="text-[9px] mt-1 px-1 py-0">
-                  {item.subtitle}
-                </Badge>
-              )}
             </div>
           ))}
         </div>

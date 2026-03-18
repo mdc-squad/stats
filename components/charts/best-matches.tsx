@@ -28,14 +28,21 @@ function getMetricValue(match: BestMatch, metric: MatchRecordMetric): string {
     return match.kd.toFixed(2)
   }
 
+  if (metric === "kda") {
+    return match.kda.toFixed(2)
+  }
+
   return match[metric].toLocaleString("ru-RU")
 }
 
 function getMetricLabel(metric: MatchRecordMetric): string {
   if (metric === "kd") return "K/D"
+  if (metric === "kda") return "KDA"
   if (metric === "kills") return "Убийства"
   if (metric === "downs") return "Ноки"
-  if (metric === "revives") return "Хил"
+  if (metric === "deaths") return "Смерти"
+  if (metric === "revives") return "Поднятия"
+  if (metric === "heals") return "Хил"
   return "Техника"
 }
 
@@ -84,6 +91,7 @@ export function BestMatches({
             <Star className="w-4 h-4" />
             {title}
           </CardTitle>
+          <p className="text-[10px] text-muted-foreground">Рекорд за одну игру</p>
         </CardHeader>
         <CardContent className="space-y-2">
           {matches.length === 0 && <p className="text-sm text-muted-foreground">Нет данных по матчам</p>}

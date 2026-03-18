@@ -86,7 +86,8 @@ export function Leaderboard({
         </CardHeader>
         <CardContent className="space-y-2">
           {players.map((player, index) => {
-            const value = player.totals[stat] as number
+            const rawValue = player.totals[stat]
+            const value = typeof rawValue === "number" && Number.isFinite(rawValue) ? rawValue : 0
             const achievements = playerAchievements?.[player.player_id] ?? []
 
             return (

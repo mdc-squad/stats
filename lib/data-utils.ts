@@ -1,4 +1,4 @@
-import { getFactionMatchup, getSquadLabel, getSquadLabels } from "@/lib/squad-utils"
+import { getFactionMatchup, getSquadLabel, getSquadLabels, type SquadIdentifier } from "@/lib/squad-utils"
 
 export interface MDCData {
   meta: {
@@ -44,10 +44,11 @@ export interface PlayerEventStat {
   player_id: string
   nickname: string
   tag: string
-  squad_no: number
+  squad_no: SquadIdentifier
   role: string
   specialization: string
   revives: number
+  heals: number
   downs: number
   kills: number
   deaths: number
@@ -68,6 +69,7 @@ export interface Player {
   last_active_at: string
   tenure: string
   totals: {
+    heals: number
     revives: number
     downs: number
     kills: number
@@ -142,9 +144,9 @@ export interface DataDateRange {
   to?: Date | null
 }
 
-export type RoleLeaderboardMetric = "kd" | "kda" | "kills" | "downs" | "revives" | "vehicle"
+export type RoleLeaderboardMetric = "kd" | "kda" | "kills" | "downs" | "revives" | "heals" | "vehicle"
 
-export type MatchRecordMetric = "kd" | "kills" | "downs" | "revives" | "vehicle"
+export type MatchRecordMetric = "kd" | "kda" | "kills" | "downs" | "deaths" | "revives" | "heals" | "vehicle"
 
 function toDateKey(value: string | null | undefined): string {
   if (!value) {
@@ -165,6 +167,19 @@ function parseSafeDate(value: string | null | undefined): Date | null {
   }
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? null : date
+}
+
+function toFiniteNumber(value: unknown): number {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+
+  return 0
 }
 
 function normalizeEventId(value: string | null | undefined): string {
@@ -647,6 +662,7 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
       nickname: string
       tag: string
       latestActivityAt: string
+      heals: number
       kills: number
       deaths: number
       downs: number
@@ -675,6 +691,7 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
         nickname: stat.nickname,
         tag: stat.tag,
         latestActivityAt: "",
+        heals: 0,
         kills: 0,
         deaths: 0,
         downs: 0,
@@ -714,11 +731,12 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
       current.latestActivityAt = activityDate
     }
 
-    current.kills += stat.kills
-    current.deaths += stat.deaths
-    current.downs += stat.downs
-    current.revives += stat.revives
-    current.vehicle += stat.vehicle
+    current.heals += toFiniteNumber(stat.heals)
+    current.kills += toFiniteNumber(stat.kills)
+    current.deaths += toFiniteNumber(stat.deaths)
+    current.downs += toFiniteNumber(stat.downs)
+    current.revives += toFiniteNumber(stat.revives)
+    current.vehicle += toFiniteNumber(stat.vehicle)
     current.eventKeys.add(eventKey || `${stat.player_id}::${stat.event_id}`)
 
     const canonicalMap =
@@ -749,8 +767,7 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
     }
   })
 
-  return Array.from(aggregates.values())
-    .map((aggregate) => {
+  const aggregatedPlayers = Array.from(aggregates.values()).map((aggregate) => {
       const basePlayer = basePlayersById.get(aggregate.player_id)
       const eventCount = aggregate.eventKeys.size
       const topRoles = pickMostFrequentValues(aggregate.roleCounts, 2)
@@ -772,6 +789,7 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
         last_active_at: aggregate.latestActivityAt || basePlayer?.last_active_at || "",
         tenure: basePlayer?.tenure ?? "",
         totals: {
+          heals: aggregate.heals,
           revives: aggregate.revives,
           downs: aggregate.downs,
           kills: aggregate.kills,
@@ -802,8 +820,30 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
         },
       }
     })
-    .filter((player) => player.totals.events > 0)
-    .sort((left, right) => {
+
+  const aggregatedById = new Map(aggregatedPlayers.map((player) => [player.player_id, player]))
+  const playersWithZeroEvents = basePlayers
+    .filter((player) => !aggregatedById.has(player.player_id))
+    .map((player) => ({
+      ...player,
+      totals: {
+        ...player.totals,
+        heals: 0,
+        revives: 0,
+        downs: 0,
+        kills: 0,
+        deaths: 0,
+        vehicle: 0,
+        events: 0,
+        wins: 0,
+        losses: 0,
+        win_rate: 0,
+        kd: 0,
+        kda: 0,
+      },
+    }))
+
+  return [...aggregatedPlayers, ...playersWithZeroEvents].sort((left, right) => {
       if (right.totals.events !== left.totals.events) {
         return right.totals.events - left.totals.events
       }
@@ -813,8 +853,8 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
 
 export function getTopPlayersByStat(players: Player[], stat: keyof Player["totals"], limit = 10): Player[] {
   return [...players]
-    .filter((p) => p.totals.events >= 3)
-    .sort((a, b) => (b.totals[stat] as number) - (a.totals[stat] as number))
+    .filter((p) => toFiniteNumber(p.totals.events) >= 3)
+    .sort((a, b) => toFiniteNumber(b.totals[stat]) - toFiniteNumber(a.totals[stat]))
     .slice(0, limit)
 }
 
@@ -989,6 +1029,7 @@ export function getOverallStats(data: MDCData) {
 
   const totalKills = players.reduce((sum, p) => sum + (p?.totals?.kills || 0), 0)
   const totalDeaths = players.reduce((sum, p) => sum + (p?.totals?.deaths || 0), 0)
+  const totalHeals = players.reduce((sum, p) => sum + (p?.totals?.heals || 0), 0)
   const totalRevives = players.reduce((sum, p) => sum + (p?.totals?.revives || 0), 0)
   const totalDowns = players.reduce((sum, p) => sum + (p?.totals?.downs || 0), 0)
   const totalVehicle = players.reduce((sum, p) => sum + (p?.totals?.vehicle || 0), 0)
@@ -1005,6 +1046,7 @@ export function getOverallStats(data: MDCData) {
   return {
     totalKills,
     totalDeaths,
+    totalHeals,
     totalRevives,
     totalDowns,
     totalVehicle,
@@ -1224,12 +1266,19 @@ export function getWeeklyActivity(
     .sort((a, b) => a.week.localeCompare(b.week))
 }
 
+function isSquadLeaderRole(role: string | null | undefined): boolean {
+  return (role ?? "").trim().toLowerCase().startsWith("sl")
+}
+
 export function getSLStats(playerStats: PlayerEventStat[], events: GameEvent[], players: Player[]): SLStats[] {
   const slData: Record<string, { kills: number; deaths: number; games: number; wins: number }> = {}
   const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
+  const aggregatedStats = aggregatePlayerEventStats(playerStats)
 
-  playerStats.forEach((stat) => {
-    if (stat.role !== "SL") return
+  aggregatedStats.forEach((stat) => {
+    if (!stat.roles.some((role) => isSquadLeaderRole(role))) {
+      return
+    }
 
     if (!slData[stat.player_id]) {
       slData[stat.player_id] = { kills: 0, deaths: 0, games: 0, wins: 0 }
@@ -1237,10 +1286,10 @@ export function getSLStats(playerStats: PlayerEventStat[], events: GameEvent[], 
 
     slData[stat.player_id].kills += stat.kills
     slData[stat.player_id].deaths += stat.deaths
-    slData[stat.player_id].games++
+    slData[stat.player_id].games += 1
 
-    const event = eventLookup.get(getEventLinkKey(stat.event_id))
-    if (event?.is_win) slData[stat.player_id].wins++
+    const event = eventLookup.get(stat.normalized_event_id)
+    if (event?.is_win) slData[stat.player_id].wins += 1
   })
 
   return Object.entries(slData)
@@ -1270,7 +1319,10 @@ export function getTopByRole(
   roleDomain: string[] = [],
   metric: RoleLeaderboardMetric = "kd",
 ) {
-  const roleData: Record<string, { kills: number; deaths: number; downs: number; revives: number; vehicle: number; games: number }> = {}
+  const roleData: Record<
+    string,
+    { kills: number; deaths: number; downs: number; revives: number; heals: number; vehicle: number; games: number }
+  > = {}
   const rawObservedRoles = playerStats
     .map((stat) => stat.role?.trim() ?? "")
     .filter(Boolean)
@@ -1282,22 +1334,22 @@ export function getTopByRole(
     return []
   }
 
-  playerStats.forEach((stat) => {
-    const statRole = stat.role?.trim()
-    if (!statRole) return
-
-    const canonicalRole = resolveRoleName(statRole, lookup, entries)
-    if (!canonicalRole || canonicalRole !== targetRole) return
+  aggregatePlayerEventStats(playerStats).forEach((stat) => {
+    const canonicalRoles = stat.roles
+      .map((roleName) => resolveRoleName(roleName, lookup, entries))
+      .filter(Boolean)
+    if (!canonicalRoles.includes(targetRole)) return
 
     if (!roleData[stat.player_id]) {
-      roleData[stat.player_id] = { kills: 0, deaths: 0, downs: 0, revives: 0, vehicle: 0, games: 0 }
+      roleData[stat.player_id] = { kills: 0, deaths: 0, downs: 0, revives: 0, heals: 0, vehicle: 0, games: 0 }
     }
     roleData[stat.player_id].kills += stat.kills
     roleData[stat.player_id].deaths += stat.deaths
     roleData[stat.player_id].downs += stat.downs
     roleData[stat.player_id].revives += stat.revives
+    roleData[stat.player_id].heals += stat.heals
     roleData[stat.player_id].vehicle += stat.vehicle
-    roleData[stat.player_id].games++
+    roleData[stat.player_id].games += 1
   })
 
   return Object.entries(roleData)
@@ -1314,6 +1366,7 @@ export function getTopByRole(
         deaths: d.deaths,
         downs: d.downs,
         revives: d.revives,
+        heals: d.heals,
         vehicle: d.vehicle,
         games: d.games,
         kd,
@@ -1325,6 +1378,8 @@ export function getTopByRole(
             ? d.downs
             : metric === "revives"
             ? d.revives
+            : metric === "heals"
+            ? d.heals
             : metric === "vehicle"
             ? d.vehicle
             : metric === "kda"
@@ -1351,7 +1406,7 @@ export interface AggregatedPlayerEventStat extends PlayerEventStat {
   normalized_event_id: string
   roles: string[]
   specializations: string[]
-  squads: number[]
+  squads: SquadIdentifier[]
   records: number
 }
 
@@ -1391,6 +1446,7 @@ export interface PastGameSummary {
   totalDeaths: number
   totalDowns: number
   totalRevives: number
+  totalHeals: number
   totalVehicle: number
   players: PastGamePlayerStat[]
   topPerformer: PastGamePlayerStat | null
@@ -1412,14 +1468,15 @@ export interface PlayerGameHistoryEntry {
   deaths: number
   downs: number
   revives: number
+  heals: number
   vehicle: number
   kd: number
   kda: number
   role: string
   roles: string[]
-  squad_no: number
+  squad_no: SquadIdentifier
   squad_label: string
-  squads: number[]
+  squads: SquadIdentifier[]
   squad_labels: string[]
   impactScore: number
   impactShare: number
@@ -1451,10 +1508,11 @@ function aggregatePlayerEventStats(playerStats: PlayerEventStat[]): AggregatedPl
       player_id: string
       nickname: string
       tag: string
-      squad_no: number
+      squad_no: SquadIdentifier
       roles: Set<string>
       specializations: Set<string>
-      squads: Set<number>
+      squads: Set<SquadIdentifier>
+      heals: number
       revives: number
       downs: number
       kills: number
@@ -1479,7 +1537,8 @@ function aggregatePlayerEventStats(playerStats: PlayerEventStat[]): AggregatedPl
         squad_no: stat.squad_no,
         roles: new Set<string>(),
         specializations: new Set<string>(),
-        squads: new Set<number>(),
+        squads: new Set<SquadIdentifier>(),
+        heals: 0,
         revives: 0,
         downs: 0,
         kills: 0,
@@ -1493,11 +1552,12 @@ function aggregatePlayerEventStats(playerStats: PlayerEventStat[]): AggregatedPl
     if (!current) return
 
     current.records += 1
-    current.revives += stat.revives
-    current.downs += stat.downs
-    current.kills += stat.kills
-    current.deaths += stat.deaths
-    current.vehicle += stat.vehicle
+    current.heals += toFiniteNumber(stat.heals)
+    current.revives += toFiniteNumber(stat.revives)
+    current.downs += toFiniteNumber(stat.downs)
+    current.kills += toFiniteNumber(stat.kills)
+    current.deaths += toFiniteNumber(stat.deaths)
+    current.vehicle += toFiniteNumber(stat.vehicle)
 
     const role = stat.role?.trim()
     if (role) current.roles.add(role)
@@ -1505,7 +1565,10 @@ function aggregatePlayerEventStats(playerStats: PlayerEventStat[]): AggregatedPl
     const specialization = stat.specialization?.trim()
     if (specialization) current.specializations.add(specialization)
 
-    if (Number.isFinite(stat.squad_no) && stat.squad_no > 0) {
+    if (
+      (typeof stat.squad_no === "number" && Number.isFinite(stat.squad_no) && stat.squad_no > 0) ||
+      (typeof stat.squad_no === "string" && stat.squad_no.trim())
+    ) {
       current.squads.add(stat.squad_no)
     }
   })
@@ -1513,7 +1576,14 @@ function aggregatePlayerEventStats(playerStats: PlayerEventStat[]): AggregatedPl
   return Array.from(aggregated.values()).map((entry) => {
     const roles = Array.from(entry.roles.values())
     const specializations = Array.from(entry.specializations.values())
-    const squads = Array.from(entry.squads.values()).sort((a, b) => a - b)
+    const squads = Array.from(entry.squads.values()).sort((left, right) => {
+      const leftNumber = typeof left === "number" ? left : Number.NaN
+      const rightNumber = typeof right === "number" ? right : Number.NaN
+      if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) {
+        return leftNumber - rightNumber
+      }
+      return String(left).localeCompare(String(right), "ru")
+    })
     const kd = entry.deaths > 0 ? entry.kills / entry.deaths : entry.kills
     const kda = entry.deaths > 0 ? entry.downs / entry.deaths : entry.downs
 
@@ -1526,6 +1596,7 @@ function aggregatePlayerEventStats(playerStats: PlayerEventStat[]): AggregatedPl
       squad_no: squads[0] ?? entry.squad_no,
       role: roles.join(" / "),
       specialization: specializations.join(" / "),
+      heals: entry.heals,
       revives: entry.revives,
       downs: entry.downs,
       kills: entry.kills,
@@ -1634,6 +1705,7 @@ export function getPastGames(
         totalDeaths: rankedPlayers.reduce((sum, stat) => sum + stat.deaths, 0),
         totalDowns: rankedPlayers.reduce((sum, stat) => sum + stat.downs, 0),
         totalRevives: rankedPlayers.reduce((sum, stat) => sum + stat.revives, 0),
+        totalHeals: rankedPlayers.reduce((sum, stat) => sum + stat.heals, 0),
         totalVehicle: rankedPlayers.reduce((sum, stat) => sum + stat.vehicle, 0),
         players: rankedPlayers,
         topPerformer: rankedPlayers[0] ?? null,
@@ -1673,6 +1745,7 @@ export function getPlayerGameHistory(
         deaths: playerGame.deaths,
         downs: playerGame.downs,
         revives: playerGame.revives,
+        heals: playerGame.heals,
         vehicle: playerGame.vehicle,
         kd: playerGame.kd,
         kda: playerGame.kda,
@@ -1754,7 +1827,7 @@ export function getTopMatchRecords(
 
   return aggregatePlayerEventStats(playerStats)
     .filter((stat) => {
-      if (metric === "kd") {
+      if (metric === "kd" || metric === "kda") {
         return stat.deaths > 0 || stat.kills > 0
       }
       return stat[metric] > 0
@@ -1774,8 +1847,8 @@ export function getTopMatchRecords(
       }
     })
     .sort((left, right) => {
-      const leftValue = metric === "kd" ? left.kd : left[metric]
-      const rightValue = metric === "kd" ? right.kd : right[metric]
+      const leftValue = metric === "kd" ? left.kd : metric === "kda" ? left.kda : left[metric]
+      const rightValue = metric === "kd" ? right.kd : metric === "kda" ? right.kda : right[metric]
 
       if (rightValue !== leftValue) {
         return rightValue - leftValue
@@ -1856,6 +1929,17 @@ export function getTopByAvgRevives(players: Player[], minEvents = 3, limit = 10)
       avgRevives: p.totals.revives / p.totals.events,
     }))
     .sort((a, b) => b.avgRevives - a.avgRevives)
+    .slice(0, limit)
+}
+
+export function getTopByAvgHeals(players: Player[], minEvents = 3, limit = 10): (Player & { avgHeals: number })[] {
+  return [...players]
+    .filter((p) => p.totals.events >= minEvents && p.totals.heals > 0)
+    .map((p) => ({
+      ...p,
+      avgHeals: p.totals.heals / p.totals.events,
+    }))
+    .sort((a, b) => b.avgHeals - a.avgHeals)
     .slice(0, limit)
 }
 

@@ -90,6 +90,11 @@ function toNumber(value: unknown, fallback: number): number {
   return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : fallback
 }
 
+function toNullableNumber(value: unknown): number | null {
+  const parsed = typeof value === "string" ? Number(value) : value
+  return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : null
+}
+
 function normalizeKey(value: string): string {
   return value.trim().toLowerCase()
 }
@@ -540,6 +545,17 @@ function toIsWin(raw: UnknownRecord): boolean | null {
     return false
   }
 
+  const score = toNullableNumber(raw.score)
+  if (score !== null && score !== 0) {
+    return score > 0
+  }
+
+  const tickets1 = toNullableNumber(raw.tickets_1)
+  const tickets2 = toNullableNumber(raw.tickets_2)
+  if (tickets1 !== null && tickets2 !== null && tickets1 !== tickets2) {
+    return tickets1 > tickets2
+  }
+
   return null
 }
 
@@ -555,9 +571,9 @@ function normalizeEvent(raw: UnknownRecord): GameEvent {
     faction_2: toNullableString(raw.faction_2),
     team_size: toNumber(raw.team_size, 0) || null,
     enemy_size: toNumber(raw.enemy_size, 0) || null,
-    tickets_1: toNumber(raw.tickets_1, 0) || null,
-    tickets_2: toNumber(raw.tickets_2, 0) || null,
-    score: toNumber(raw.score, 0) || null,
+    tickets_1: toNullableNumber(raw.tickets_1),
+    tickets_2: toNullableNumber(raw.tickets_2),
+    score: toNullableNumber(raw.score),
     result: toNullableString(raw.result),
     is_win: toIsWin(raw),
     mdc_players: toNumber(raw.mdc_players, 0),
@@ -582,6 +598,7 @@ function normalizePlayer(raw: UnknownRecord): Player {
   const kills = toNumber(totalsRecord?.kills ?? raw.kills, 0)
   const deaths = toNumber(totalsRecord?.deaths ?? raw.deaths, 0)
   const downs = toNumber(totalsRecord?.downs ?? raw.downs, 0)
+  const heals = toNumber(totalsRecord?.heals ?? raw.heals, 0)
   const revives = toNumber(totalsRecord?.revives ?? raw.revives, 0)
   const vehicle = toNumber(totalsRecord?.vehicle ?? raw.vehicle, 0)
   const events = toNumber(totalsRecord?.events ?? raw.events, 0)
@@ -592,7 +609,11 @@ function normalizePlayer(raw: UnknownRecord): Player {
   const kda = toNumber(totalsRecord?.kda ?? raw.kda, deaths > 0 ? downs / deaths : downs)
   const placementFields = [raw.ELOPlace, raw.TBFPlace, raw.OPPlace]
   const normalizedPlacements = placementFields.map((value) => toString(value, "").trim().toLowerCase())
-  const isMdcMember = !normalizedPlacements.some((value) => value === "не mdc")
+  const normalizedTag = tag.trim().toLowerCase()
+  const isMdcMemberByTag = normalizedTag.includes("mdc") || normalizedTag.includes("неактив")
+  const isMdcMember = normalizedTag
+    ? isMdcMemberByTag
+    : !normalizedPlacements.some((value) => value === "не mdc")
 
   return {
     player_id: playerId,
@@ -606,6 +627,7 @@ function normalizePlayer(raw: UnknownRecord): Player {
     last_active_at: toString(raw.last_active_at, ""),
     tenure: toString(raw.tenure, ""),
     totals: {
+      heals,
       revives,
       downs,
       kills,
@@ -646,6 +668,23 @@ function buildPlayerLookup(players: Player[]): Map<string, string> {
   return lookup
 }
 
+function normalizeSquadIdentifier(value: unknown): number | string {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value
+  }
+
+  const normalized = toString(value, "").trim()
+  if (!normalized) {
+    return 0
+  }
+
+  if (/^\d+$/.test(normalized)) {
+    return Number(normalized)
+  }
+
+  return normalized
+}
+
 function normalizePlayerEventStat(raw: UnknownRecord, playerLookup: Map<string, string>): PlayerEventStat {
   const nickname = toString(raw.nickname, "Unknown")
   const tag = toString(raw.tag, "")
@@ -665,10 +704,11 @@ function normalizePlayerEventStat(raw: UnknownRecord, playerLookup: Map<string, 
     player_id: resolvedPlayerId,
     nickname,
     tag,
-    squad_no: toNumber(raw.squad_no, 0),
+    squad_no: normalizeSquadIdentifier(raw.squad_no),
     role: toString(raw.role, ""),
     specialization: toString(raw.specialization, ""),
     revives: toNumber(raw.revives, 0),
+    heals: toNumber(raw.heals, 0),
     downs,
     kills,
     deaths,

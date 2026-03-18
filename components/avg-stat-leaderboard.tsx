@@ -14,9 +14,9 @@ import { cn } from "@/lib/utils"
 
 interface AvgStatLeaderboardProps {
   title: string
-  players: (Player & { avgVehicle?: number; avgRevives?: number })[]
-  avgStat: "avgVehicle" | "avgRevives"
-  totalStat: "vehicle" | "revives"
+  players: (Player & { avgVehicle?: number; avgRevives?: number; avgHeals?: number })[]
+  avgStat: "avgVehicle" | "avgRevives" | "avgHeals"
+  totalStat: "vehicle" | "revives" | "heals"
   formatValue?: (value: number) => string
   className?: string
   icon?: React.ReactNode
