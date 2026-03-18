@@ -144,7 +144,17 @@ export interface DataDateRange {
   to?: Date | null
 }
 
-export type RoleLeaderboardMetric = "kd" | "kda" | "kills" | "downs" | "revives" | "heals" | "vehicle"
+export type RoleLeaderboardMetric =
+  | "kd"
+  | "kda"
+  | "kills"
+  | "deaths"
+  | "downs"
+  | "revives"
+  | "heals"
+  | "vehicle"
+  | "avgRevives"
+  | "avgVehicle"
 
 export type MatchRecordMetric = "kd" | "kda" | "kills" | "downs" | "deaths" | "revives" | "heals" | "vehicle"
 
@@ -548,6 +558,29 @@ export function filterDataByTags(data: MDCData, selectedTags: string[]): MDCData
       counts: {
         ...data.meta.counts,
         events: filteredEvents.length,
+        players: filteredPlayers.length,
+        player_event_stats: filteredPlayerEventStats.length,
+      },
+    },
+  }
+}
+
+export function filterDataToClanPlayers(data: MDCData): MDCData {
+  const players = Array.isArray(data.players) ? data.players : []
+  const playerEventStats = Array.isArray(data.player_event_stats) ? data.player_event_stats : []
+
+  const filteredPlayers = players.filter((player) => player?.is_mdc_member)
+  const playerIds = new Set(filteredPlayers.map((player) => player.player_id))
+  const filteredPlayerEventStats = playerEventStats.filter((stat) => stat && playerIds.has(stat.player_id))
+
+  return {
+    ...data,
+    players: filteredPlayers,
+    player_event_stats: filteredPlayerEventStats,
+    meta: {
+      ...data.meta,
+      counts: {
+        ...data.meta.counts,
         players: filteredPlayers.length,
         player_event_stats: filteredPlayerEventStats.length,
       },
@@ -1374,6 +1407,8 @@ export function getTopByRole(
         metricValue:
           metric === "kills"
             ? d.kills
+            : metric === "deaths"
+            ? d.deaths
             : metric === "downs"
             ? d.downs
             : metric === "revives"
@@ -1382,6 +1417,10 @@ export function getTopByRole(
             ? d.heals
             : metric === "vehicle"
             ? d.vehicle
+            : metric === "avgRevives"
+            ? d.revives / d.games
+            : metric === "avgVehicle"
+            ? d.vehicle / d.games
             : metric === "kda"
             ? kda
             : kd,
@@ -1697,7 +1736,7 @@ export function getPastGames(
         cast_url: event?.cast_url ?? null,
         tactics_url: event?.tactics_url ?? null,
         participants: rankedPlayers.length,
-        mdc_players: event?.mdc_players ?? rankedPlayers.length,
+        mdc_players: rankedPlayers.length,
         ally_players: event?.ally_players ?? null,
         enemy_size: event?.enemy_size ?? null,
         team_size: event?.team_size ?? null,

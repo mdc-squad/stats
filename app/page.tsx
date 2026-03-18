@@ -47,6 +47,7 @@ import {
   getUniqueTags,
   getUniqueRoles,
   filterDataByTags,
+  filterDataToClanPlayers,
   filterDataByDateRange,
   filterDataToCompetitiveEvents,
   getTopByWinRate,
@@ -173,10 +174,13 @@ const ROLE_METRIC_OPTIONS: Array<{ value: RoleLeaderboardMetric; label: string }
   { value: "kd", label: "K/D" },
   { value: "kda", label: "KDA" },
   { value: "kills", label: "Убийства" },
+  { value: "deaths", label: "Смерти" },
   { value: "downs", label: "Ноки" },
   { value: "revives", label: "Поднятия" },
+  { value: "avgRevives", label: "Поднятия / игра" },
   { value: "heals", label: "Хил" },
   { value: "vehicle", label: "Техника" },
+  { value: "avgVehicle", label: "Техника / игра" },
 ]
 
 const MIN_COMPETITIVE_EVENTS_FOR_TOPS = 11
@@ -728,11 +732,16 @@ export default function YearReviewPage() {
     return lastSyncReport?.addedEventsLastWeek ?? []
   }, [lastSyncReport])
 
-  const availableTags = useMemo(() => {
-    if (!rawData) return []
-    const players = Array.isArray(rawData.players) ? rawData.players : []
-    return getUniqueTags(players, rawData.dictionaries?.tags ?? [])
+  const clanData = useMemo(() => {
+    if (!rawData) return null
+    return filterDataToClanPlayers(rawData)
   }, [rawData])
+
+  const availableTags = useMemo(() => {
+    if (!clanData) return []
+    const players = Array.isArray(clanData.players) ? clanData.players : []
+    return getUniqueTags(players, clanData.dictionaries?.tags ?? [])
+  }, [clanData])
 
   useEffect(() => {
     if (availableTags.length > 0 && selectedTags.length === 0) {
@@ -742,10 +751,22 @@ export default function YearReviewPage() {
     }
   }, [availableTags, selectedTags.length])
 
+  useEffect(() => {
+    if (availableTags.length === 0) {
+      return
+    }
+
+    const availableTagSet = new Set(availableTags)
+    setSelectedTags((current) => {
+      const next = current.filter((tag) => availableTagSet.has(tag))
+      return next.length === current.length ? current : next
+    })
+  }, [availableTags])
+
   const tagFilteredData = useMemo(() => {
-    if (!rawData) return null
-    return filterDataByTags(rawData, selectedTags)
-  }, [rawData, selectedTags])
+    if (!clanData) return null
+    return filterDataByTags(clanData, selectedTags)
+  }, [clanData, selectedTags])
 
   const selectedPeriodOption = useMemo(
     () => STATS_PERIOD_OPTIONS.find((option) => option.value === selectedPeriod) ?? STATS_PERIOD_OPTIONS[0],
@@ -831,8 +852,8 @@ export default function YearReviewPage() {
     [data],
   )
   const clanRosterCount = useMemo(
-    () => (rawData ? rawData.players.filter((player) => player.is_mdc_member).length : eligibleClanPlayers.length),
-    [eligibleClanPlayers.length, rawData],
+    () => (clanData ? clanData.players.length : eligibleClanPlayers.length),
+    [clanData, eligibleClanPlayers.length],
   )
   const eligibleClanPlayerIds = useMemo(
     () => new Set(eligibleClanPlayers.map((player) => player.player_id)),
@@ -1572,7 +1593,7 @@ export default function YearReviewPage() {
                 <div>
                   <p className="text-sm font-medium text-christmas-snow">Сортировка ролей</p>
                   <p className="text-xs text-muted-foreground">
-                    Внутри карточки показаны все основные показатели роли. Селектор меняет только порядок игроков.
+                    Внутри карточки показывается только выбранный показатель. Селектор меняет и порядок, и саму метрику.
                   </p>
                 </div>
                 <div className="w-full sm:w-[220px]">

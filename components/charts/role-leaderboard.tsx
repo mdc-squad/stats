@@ -37,14 +37,17 @@ const METRIC_LABELS: Record<RoleLeaderboardMetric, string> = {
   kd: "K/D",
   kda: "KDA",
   kills: "Убийства",
+  deaths: "Смерти",
   downs: "Ноки",
   revives: "Поднятия",
+  avgRevives: "Поднятия / игра",
   heals: "Хил",
   vehicle: "Техника",
+  avgVehicle: "Техника / игра",
 }
 
 function formatMetricValue(player: RolePlayer, metric: RoleLeaderboardMetric): string {
-  if (metric === "kd" || metric === "kda") {
+  if (metric === "kd" || metric === "kda" || metric === "avgRevives" || metric === "avgVehicle") {
     return player.metricValue.toFixed(2)
   }
 
@@ -102,16 +105,6 @@ export function RoleLeaderboard({ players, role, metric, icon, playerAchievement
                     <Badge variant="outline" className="font-mono text-christmas-gold border-christmas-gold/30">
                       {METRIC_LABELS[metric]}: {formatMetricValue(player, metric)}
                     </Badge>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
-                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">K/D {player.kd.toFixed(2)}</Badge>
-                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">KDA {player.kda.toFixed(2)}</Badge>
-                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">K {player.kills}</Badge>
-                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">Dn {player.downs}</Badge>
-                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">D {player.deaths}</Badge>
-                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">Подн {player.revives}</Badge>
-                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">Хил {player.heals}</Badge>
-                    <Badge variant="outline" className="border-christmas-gold/20 text-christmas-snow">Тех {player.vehicle}</Badge>
                   </div>
                 </div>
               </div>
