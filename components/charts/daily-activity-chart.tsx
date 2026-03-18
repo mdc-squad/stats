@@ -55,7 +55,7 @@ export function DailyActivityChart({ wins, losses, periodLabel = "за всё в
 
   if (totalMatches === 0) {
     return (
-      <Card className="col-span-full">
+      <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
             <Calendar className="w-4 h-4" />
@@ -71,75 +71,73 @@ export function DailyActivityChart({ wins, losses, periodLabel = "за всё в
   }
 
   return (
-    <Card className="col-span-full">
-      <CardHeader className="pb-2.5">
+    <Card>
+      <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
           <Calendar className="w-4 h-4" />
           Победы и поражения
         </CardTitle>
         <p className="text-xs text-muted-foreground">{periodLabel}</p>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(200px,240px)_minmax(0,1fr)] lg:items-center">
-          <div className="relative h-[220px] rounded-xl border border-border/50 bg-background/25 px-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart margin={{ top: 12, right: 12, bottom: 12, left: 12 }}>
-                <Pie
-                  data={slices}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={56}
-                  outerRadius={88}
-                  dataKey="value"
-                  paddingAngle={3}
-                  cornerRadius={8}
-                  stroke="var(--background)"
-                  strokeWidth={3}
-                >
-                  {slices.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<SliceTooltip totalMatches={totalMatches} />} />
-              </PieChart>
-            </ResponsiveContainer>
+      <CardContent className="space-y-3">
+        <div className="relative h-[220px] rounded-xl border border-border/50 bg-background/25 px-2">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart margin={{ top: 16, right: 16, bottom: 16, left: 16 }}>
+              <Pie
+                data={slices}
+                cx="50%"
+                cy="50%"
+                innerRadius={64}
+                outerRadius={98}
+                dataKey="value"
+                paddingAngle={3}
+                cornerRadius={8}
+                stroke="var(--background)"
+                strokeWidth={3}
+              >
+                {slices.map((entry) => (
+                  <Cell key={entry.name} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip content={<SliceTooltip totalMatches={totalMatches} />} cursor={false} position={{ x: 12, y: 12 }} />
+            </PieChart>
+          </ResponsiveContainer>
 
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="rounded-full border border-christmas-gold/20 bg-background/75 px-5 py-3 text-center shadow-lg backdrop-blur-sm">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">WR</p>
-                <p className="text-3xl font-bold text-christmas-snow">{winRate.toFixed(1)}%</p>
-                <p className="text-[11px] text-christmas-gold">по матчам с результатом</p>
-              </div>
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="rounded-full border border-christmas-gold/20 bg-background/75 px-5 py-3 text-center shadow-lg backdrop-blur-sm">
+              <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">WR</p>
+              <p className="text-3xl font-bold text-christmas-snow">{winRate.toFixed(1)}%</p>
+              <p className="text-[11px] text-christmas-gold">по матчам с результатом</p>
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 lg:grid-cols-3">
-            {slices.map((slice) => {
-              const percentage = totalMatches > 0 ? (slice.value / totalMatches) * 100 : 0
+        <div className="grid grid-cols-3 gap-2.5">
+          {slices.map((slice) => {
+            const percentage = totalMatches > 0 ? (slice.value / totalMatches) * 100 : 0
 
-              return (
-                <div
-                  key={slice.name}
-                  className="rounded-xl border border-border/50 bg-background/30 p-3"
-                >
-                  <div className="flex items-center justify-between gap-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: slice.color }} />
-                      <p className="text-sm font-medium text-christmas-snow">{slice.name}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xl font-semibold leading-none text-christmas-snow">{slice.value}</p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">{percentage.toFixed(1)}%</p>
-                    </div>
+            return (
+              <div
+                key={slice.name}
+                className="rounded-xl border border-border/50 bg-background/30 p-3"
+              >
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: slice.color }} />
+                    <p className="text-sm font-medium text-christmas-snow">{slice.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xl font-semibold leading-none text-christmas-snow">{slice.value}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">{percentage.toFixed(1)}%</p>
                   </div>
                 </div>
-              )
-            })}
-            <div className="rounded-xl border border-border/50 bg-background/30 p-3">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Сыграно</p>
-              <p className="mt-2 text-2xl font-semibold leading-none text-christmas-snow">{totalMatches}</p>
-              <p className="mt-1 text-[11px] text-muted-foreground">только события с известным результатом</p>
-            </div>
+              </div>
+            )
+          })}
+          <div className="rounded-xl border border-border/50 bg-background/30 p-3">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Сыграно</p>
+            <p className="mt-2 text-2xl font-semibold leading-none text-christmas-snow">{totalMatches}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">матчи с известным результатом</p>
           </div>
         </div>
       </CardContent>

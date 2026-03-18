@@ -1486,15 +1486,13 @@ export default function YearReviewPage() {
           </div>
         </section>
 
-        {/* Daily Activity Chart - Full Width */}
-        <DailyActivityChart
-          wins={overallStats.wins}
-          losses={overallStats.losses}
-          periodLabel={sliceSummaryLabel}
-        />
-
         {/* Charts Section */}
         <section className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 items-start">
+          <DailyActivityChart
+            wins={overallStats.wins}
+            losses={overallStats.losses}
+            periodLabel={sliceSummaryLabel}
+          />
           <ActivityChart data={monthlyActivity} />
           <WeeklyActivityChart data={weeklyParticipation} />
           <WinrateProgressChart data={dailyActivity} />
@@ -1564,7 +1562,7 @@ export default function YearReviewPage() {
               В соревновательные топы попадают только игроки с более чем {MIN_COMPETITIVE_EVENTS_FOR_TOPS - 1}
               боевыми событиями. Лекции в квалификацию не входят.
             </p>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               <Leaderboard
                 title="Топ по убийствам"
                 players={topKills}
