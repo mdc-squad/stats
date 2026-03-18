@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import { MultiValueFilter, type MultiValueFilterOption } from "@/components/multi-value-filter"
 import { Leaderboard } from "@/components/leaderboard"
 import { AvgStatLeaderboard } from "@/components/avg-stat-leaderboard"
 import { MapChart } from "@/components/charts/map-chart"
@@ -49,6 +50,7 @@ import {
   filterDataByTags,
   filterDataToClanPlayers,
   filterDataByDateRange,
+  filterDataByEventSlice,
   filterDataToCompetitiveEvents,
   getTopByWinRate,
   getTopByVehicle,
@@ -439,6 +441,10 @@ export default function YearReviewPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<StatsPeriod>("all")
   const [customDateFrom, setCustomDateFrom] = useState("")
   const [customDateTo, setCustomDateTo] = useState("")
+  const [selectedResultFilters, setSelectedResultFilters] = useState<Array<"win" | "loss" | "unknown">>([])
+  const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([])
+  const [selectedMaps, setSelectedMaps] = useState<string[]>([])
+  const [selectedOpponents, setSelectedOpponents] = useState<string[]>([])
   const [selectedRoleMetric, setSelectedRoleMetric] = useState<RoleLeaderboardMetric>("kd")
   const [activeTab, setActiveTab] = useState("leaderboards")
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
@@ -744,14 +750,6 @@ export default function YearReviewPage() {
   }, [clanData])
 
   useEffect(() => {
-    if (availableTags.length > 0 && selectedTags.length === 0) {
-      const excludedTags = ["C4", "NKLV", "【UNP】", "Ветеран", "『FW』"]
-      const defaultTags = availableTags.filter((tag) => !excludedTags.includes(tag))
-      setSelectedTags(defaultTags)
-    }
-  }, [availableTags, selectedTags.length])
-
-  useEffect(() => {
     if (availableTags.length === 0) {
       return
     }
@@ -799,15 +797,107 @@ export default function YearReviewPage() {
     [customDateFrom, customDateTo, selectedPeriod],
   )
 
-  const data = useMemo(() => {
+  const dateFilteredData = useMemo(() => {
     if (!tagFilteredData) return null
     return filterDataByDateRange(tagFilteredData, periodRange)
   }, [periodRange, tagFilteredData])
+
+  const tagOptions = useMemo<MultiValueFilterOption[]>(
+    () => availableTags.map((value) => ({ value, label: value })),
+    [availableTags],
+  )
+
+  const resultOptions = useMemo<MultiValueFilterOption[]>(
+    () => [
+      { value: "win", label: "Победы" },
+      { value: "loss", label: "Поражения" },
+      { value: "unknown", label: "Без результата" },
+    ],
+    [],
+  )
+
+  const eventTypeOptions = useMemo<MultiValueFilterOption[]>(
+    () =>
+      Array.from(new Set((dateFilteredData?.events ?? []).map((event) => event.event_type?.trim() ?? "").filter(Boolean)))
+        .sort((left, right) => left.localeCompare(right, "ru"))
+        .map((value) => ({ value, label: value })),
+    [dateFilteredData],
+  )
+
+  const mapOptions = useMemo<MultiValueFilterOption[]>(
+    () =>
+      Array.from(new Set((dateFilteredData?.events ?? []).map((event) => event.map?.trim() ?? "").filter(Boolean)))
+        .sort((left, right) => left.localeCompare(right, "ru"))
+        .map((value) => ({ value, label: value })),
+    [dateFilteredData],
+  )
+
+  const opponentOptions = useMemo<MultiValueFilterOption[]>(
+    () =>
+      Array.from(new Set((dateFilteredData?.events ?? []).map((event) => event.opponent?.trim() ?? "").filter(Boolean)))
+        .sort((left, right) => left.localeCompare(right, "ru"))
+        .map((value) => ({ value, label: value })),
+    [dateFilteredData],
+  )
+
+  const data = useMemo(() => {
+    if (!dateFilteredData) return null
+    return filterDataByEventSlice(dateFilteredData, {
+      results: selectedResultFilters,
+      eventTypes: selectedEventTypes,
+      maps: selectedMaps,
+      opponents: selectedOpponents,
+    })
+  }, [dateFilteredData, selectedEventTypes, selectedMaps, selectedOpponents, selectedResultFilters])
 
   const competitiveData = useMemo(() => {
     if (!data) return null
     return filterDataToCompetitiveEvents(data)
   }, [data])
+
+  const hasExtendedSliceFilters = Boolean(
+    selectedTags.length ||
+      selectedResultFilters.length ||
+      selectedEventTypes.length ||
+      selectedMaps.length ||
+      selectedOpponents.length ||
+      selectedPeriod !== "all" ||
+      customDateFrom ||
+      customDateTo,
+  )
+
+  const sliceSummaryLabel = useMemo(() => {
+    const segments = [periodSummaryLabel]
+
+    if (selectedTags.length > 0) {
+      segments.push(`теги: ${selectedTags.length}`)
+    }
+    if (selectedResultFilters.length > 0) {
+      segments.push(`результаты: ${selectedResultFilters.length}`)
+    }
+    if (selectedEventTypes.length > 0) {
+      segments.push(`типы: ${selectedEventTypes.length}`)
+    }
+    if (selectedMaps.length > 0) {
+      segments.push(`карты: ${selectedMaps.length}`)
+    }
+    if (selectedOpponents.length > 0) {
+      segments.push(`оппоненты: ${selectedOpponents.length}`)
+    }
+
+    return segments.join(" • ")
+  }, [periodSummaryLabel, selectedEventTypes.length, selectedMaps.length, selectedOpponents.length, selectedResultFilters.length, selectedTags.length])
+
+  const resetSliceFilters = useCallback(() => {
+    setSelectedTags([])
+    setSelectedPeriod("all")
+    setCustomDateFrom("")
+    setCustomDateTo("")
+    setSelectedResultFilters([])
+    setSelectedEventTypes([])
+    setSelectedMaps([])
+    setSelectedOpponents([])
+  }, [])
 
   useEffect(() => {
     if (!data) {
@@ -1322,12 +1412,25 @@ export default function YearReviewPage() {
 
         <Card className="border-christmas-gold/20 bg-card/60">
           <CardContent className="flex flex-col gap-3 pt-4">
-            <div>
-              <p className="text-sm font-medium text-christmas-snow">Период среза</p>
-              <p className="text-xs text-muted-foreground">{periodSummaryLabel}</p>
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-sm font-medium text-christmas-snow">Глобальный срез</p>
+                <p className="text-xs text-muted-foreground">{sliceSummaryLabel}</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10"
+                onClick={resetSliceFilters}
+                disabled={!hasExtendedSliceFilters}
+              >
+                Сбросить фильтры
+              </Button>
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div className="w-full sm:w-[220px]">
+            <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,0.9fr)_repeat(5,minmax(0,1fr))]">
+              <div className="space-y-2">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
                 <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as StatsPeriod)}>
                   <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
                     <SelectValue placeholder="Период" />
@@ -1341,8 +1444,59 @@ export default function YearReviewPage() {
                   </SelectContent>
                 </Select>
               </div>
-              {selectedPeriod === "custom" && (
-                <div className="grid w-full gap-3 sm:grid-cols-2 lg:max-w-[420px]">
+              <div className="space-y-2">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Теги</p>
+                <MultiValueFilter
+                  options={tagOptions}
+                  selected={selectedTags}
+                  onSelectionChange={setSelectedTags}
+                  placeholder="Все теги"
+                  searchPlaceholder="Поиск по тегам..."
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Результат</p>
+                <MultiValueFilter
+                  options={resultOptions}
+                  selected={selectedResultFilters}
+                  onSelectionChange={(values) => setSelectedResultFilters(values as Array<"win" | "loss" | "unknown">)}
+                  placeholder="Любые результаты"
+                  searchPlaceholder="Поиск по результатам..."
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Тип</p>
+                <MultiValueFilter
+                  options={eventTypeOptions}
+                  selected={selectedEventTypes}
+                  onSelectionChange={setSelectedEventTypes}
+                  placeholder="Любые типы"
+                  searchPlaceholder="Поиск по типам..."
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Карта</p>
+                <MultiValueFilter
+                  options={mapOptions}
+                  selected={selectedMaps}
+                  onSelectionChange={setSelectedMaps}
+                  placeholder="Любые карты"
+                  searchPlaceholder="Поиск по картам..."
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Оппонент</p>
+                <MultiValueFilter
+                  options={opponentOptions}
+                  selected={selectedOpponents}
+                  onSelectionChange={setSelectedOpponents}
+                  placeholder="Любые оппоненты"
+                  searchPlaceholder="Поиск по кланам и оппонентам..."
+                />
+              </div>
+            </div>
+            {selectedPeriod === "custom" && (
+              <div className="grid gap-3 sm:grid-cols-2 lg:max-w-[420px]">
                   <label className="space-y-1">
                     <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
                     <Input
@@ -1361,13 +1515,12 @@ export default function YearReviewPage() {
                       className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
                     />
                   </label>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        <OverallStatsPanel stats={overallStats} periodLabel={periodSummaryLabel} />
+        <OverallStatsPanel stats={overallStats} periodLabel={sliceSummaryLabel} />
 
         {/* Event Types Summary */}
         <section>
@@ -1398,7 +1551,7 @@ export default function YearReviewPage() {
         <DailyActivityChart
           wins={overallStats.wins}
           losses={overallStats.losses}
-          periodLabel={periodSummaryLabel}
+          periodLabel={sliceSummaryLabel}
         />
 
         {/* Charts Section */}

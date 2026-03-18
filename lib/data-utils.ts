@@ -144,6 +144,13 @@ export interface DataDateRange {
   to?: Date | null
 }
 
+export interface EventSliceFilters {
+  eventTypes?: string[]
+  maps?: string[]
+  opponents?: string[]
+  results?: Array<"win" | "loss" | "unknown">
+}
+
 export type RoleLeaderboardMetric =
   | "kd"
   | "kda"
@@ -665,6 +672,75 @@ export function filterDataByDateRange(data: MDCData, range: DataDateRange = {}):
       return false
     }
     return isInRange(getComparableDate(stat.event_id))
+  })
+  const derivedPlayers = derivePlayersFromStats(data.players, filteredPlayerStats, filteredEvents)
+
+  return {
+    ...data,
+    events: filteredEvents,
+    player_event_stats: filteredPlayerStats,
+    players: derivedPlayers,
+    meta: {
+      ...data.meta,
+      counts: {
+        ...data.meta.counts,
+        events: filteredEvents.length,
+        players: derivedPlayers.length,
+        player_event_stats: filteredPlayerStats.length,
+      },
+    },
+  }
+}
+
+export function filterDataByEventSlice(data: MDCData, filters: EventSliceFilters = {}): MDCData {
+  const events = Array.isArray(data.events) ? data.events : []
+  const playerStats = Array.isArray(data.player_event_stats) ? data.player_event_stats : []
+  const hasFilters = Boolean(
+    filters.eventTypes?.length || filters.maps?.length || filters.opponents?.length || filters.results?.length,
+  )
+
+  if (!hasFilters) {
+    return data
+  }
+
+  const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
+  const eventTypeSet = new Set((filters.eventTypes ?? []).map((value) => value.trim()).filter(Boolean))
+  const mapSet = new Set((filters.maps ?? []).map((value) => value.trim()).filter(Boolean))
+  const opponentSet = new Set((filters.opponents ?? []).map((value) => value.trim()).filter(Boolean))
+  const resultSet = new Set(filters.results ?? [])
+
+  const filteredEvents = events.filter((event) => {
+    const eventType = event.event_type?.trim() ?? ""
+    const map = event.map?.trim() ?? ""
+    const opponent = event.opponent?.trim() ?? ""
+    const resultKey = event.is_win === true ? "win" : event.is_win === false ? "loss" : "unknown"
+
+    if (eventTypeSet.size > 0 && !eventTypeSet.has(eventType)) {
+      return false
+    }
+    if (mapSet.size > 0 && !mapSet.has(map)) {
+      return false
+    }
+    if (opponentSet.size > 0 && !opponentSet.has(opponent)) {
+      return false
+    }
+    if (resultSet.size > 0 && !resultSet.has(resultKey)) {
+      return false
+    }
+
+    return true
+  })
+
+  const filteredEventKeys = new Set(filteredEvents.map((event) => getEventLinkKey(event.event_id)).filter(Boolean))
+  const filteredPlayerStats = playerStats.filter((stat) => {
+    const eventKey = getEventLinkKey(stat.event_id)
+    if (eventKey && filteredEventKeys.has(eventKey)) {
+      return true
+    }
+    if (eventKey && eventLookup.has(eventKey)) {
+      return false
+    }
+    return false
   })
   const derivedPlayers = derivePlayersFromStats(data.players, filteredPlayerStats, filteredEvents)
 
