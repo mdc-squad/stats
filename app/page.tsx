@@ -1028,7 +1028,7 @@ export default function YearReviewPage() {
           qualifiedCompetitiveClanPlayerStats,
           qualifiedCompetitiveClanPlayers,
           role,
-          10,
+          fullCompetitiveLeaderboardLimit,
           competitiveData.dictionaries?.roles ?? [],
           selectedRoleMetric,
         ),
@@ -1036,6 +1036,7 @@ export default function YearReviewPage() {
   }, [
     competitiveData,
     competitiveUniqueRoles,
+    fullCompetitiveLeaderboardLimit,
     qualifiedCompetitiveClanPlayerStats,
     qualifiedCompetitiveClanPlayers,
     selectedRoleMetric,
@@ -1689,11 +1690,9 @@ export default function YearReviewPage() {
                 title="Топ по выбитой технике"
                 players={leaderboardVehicle}
                 stat="vehicle"
-                collapsedCount={VEHICLE_LEADERBOARD_PREVIEW_LIMIT}
                 playerAchievements={playerAchievements}
                 icon={<Car className="w-4 h-4" />}
                 variant="christmas"
-                className="bg-gradient-to-br from-blue-500/10 via-card to-blue-500/5"
               />
               <AvgStatLeaderboard
                 title="Топ по средней технике за матч"
@@ -1704,7 +1703,6 @@ export default function YearReviewPage() {
                 playerAchievements={playerAchievements}
                 icon={<Car className="w-4 h-4" />}
                 variant="christmas"
-                className="bg-gradient-to-br from-orange-500/10 via-card to-orange-500/5"
               />
               <AvgStatLeaderboard
                 title="Топ по среднему хилу за матч"
@@ -1715,7 +1713,6 @@ export default function YearReviewPage() {
                 playerAchievements={playerAchievements}
                 icon={<Heart className="w-4 h-4" />}
                 variant="christmas"
-                className="bg-gradient-to-br from-rose-500/10 via-card to-rose-500/5"
               />
               <AvgStatLeaderboard
                 title="Топ по среднему поднятию за матч"
@@ -1726,7 +1723,6 @@ export default function YearReviewPage() {
                 playerAchievements={playerAchievements}
                 icon={<Syringe className="w-4 h-4" />}
                 variant="christmas"
-                className="bg-gradient-to-br from-pink-500/10 via-card to-pink-500/5"
               />
             </div>
           </TabsContent>
@@ -1760,7 +1756,7 @@ export default function YearReviewPage() {
                 </div>
               </CardContent>
             </Card>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {nonEmptyRoleLeaderboards.map(({ role, players }) => (
                 <RoleLeaderboard
                   key={role}
@@ -1780,7 +1776,7 @@ export default function YearReviewPage() {
           </TabsContent>
 
           <TabsContent value="records" className="space-y-4">
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               <BestMatches
                 title="Рекорды по K/D"
                 metric="kd"

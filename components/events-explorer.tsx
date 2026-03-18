@@ -1,6 +1,6 @@
 "use client"
 
-import { useDeferredValue, useEffect, useMemo, useState, type CSSProperties } from "react"
+import { useDeferredValue, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,9 +15,10 @@ import { PlayerSelector } from "@/components/player-selector"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { PastGameSummary, Player } from "@/lib/data-utils"
 import { getSquadToneClasses } from "@/lib/squad-utils"
-import { Calendar, Crosshair, Filter, Heart, Search, Shield, Trophy, Users } from "lucide-react"
+import { Calendar, CircleHelp, Crosshair, Filter, Heart, Search, Shield, Trophy, Users } from "lucide-react"
 
 interface EventsExplorerProps {
   games: PastGameSummary[]
@@ -162,6 +163,26 @@ function getLinkHostLabel(value: string): string {
   } catch {
     return value
   }
+}
+
+function TableHeadHelp({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 rounded-sm text-left text-muted-foreground transition-colors hover:text-christmas-snow"
+          aria-label={`Справка по колонке ${label}`}
+        >
+          <span>{label}</span>
+          <CircleHelp className="h-3.5 w-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs border border-border bg-card text-card-foreground">
+        {children}
+      </TooltipContent>
+    </Tooltip>
+  )
 }
 
 export function EventsExplorer({
@@ -768,16 +789,93 @@ export function EventsExplorer({
                               <Table className="min-w-[1020px]">
                                 <TableHeader>
                                   <TableRow className="border-border/60">
-                                    <TableHead>#</TableHead>
-                                    <TableHead>Игрок</TableHead>
-                                    <TableHead>Роль</TableHead>
-                                    <TableHead>K</TableHead>
-                                    <TableHead>Dn</TableHead>
-                                    <TableHead>D</TableHead>
-                                    <TableHead>Rev</TableHead>
-                                    <TableHead>Хил</TableHead>
-                                    <TableHead>K/D</TableHead>
-                                    <TableHead>Импакт</TableHead>
+                                    <TableHead>
+                                      <TableHeadHelp label="#">
+                                        <p className="leading-relaxed text-muted-foreground">
+                                          Позиция игрока внутри конкретного матча. Сортировка идет по импакту, затем по
+                                          убийствам, нокам, поднятиям и меньшему числу смертей.
+                                        </p>
+                                      </TableHeadHelp>
+                                    </TableHead>
+                                    <TableHead>
+                                      <TableHeadHelp label="Игрок">
+                                        <p className="leading-relaxed text-muted-foreground">
+                                          Ник, аватар и клановый тег игрока из матчевого протокола.
+                                        </p>
+                                      </TableHeadHelp>
+                                    </TableHead>
+                                    <TableHead>
+                                      <TableHeadHelp label="Роль">
+                                        <p className="leading-relaxed text-muted-foreground">
+                                          Основная роль игрока в этом матче. Ниже показываются метки сквада, к которому
+                                          он относился в протоколе.
+                                        </p>
+                                      </TableHeadHelp>
+                                    </TableHead>
+                                    <TableHead>
+                                      <TableHeadHelp label="K">
+                                        <p className="leading-relaxed text-muted-foreground">
+                                          Количество убийств за матч.
+                                        </p>
+                                      </TableHeadHelp>
+                                    </TableHead>
+                                    <TableHead>
+                                      <TableHeadHelp label="Dn">
+                                        <p className="leading-relaxed text-muted-foreground">
+                                          Количество ноков. Нок может не превратиться в убийство этим же игроком, поэтому
+                                          `Dn` часто выше `K`.
+                                        </p>
+                                      </TableHeadHelp>
+                                    </TableHead>
+                                    <TableHead>
+                                      <TableHeadHelp label="D">
+                                        <p className="leading-relaxed text-muted-foreground">
+                                          Количество смертей игрока в этом матче.
+                                        </p>
+                                      </TableHeadHelp>
+                                    </TableHead>
+                                    <TableHead>
+                                      <TableHeadHelp label="Rev">
+                                        <p className="leading-relaxed text-muted-foreground">
+                                          Количество поднятий союзников.
+                                        </p>
+                                      </TableHeadHelp>
+                                    </TableHead>
+                                    <TableHead>
+                                      <TableHeadHelp label="Хил">
+                                        <p className="leading-relaxed text-muted-foreground">
+                                          Суммарный объем лечения, который игрок выдал за матч.
+                                        </p>
+                                      </TableHeadHelp>
+                                    </TableHead>
+                                    <TableHead>
+                                      <TableHeadHelp label="K/D">
+                                        <p className="leading-relaxed text-muted-foreground">
+                                          Отношение убийств к смертям. Если смертей нет, значение равно числу убийств.
+                                        </p>
+                                      </TableHeadHelp>
+                                    </TableHead>
+                                    <TableHead>
+                                      <TableHeadHelp label="Импакт">
+                                        <p className="font-medium text-christmas-snow">Как считается импакт</p>
+                                        <p className="mt-1 leading-relaxed text-muted-foreground">
+                                          Импакт = max(0, round(5 × убийства + 3 × ноки + 2 × поднятия + 4 × техника -
+                                          1.5 × смерти)).
+                                        </p>
+                                        <p className="mt-2 leading-relaxed text-muted-foreground">
+                                          Вес убийств выше всего, потому что они напрямую конвертируют давление в минус
+                                          стволы. Ноки стоят ниже убийств, так как их еще надо реализовать. Техника
+                                          оценена почти как фраг, потому что уничтожение транспорта часто ломает
+                                          передвижение и весь заход. Поднятия дают заметный бонус за саппорт, но не
+                                          должны обгонять боевой вклад. Смерти штрафуют за потерю темпа, но мягко, чтобы
+                                          полезный размен или работа медика не обнулялись.
+                                        </p>
+                                        <p className="mt-2 leading-relaxed text-muted-foreground">
+                                          Процент справа показывает долю от лучшего импакта в этом матче: `impact /
+                                          bestImpact × 100`.
+                                        </p>
+                                      </TableHeadHelp>
+                                    </TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
