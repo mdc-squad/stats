@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Calendar, CircleHelp, Crosshair, Skull, Target, Zap, Car, TrendingUp, Cross, Heart, Trophy } from "lucide-react"
+import { Calendar, CircleHelp, Crosshair, Skull, Target, Zap, Car, TrendingUp, Cross, Heart } from "lucide-react"
 
 interface OverallStatsPanelProps {
   stats: {
@@ -27,12 +27,6 @@ export function OverallStatsPanel({ stats, periodLabel = "за всё время
       label: "Всего событий",
       value: stats.totalEvents,
       icon: <Calendar className="w-4 h-4" />,
-      color: "text-christmas-gold",
-    },
-    {
-      label: "Винрейт",
-      value: `${stats.winRate.toFixed(0)}%`,
-      icon: <Trophy className="w-4 h-4" />,
       color: "text-christmas-gold",
     },
     {
@@ -108,9 +102,6 @@ export function OverallStatsPanel({ stats, periodLabel = "за всё время
             <TooltipContent side="top" className="max-w-xs border border-border bg-card text-card-foreground">
               <p className="font-medium text-christmas-snow">Как считаются метрики</p>
               <p className="mt-1 leading-relaxed text-muted-foreground">KDA = ноки / смерти. Если смертей нет, значение равно числу ноков.</p>
-              <p className="mt-2 leading-relaxed text-muted-foreground">
-                Импакт = 5 × убийства + 3 × ноки + 2 × поднятия + 4 × техника - 1.5 × смерти.
-              </p>
             </TooltipContent>
           </Tooltip>
         </div>

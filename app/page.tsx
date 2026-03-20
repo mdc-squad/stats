@@ -23,7 +23,7 @@ import { RoleLeaderboard } from "@/components/charts/role-leaderboard"
 import { BestMatches } from "@/components/charts/best-matches"
 import { PlayerCard } from "@/components/player-card"
 import { PlayerSelector } from "@/components/player-selector"
-import { GroupStatsCard } from "@/components/group-stats-card"
+import { SquadOverview } from "@/components/squad-overview"
 import { SquadBuilder } from "@/components/squad-builder"
 import { Snowfall } from "@/components/snowfall"
 import { SeasonalHeader } from "@/components/seasonal-header"
@@ -45,9 +45,7 @@ import {
   getPastGames,
   getPlayerGameHistory,
   getPlayerProgress,
-  getUniqueTags,
   getUniqueRoles,
-  filterDataByTags,
   filterDataToClanPlayers,
   filterDataByDateRange,
   filterDataByEventSlice,
@@ -61,8 +59,6 @@ import {
   getMaxKDByRole,
   getAverageValues,
   getTopMatchRecords,
-  getEventMatchupLabel,
-  getEventSizeLabel,
   type RoleLeaderboardMetric,
 } from "@/lib/data-utils"
 import { fetchAllData, type SyncProgressUpdate } from "@/lib/api"
@@ -177,6 +173,9 @@ const STATS_PERIOD_OPTIONS: Array<{ value: StatsPeriod; label: string; summary: 
 const ROLE_METRIC_OPTIONS: Array<{ value: RoleLeaderboardMetric; label: string }> = [
   { value: "kd", label: "K/D" },
   { value: "kda", label: "KDA" },
+  { value: "elo", label: "ELO" },
+  { value: "tbf", label: "TBF (30д)" },
+  { value: "rating", label: "ОР" },
   { value: "kills", label: "Убийства" },
   { value: "deaths", label: "Смерти" },
   { value: "downs", label: "Ноки" },
@@ -422,17 +421,13 @@ function buildSyncReport(
 export default function YearReviewPage() {
   const [rawData, setRawData] = useState<MDCData | null>(null)
   const [seasonalTheme, setSeasonalTheme] = useState<SeasonalTheme>(() => getSeasonalTheme())
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [selectedPeriod, setSelectedPeriod] = useState<StatsPeriod>("all")
   const [customDateFrom, setCustomDateFrom] = useState("")
   const [customDateTo, setCustomDateTo] = useState("")
-  const [selectedResultFilters, setSelectedResultFilters] = useState<Array<"win" | "loss" | "unknown">>([])
   const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([])
   const [selectedMaps, setSelectedMaps] = useState<string[]>([])
   const [selectedOpponents, setSelectedOpponents] = useState<string[]>([])
-  const [selectedModes, setSelectedModes] = useState<string[]>([])
-  const [selectedMatchups, setSelectedMatchups] = useState<string[]>([])
-  const [selectedSizes, setSelectedSizes] = useState<string[]>([])
+  const [selectedFactions, setSelectedFactions] = useState<string[]>([])
   const [selectedRoleMetric, setSelectedRoleMetric] = useState<RoleLeaderboardMetric>("kd")
   const [activeTab, setActiveTab] = useState("leaderboards")
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
@@ -682,29 +677,6 @@ export default function YearReviewPage() {
     return filterDataToClanPlayers(rawData)
   }, [rawData])
 
-  const availableTags = useMemo(() => {
-    if (!clanData) return []
-    const players = Array.isArray(clanData.players) ? clanData.players : []
-    return getUniqueTags(players, clanData.dictionaries?.tags ?? [])
-  }, [clanData])
-
-  useEffect(() => {
-    if (availableTags.length === 0) {
-      return
-    }
-
-    const availableTagSet = new Set(availableTags)
-    setSelectedTags((current) => {
-      const next = current.filter((tag) => availableTagSet.has(tag))
-      return next.length === current.length ? current : next
-    })
-  }, [availableTags])
-
-  const tagFilteredData = useMemo(() => {
-    if (!clanData) return null
-    return filterDataByTags(clanData, selectedTags)
-  }, [clanData, selectedTags])
-
   const selectedPeriodOption = useMemo(
     () => STATS_PERIOD_OPTIONS.find((option) => option.value === selectedPeriod) ?? STATS_PERIOD_OPTIONS[0],
     [selectedPeriod],
@@ -737,23 +709,9 @@ export default function YearReviewPage() {
   )
 
   const dateFilteredData = useMemo(() => {
-    if (!tagFilteredData) return null
-    return filterDataByDateRange(tagFilteredData, periodRange)
-  }, [periodRange, tagFilteredData])
-
-  const tagOptions = useMemo<MultiValueFilterOption[]>(
-    () => availableTags.map((value) => ({ value, label: value })),
-    [availableTags],
-  )
-
-  const resultOptions = useMemo<MultiValueFilterOption[]>(
-    () => [
-      { value: "win", label: "Победы" },
-      { value: "loss", label: "Поражения" },
-      { value: "unknown", label: "Без результата" },
-    ],
-    [],
-  )
+    if (!clanData) return null
+    return filterDataByDateRange(clanData, periodRange)
+  }, [clanData, periodRange])
 
   const eventTypeOptions = useMemo<MultiValueFilterOption[]>(
     () =>
@@ -779,26 +737,10 @@ export default function YearReviewPage() {
     [dateFilteredData],
   )
 
-  const modeOptions = useMemo<MultiValueFilterOption[]>(
+  const factionOptions = useMemo<MultiValueFilterOption[]>(
     () =>
-      Array.from(new Set((dateFilteredData?.events ?? []).map((event) => event.mode?.trim() ?? "").filter(Boolean)))
+      Array.from(new Set((dateFilteredData?.events ?? []).map((event) => event.faction_1?.trim() ?? "").filter(Boolean)))
         .sort((left, right) => left.localeCompare(right, "ru"))
-        .map((value) => ({ value, label: value })),
-    [dateFilteredData],
-  )
-
-  const matchupOptions = useMemo<MultiValueFilterOption[]>(
-    () =>
-      Array.from(new Set((dateFilteredData?.events ?? []).map((event) => getEventMatchupLabel(event)).filter(Boolean)))
-        .sort((left, right) => left.localeCompare(right, "ru"))
-        .map((value) => ({ value, label: value })),
-    [dateFilteredData],
-  )
-
-  const sizeOptions = useMemo<MultiValueFilterOption[]>(
-    () =>
-      Array.from(new Set((dateFilteredData?.events ?? []).map((event) => getEventSizeLabel(event)).filter(Boolean)))
-        .sort((left, right) => left.localeCompare(right, "ru", { numeric: true }))
         .map((value) => ({ value, label: value })),
     [dateFilteredData],
   )
@@ -806,15 +748,18 @@ export default function YearReviewPage() {
   const data = useMemo(() => {
     if (!dateFilteredData) return null
     return filterDataByEventSlice(dateFilteredData, {
-      results: selectedResultFilters,
       eventTypes: selectedEventTypes,
       maps: selectedMaps,
       opponents: selectedOpponents,
-      modes: selectedModes,
-      matchups: selectedMatchups,
-      sizes: selectedSizes,
+      factions: selectedFactions,
     })
-  }, [dateFilteredData, selectedEventTypes, selectedMaps, selectedMatchups, selectedModes, selectedOpponents, selectedResultFilters, selectedSizes])
+  }, [
+    dateFilteredData,
+    selectedEventTypes,
+    selectedFactions,
+    selectedMaps,
+    selectedOpponents,
+  ])
 
   const competitiveData = useMemo(() => {
     if (!data) return null
@@ -822,14 +767,10 @@ export default function YearReviewPage() {
   }, [data])
 
   const hasExtendedSliceFilters = Boolean(
-    selectedTags.length ||
-      selectedResultFilters.length ||
-      selectedEventTypes.length ||
+    selectedEventTypes.length ||
       selectedMaps.length ||
       selectedOpponents.length ||
-      selectedModes.length ||
-      selectedMatchups.length ||
-      selectedSizes.length ||
+      selectedFactions.length ||
       selectedPeriod !== "all" ||
       customDateFrom ||
       customDateTo,
@@ -838,12 +779,6 @@ export default function YearReviewPage() {
   const sliceSummaryLabel = useMemo(() => {
     const segments = [periodSummaryLabel]
 
-    if (selectedTags.length > 0) {
-      segments.push(`теги: ${selectedTags.length}`)
-    }
-    if (selectedResultFilters.length > 0) {
-      segments.push(`результаты: ${selectedResultFilters.length}`)
-    }
     if (selectedEventTypes.length > 0) {
       segments.push(`типы: ${selectedEventTypes.length}`)
     }
@@ -853,41 +788,27 @@ export default function YearReviewPage() {
     if (selectedOpponents.length > 0) {
       segments.push(`оппоненты: ${selectedOpponents.length}`)
     }
-    if (selectedModes.length > 0) {
-      segments.push(`режимы: ${selectedModes.length}`)
-    }
-    if (selectedMatchups.length > 0) {
-      segments.push(`матчапы: ${selectedMatchups.length}`)
-    }
-    if (selectedSizes.length > 0) {
-      segments.push(`форматы: ${selectedSizes.length}`)
+    if (selectedFactions.length > 0) {
+      segments.push(`фракции: ${selectedFactions.length}`)
     }
 
     return segments.join(" • ")
   }, [
     periodSummaryLabel,
     selectedEventTypes.length,
+    selectedFactions.length,
     selectedMaps.length,
-    selectedMatchups.length,
-    selectedModes.length,
     selectedOpponents.length,
-    selectedResultFilters.length,
-    selectedSizes.length,
-    selectedTags.length,
   ])
 
   const resetSliceFilters = useCallback(() => {
-    setSelectedTags([])
     setSelectedPeriod("all")
     setCustomDateFrom("")
     setCustomDateTo("")
-    setSelectedResultFilters([])
     setSelectedEventTypes([])
     setSelectedMaps([])
     setSelectedOpponents([])
-    setSelectedModes([])
-    setSelectedMatchups([])
-    setSelectedSizes([])
+    setSelectedFactions([])
   }, [])
 
   useEffect(() => {
@@ -993,6 +914,7 @@ export default function YearReviewPage() {
         ? {
             kd: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kd", fullCompetitiveRecordLimit),
             kda: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kda", fullCompetitiveRecordLimit),
+            elo: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "elo", fullCompetitiveRecordLimit),
             kills: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kills", fullCompetitiveRecordLimit),
             downs: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "downs", fullCompetitiveRecordLimit),
             deaths: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "deaths", fullCompetitiveRecordLimit),
@@ -1003,6 +925,7 @@ export default function YearReviewPage() {
         : {
             kd: [],
             kda: [],
+            elo: [],
             kills: [],
             downs: [],
             deaths: [],
@@ -1031,6 +954,7 @@ export default function YearReviewPage() {
           fullCompetitiveLeaderboardLimit,
           competitiveData.dictionaries?.roles ?? [],
           selectedRoleMetric,
+          competitiveData.events,
         ),
       }))
   }, [
@@ -1084,6 +1008,18 @@ export default function YearReviewPage() {
     () => getTopByKDA(qualifiedCompetitiveClanPlayers, fullCompetitiveLeaderboardLimit),
     [fullCompetitiveLeaderboardLimit, qualifiedCompetitiveClanPlayers],
   )
+  const leaderboardELO = useMemo(
+    () => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "elo", fullCompetitiveLeaderboardLimit),
+    [fullCompetitiveLeaderboardLimit, qualifiedCompetitiveClanPlayers],
+  )
+  const leaderboardTBF = useMemo(
+    () => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "tbf", fullCompetitiveLeaderboardLimit),
+    [fullCompetitiveLeaderboardLimit, qualifiedCompetitiveClanPlayers],
+  )
+  const leaderboardRating = useMemo(
+    () => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "rating", fullCompetitiveLeaderboardLimit),
+    [fullCompetitiveLeaderboardLimit, qualifiedCompetitiveClanPlayers],
+  )
   const leaderboardAvgVehicle = useMemo(
     () => getTopByAvgVehicle(qualifiedCompetitiveClanPlayers, MIN_COMPETITIVE_EVENTS_FOR_TOPS, fullCompetitiveLeaderboardLimit),
     [fullCompetitiveLeaderboardLimit, qualifiedCompetitiveClanPlayers],
@@ -1100,13 +1036,14 @@ export default function YearReviewPage() {
   const topKD = useMemo(() => leaderboardKD.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardKD])
   const topWinRate = useMemo(() => leaderboardWinRate.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardWinRate])
   const topEvents = useMemo(() => leaderboardEvents.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardEvents])
-  const topHeals = useMemo(() => leaderboardHeals.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardHeals])
   const topRevives = useMemo(() => leaderboardRevives.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardRevives])
   const topDowns = useMemo(() => leaderboardDowns.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardDowns])
   const topVehicle = useMemo(() => leaderboardVehicle.slice(0, VEHICLE_LEADERBOARD_PREVIEW_LIMIT), [leaderboardVehicle])
   const topKDA = useMemo(() => leaderboardKDA.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardKDA])
+  const topELO = useMemo(() => leaderboardELO.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardELO])
+  const topTBF = useMemo(() => leaderboardTBF.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardTBF])
+  const topRating = useMemo(() => leaderboardRating.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardRating])
   const topAvgVehicle = useMemo(() => leaderboardAvgVehicle.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardAvgVehicle])
-  const topAvgHeals = useMemo(() => leaderboardAvgHeals.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardAvgHeals])
   const topAvgRevives = useMemo(() => leaderboardAvgRevives.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardAvgRevives])
   const playerAchievements = useMemo(() => {
     const byPlayerId = new Map<string, string[]>()
@@ -1142,6 +1079,9 @@ export default function YearReviewPage() {
     register(topKills, "Убийца")
     register(topKD, "Высокий K/D")
     register(topKDA, "Доминатор")
+    register(topELO, "Стратег")
+    register(topTBF, "Боевой фактор")
+    register(topRating, "Острие клана")
     register(topWinRate, "Победитель")
     register(topEvents, "Оплот клана")
     register(topRevives, "Спасатель")
@@ -1152,7 +1092,22 @@ export default function YearReviewPage() {
     registerSL(slStats, "Сквад-лидер")
 
     return Object.fromEntries(byPlayerId)
-  }, [slStats, topAvgRevives, topAvgVehicle, topDowns, topEvents, topKDA, topKD, topKills, topRevives, topVehicle, topWinRate])
+  }, [
+    slStats,
+    topAvgRevives,
+    topAvgVehicle,
+    topDowns,
+    topELO,
+    topEvents,
+    topKDA,
+    topKD,
+    topKills,
+    topRating,
+    topRevives,
+    topTBF,
+    topVehicle,
+    topWinRate,
+  ])
 
   // Player progress chart data
   const selectedProgressEntries = useMemo(() => {
@@ -1178,17 +1133,10 @@ export default function YearReviewPage() {
     return entries
   }, [data, selectedPlayersForChart])
 
-  const selectedPlayerData = useMemo(() => {
-    if (!data) return []
-    const players = Array.isArray(data.players) ? data.players : []
-    return players.filter((p) => selectedPlayers.includes(p.player_id))
-  }, [data, selectedPlayers])
-
-  const isSingleSelectedPlayer = selectedPlayerData.length === 1
   const isSingleProgressSelection = selectedProgressEntries.length === 1
 
   const selectedPlayerHistories = useMemo(() => {
-    const selectedIds = Array.from(new Set([...selectedPlayers, ...selectedPlayersForChart]))
+    const selectedIds = Array.from(new Set(selectedPlayersForChart))
     const historyByPlayerId = new Map<string, ReturnType<typeof getPlayerGameHistory>>()
 
     selectedIds.forEach((playerId) => {
@@ -1196,7 +1144,7 @@ export default function YearReviewPage() {
     })
 
     return historyByPlayerId
-  }, [pastGames, selectedPlayers, selectedPlayersForChart])
+  }, [pastGames, selectedPlayersForChart])
 
   const activePlayers = useMemo(() => {
     if (!data) return []
@@ -1343,7 +1291,7 @@ export default function YearReviewPage() {
       <div className="fixed inset-0 z-0" style={{ background: seasonalTheme.overlayGradient }} />
 
       {seasonalTheme.showSnowfall && <Snowfall />}
-      <SeasonalHeader playersCount={clanRosterCount} eventsCount={data.events.length} theme={seasonalTheme} />
+      <SeasonalHeader playersCount={clanRosterCount} theme={seasonalTheme} />
 
       <main className="container mx-auto px-4 py-6 space-y-6 relative z-10">
         <section>
@@ -1397,7 +1345,7 @@ export default function YearReviewPage() {
                 Сбросить фильтры
               </Button>
             </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
               <div className="space-y-2">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
                 <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as StatsPeriod)}>
@@ -1414,26 +1362,6 @@ export default function YearReviewPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Теги</p>
-                <MultiValueFilter
-                  options={tagOptions}
-                  selected={selectedTags}
-                  onSelectionChange={setSelectedTags}
-                  placeholder="Все теги"
-                  searchPlaceholder="Поиск по тегам..."
-                />
-              </div>
-              <div className="space-y-2">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Результат</p>
-                <MultiValueFilter
-                  options={resultOptions}
-                  selected={selectedResultFilters}
-                  onSelectionChange={(values) => setSelectedResultFilters(values as Array<"win" | "loss" | "unknown">)}
-                  placeholder="Любые результаты"
-                  searchPlaceholder="Поиск по результатам..."
-                />
-              </div>
-              <div className="space-y-2">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Тип</p>
                 <MultiValueFilter
                   options={eventTypeOptions}
@@ -1441,16 +1369,6 @@ export default function YearReviewPage() {
                   onSelectionChange={setSelectedEventTypes}
                   placeholder="Любые типы"
                   searchPlaceholder="Поиск по типам..."
-                />
-              </div>
-              <div className="space-y-2">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Режим</p>
-                <MultiValueFilter
-                  options={modeOptions}
-                  selected={selectedModes}
-                  onSelectionChange={setSelectedModes}
-                  placeholder="Любые режимы"
-                  searchPlaceholder="Поиск по режимам..."
                 />
               </div>
               <div className="space-y-2">
@@ -1464,13 +1382,13 @@ export default function YearReviewPage() {
                 />
               </div>
               <div className="space-y-2">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Матчап</p>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Фракция MDC</p>
                 <MultiValueFilter
-                  options={matchupOptions}
-                  selected={selectedMatchups}
-                  onSelectionChange={setSelectedMatchups}
-                  placeholder="Любые матчапы"
-                  searchPlaceholder="Поиск по матчапам..."
+                  options={factionOptions}
+                  selected={selectedFactions}
+                  onSelectionChange={setSelectedFactions}
+                  placeholder="Любые фракции"
+                  searchPlaceholder="Поиск по фракциям..."
                 />
               </div>
               <div className="space-y-2">
@@ -1483,20 +1401,10 @@ export default function YearReviewPage() {
                   searchPlaceholder="Поиск по кланам и оппонентам..."
                 />
               </div>
-              <div className="space-y-2">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Формат</p>
-                <MultiValueFilter
-                  options={sizeOptions}
-                  selected={selectedSizes}
-                  onSelectionChange={setSelectedSizes}
-                  placeholder="Любые размеры"
-                  searchPlaceholder="Поиск по форматам..."
-                />
-              </div>
             </div>
             {selectedPeriod === "custom" && (
-              <div className="grid gap-3 sm:grid-cols-2 lg:max-w-[420px]">
-                <label className="space-y-1">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                <label className="space-y-2">
                   <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
                   <Input
                     type="date"
@@ -1505,7 +1413,7 @@ export default function YearReviewPage() {
                     className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
                   />
                 </label>
-                <label className="space-y-1">
+                <label className="space-y-2">
                   <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
                   <Input
                     type="date"
@@ -1526,10 +1434,10 @@ export default function YearReviewPage() {
           <h2 className="text-lg font-semibold mb-4 text-christmas-snow">Статистика по типам событий</h2>
           <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-6">
             {eventTypeStats.map((et) => (
-              <Card key={et.type} className="border-christmas-gold/20">
-                <CardContent className="p-3 text-center">
-                  <p className="mb-1 text-xl">{et.type}</p>
-                  <p className="text-lg font-bold text-christmas-snow">{et.count}</p>
+              <Card key={et.type} className="h-full border-christmas-gold/20">
+                <CardContent className="flex h-full min-h-[132px] flex-col justify-between p-3 text-center">
+                  <p className="mb-2 line-clamp-2 text-sm font-medium text-christmas-snow">{et.type}</p>
+                  <p className="text-2xl font-bold text-christmas-snow">{et.count}</p>
                   {!isLectureEventType(et.type) && (
                     <p className="mt-1 text-[11px] text-muted-foreground">
                       {et.resolved > 0 ? `WR ${((et.wins / et.resolved) * 100).toFixed(0)}%` : "без результата"}
@@ -1583,7 +1491,7 @@ export default function YearReviewPage() {
               value="progress"
               className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-blue-500/30 bg-blue-500/10 text-christmas-snow data-[state=active]:bg-blue-500 data-[state=active]:border-blue-500 data-[state=active]:text-white hover:bg-blue-500/20 transition-all"
             >
-              Прогресс игрока
+              Игроки
             </TabsTrigger>
             <TabsTrigger
               value="games"
@@ -1592,16 +1500,10 @@ export default function YearReviewPage() {
               Игры
             </TabsTrigger>
             <TabsTrigger
-              value="individual"
-              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-purple-500/30 bg-purple-500/10 text-christmas-snow data-[state=active]:bg-purple-500 data-[state=active]:border-purple-500 data-[state=active]:text-white hover:bg-purple-500/20 transition-all"
-            >
-              Карточки
-            </TabsTrigger>
-            <TabsTrigger
               value="group"
               className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-orange-500/30 bg-orange-500/10 text-christmas-snow data-[state=active]:bg-orange-500 data-[state=active]:border-orange-500 data-[state=active]:text-white hover:bg-orange-500/20 transition-all"
             >
-              Групповые
+              Отряды
             </TabsTrigger>
             <TabsTrigger
               value="squad-builder"
@@ -1614,18 +1516,9 @@ export default function YearReviewPage() {
           {/* Leaderboards Tab */}
           <TabsContent value="leaderboards" className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              В соревновательные топы попадают только игроки с более чем {MIN_COMPETITIVE_EVENTS_FOR_TOPS - 1}
-              боевыми событиями. Лекции в квалификацию не входят.
+              В топ включены игроки с более чем {MIN_COMPETITIVE_EVENTS_FOR_TOPS - 1} играми.
             </p>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Leaderboard
-                title="Топ по убийствам"
-                players={leaderboardKills}
-                stat="kills"
-                playerAchievements={playerAchievements}
-                icon={<Crosshair className="w-4 h-4" />}
-                variant="christmas"
-              />
               <Leaderboard
                 title="Топ по K/D"
                 players={leaderboardKD}
@@ -1645,7 +1538,42 @@ export default function YearReviewPage() {
                 variant="christmas"
               />
               <Leaderboard
-                title="Топ победителей (>10 боевых событий)"
+                title="Топ по ELO"
+                players={leaderboardELO}
+                stat="elo"
+                formatValue={(v) => v.toFixed(1)}
+                playerAchievements={playerAchievements}
+                icon={<Shield className="w-4 h-4" />}
+                variant="christmas"
+              />
+              <Leaderboard
+                title="Топ по TBF (30д)"
+                players={leaderboardTBF}
+                stat="tbf"
+                formatValue={(v) => v.toFixed(1)}
+                playerAchievements={playerAchievements}
+                icon={<Star className="w-4 h-4" />}
+                variant="christmas"
+              />
+              <Leaderboard
+                title="Топ по ОР"
+                players={leaderboardRating}
+                stat="rating"
+                formatValue={(v) => v.toFixed(1)}
+                playerAchievements={playerAchievements}
+                icon={<Sparkles className="w-4 h-4" />}
+                variant="christmas"
+              />
+              <Leaderboard
+                title="Топ по убийствам"
+                players={leaderboardKills}
+                stat="kills"
+                playerAchievements={playerAchievements}
+                icon={<Crosshair className="w-4 h-4" />}
+                variant="christmas"
+              />
+              <Leaderboard
+                title="Топ победителей"
                 players={leaderboardWinRate}
                 stat="win_rate"
                 formatValue={(v) => `${(v * 100).toFixed(0)}%`}
@@ -1732,9 +1660,9 @@ export default function YearReviewPage() {
             <Card className="border-christmas-gold/20 bg-card/60">
               <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-christmas-snow">Сортировка ролей</p>
+                  <p className="text-sm font-medium text-christmas-snow">Выберите критерий</p>
                   <p className="text-xs text-muted-foreground">
-                    Внутри карточки показывается только выбранный показатель. Селектор меняет и порядок, и саму метрику.
+                    Селектор меняет порядок карточек и сам показатель, который показывается внутри роли.
                   </p>
                 </div>
                 <div className="w-full sm:w-[220px]">
@@ -1743,7 +1671,7 @@ export default function YearReviewPage() {
                     onValueChange={(value) => setSelectedRoleMetric(value as RoleLeaderboardMetric)}
                   >
                     <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
-                      <SelectValue placeholder="Метрика" />
+                      <SelectValue placeholder="Критерий" />
                     </SelectTrigger>
                     <SelectContent>
                       {ROLE_METRIC_OPTIONS.map((option) => (
@@ -1776,6 +1704,10 @@ export default function YearReviewPage() {
           </TabsContent>
 
           <TabsContent value="records" className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Рекорды ниже показаны за одну отдельную игру. В каждой категории у игрока берётся только лучший матч, поэтому
+              один игрок не занимает несколько позиций в одном топе.
+            </p>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               <BestMatches
                 title="Рекорды по K/D"
@@ -1787,6 +1719,12 @@ export default function YearReviewPage() {
                 title="Рекорды по KDA"
                 metric="kda"
                 matches={recordMatchesByMetric.kda}
+                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
+              />
+              <BestMatches
+                title="Рекорды по ELO"
+                metric="elo"
+                matches={recordMatchesByMetric.elo}
                 players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
               />
               <BestMatches
@@ -1895,83 +1833,9 @@ export default function YearReviewPage() {
             )}
           </TabsContent>
 
-          {/* Individual Stats Tab */}
-          <TabsContent value="individual" className="space-y-4">
-            <Card className="border-christmas-gold/20">
-              <CardHeader>
-                <CardTitle className="text-base text-christmas-snow">Выберите игроков для просмотра карточек</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <PlayerSelector
-                  players={activePlayers}
-                  selected={selectedPlayers}
-                  onSelectionChange={setSelectedPlayers}
-                  placeholder="Найти игрока..."
-                />
-              </CardContent>
-            </Card>
-
-            {selectedPlayerData.length > 0 && (
-              <div
-                className={
-                  isSingleSelectedPlayer ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
-                }
-              >
-                {selectedPlayerData.map((player, index) => (
-                  <PlayerCard
-                    key={player.player_id}
-                    player={player}
-                    rank={index + 1}
-                    footerLabel={seasonalTheme.summaryLabel}
-                    achievements={playerAchievements[player.player_id] ?? []}
-                    maxValues={maxValues}
-                    avgValues={avgValues}
-                    maxRoleKD={maxRoleKD}
-                    playerStats={data.player_event_stats}
-                    matchHistory={selectedPlayerHistories.get(player.player_id) ?? []}
-                    onOpenGame={handleOpenGame}
-                    layout={isSingleSelectedPlayer ? "expanded" : "compact"}
-                  />
-                ))}
-              </div>
-            )}
-
-            {selectedPlayers.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground">
-                <Star className="w-12 h-12 mx-auto mb-4 text-christmas-gold opacity-50" />
-                <p className="text-christmas-snow">Выберите игроков для просмотра их карточек</p>
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Group Stats Tab */}
+          {/* Squads Tab */}
           <TabsContent value="group" className="space-y-4">
-            <Card className="border-christmas-gold/20">
-              <CardHeader>
-                <CardTitle className="text-base text-christmas-snow">
-                  Выберите игроков для группового сравнения
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <PlayerSelector
-                  players={activePlayers}
-                  selected={selectedPlayers}
-                  onSelectionChange={setSelectedPlayers}
-                  placeholder="Найти игрока..."
-                />
-              </CardContent>
-            </Card>
-
-            {selectedPlayerData.length > 0 && (
-              <GroupStatsCard players={selectedPlayerData} footerLabel={seasonalTheme.summaryLabel} />
-            )}
-
-            {selectedPlayers.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground">
-                <Users className="w-12 h-12 mx-auto mb-4 text-christmas-gold opacity-50" />
-                <p className="text-christmas-snow">Выберите игроков для группового сравнения</p>
-              </div>
-            )}
+            <SquadOverview games={pastGames} />
           </TabsContent>
 
           {/* Squad Builder Tab */}

@@ -195,7 +195,6 @@ export function EventsExplorer({
 }: EventsExplorerProps) {
   const [query, setQuery] = useState("")
   const [activeSection, setActiveSection] = useState("matches")
-  const [resultFilters, setResultFilters] = useState<string[]>([])
   const [typeFilters, setTypeFilters] = useState<string[]>([])
   const [mapFilters, setMapFilters] = useState<string[]>([])
   const [opponentFilters, setOpponentFilters] = useState<string[]>([])
@@ -208,15 +207,6 @@ export function EventsExplorer({
   const filterablePlayers = useMemo(
     () => players.filter((player) => player.totals?.events > 0).sort((left, right) => left.nickname.localeCompare(right.nickname, "ru")),
     [players],
-  )
-
-  const resultOptions = useMemo<MultiValueFilterOption[]>(
-    () => [
-      { value: "win", label: "Победы" },
-      { value: "loss", label: "Поражения" },
-      { value: "unknown", label: "Неизвестно" },
-    ],
-    [],
   )
 
   const eventTypeOptions = useMemo<MultiValueFilterOption[]>(
@@ -245,7 +235,7 @@ export function EventsExplorer({
 
   const factionOptions = useMemo<MultiValueFilterOption[]>(
     () =>
-      Array.from(new Set(games.map((game) => game.faction_matchup).filter(Boolean) as string[]))
+      Array.from(new Set(games.map((game) => game.faction_1).filter(Boolean) as string[]))
         .sort((left, right) => left.localeCompare(right, "ru"))
         .map((value) => ({ value, label: value })),
     [games],
@@ -270,13 +260,10 @@ export function EventsExplorer({
 
   const filteredGames = useMemo(() => {
     return games.filter((game) => {
-      const resultKey = game.is_win === true ? "win" : game.is_win === false ? "loss" : "unknown"
-
-      if (resultFilters.length > 0 && !resultFilters.includes(resultKey)) return false
       if (typeFilters.length > 0 && !typeFilters.includes(game.event_type)) return false
       if (mapFilters.length > 0 && !mapFilters.includes(game.map)) return false
       if (opponentFilters.length > 0 && (!game.opponent || !opponentFilters.includes(game.opponent))) return false
-      if (factionFilters.length > 0 && (!game.faction_matchup || !factionFilters.includes(game.faction_matchup))) return false
+      if (factionFilters.length > 0 && (!game.faction_1 || !factionFilters.includes(game.faction_1))) return false
       if (squadFilters.length > 0 && !game.players.some((player) => player.squad_labels.some((label) => squadFilters.includes(label)))) {
         return false
       }
@@ -311,7 +298,6 @@ export function EventsExplorer({
     factionFilters,
     mapFilters,
     opponentFilters,
-    resultFilters,
     selectedPlayerIds,
     squadFilters,
     typeFilters,
@@ -359,7 +345,6 @@ export function EventsExplorer({
 
   const clearFilters = () => {
     setQuery("")
-    setResultFilters([])
     setTypeFilters([])
     setMapFilters([])
     setOpponentFilters([])
@@ -378,7 +363,7 @@ export function EventsExplorer({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.5fr)_repeat(6,minmax(0,0.8fr))]">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.5fr)_repeat(5,minmax(0,0.8fr))]">
             <div className="space-y-2">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Поиск</p>
               <div className="relative">
@@ -390,17 +375,6 @@ export function EventsExplorer({
                   className="border-christmas-gold/20 bg-background/50 pl-9 text-christmas-snow"
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Результат</p>
-              <MultiValueFilter
-                options={resultOptions}
-                selected={resultFilters}
-                onSelectionChange={setResultFilters}
-                placeholder="Любые результаты"
-                searchPlaceholder="Поиск по результатам..."
-              />
             </div>
 
             <div className="space-y-2">
@@ -437,13 +411,13 @@ export function EventsExplorer({
             </div>
 
             <div className="space-y-2">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Дека</p>
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Фракция MDC</p>
               <MultiValueFilter
                 options={factionOptions}
                 selected={factionFilters}
                 onSelectionChange={setFactionFilters}
-                placeholder="Любые деки"
-                searchPlaceholder="Поиск по декам..."
+                placeholder="Любые фракции"
+                searchPlaceholder="Поиск по фракциям..."
               />
             </div>
 
@@ -482,7 +456,7 @@ export function EventsExplorer({
           </div>
 
           <div className="text-[11px] text-muted-foreground">
-            Каждый фильтр теперь мультивыборный: можно собрать свой набор карт, оппонентов, дек и отрядов, и этот срез
+            Каждый фильтр теперь мультивыборный: можно собрать свой набор карт, оппонентов, фракций и отрядов, и этот срез
             сразу применится и к списку игр, и к сравнительным кривым, и к матчевым лидербордам, и к сквадовым топам.
           </div>
 
@@ -522,7 +496,7 @@ export function EventsExplorer({
           >
             <span className="text-[11px] uppercase tracking-[0.18em] text-emerald-200/70">Раздел</span>
             <span className="text-sm font-semibold text-christmas-snow">Лидерборды</span>
-            <span className="text-[11px] text-emerald-100/70">Матчапы и топы</span>
+            <span className="text-[11px] text-emerald-100/70">Срезы и топы</span>
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
@@ -568,7 +542,6 @@ export function EventsExplorer({
                 const resultMeta = getResultMeta(game)
                 const isFocused = focusTarget?.eventId === game.event_id
                 const recordingUrl = normalizeExternalUrl(game.cast_url)
-                const tacticsUrl = normalizeExternalUrl(game.tactics_url)
                 const ticketDiff = getTicketDiffValue(game)
                 const cardToneStyle = getCollapsedGameToneStyle(game)
                 const compactMetrics = [
@@ -702,10 +675,10 @@ export function EventsExplorer({
                             <div className="rounded-lg border border-border/50 bg-background/35 p-2.5">
                               <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
                                 <Shield className="w-3.5 h-3.5" />
-                                Дека
+                                Фракция MDC
                               </p>
                               <p className="mt-2 text-sm font-medium text-christmas-snow">
-                                {game.faction_matchup || "Не указана"}
+                                {game.faction_1 || "Не указана"}
                               </p>
                             </div>
                             <div className="rounded-lg border border-border/50 bg-background/35 p-2.5">
@@ -734,7 +707,7 @@ export function EventsExplorer({
                             <div className="rounded-lg border border-border/50 bg-background/35 p-2.5">
                               <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
                                 <Shield className="w-3.5 h-3.5" />
-                                Лучший игрок
+                                Лидер по ELO
                               </p>
                               <p className="mt-2 text-sm font-medium text-christmas-snow">
                                 {game.topPerformer ? `${game.topPerformer.nickname} • #${game.topPerformer.rank}` : "Нет данных"}
@@ -743,36 +716,21 @@ export function EventsExplorer({
                             <div className="rounded-lg border border-border/50 bg-background/35 p-2.5">
                               <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
                                 <Trophy className="w-3.5 h-3.5" />
-                                Ссылки
+                                Запись
                               </p>
-                              {recordingUrl || tacticsUrl ? (
+                              {recordingUrl ? (
                                 <div className="mt-1 flex flex-wrap gap-2.5">
-                                  {recordingUrl && (
-                                    <a
-                                      href={recordingUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(event) => event.stopPropagation()}
-                                      className="inline-flex items-center gap-1 text-sm text-christmas-gold underline-offset-4 hover:text-christmas-snow hover:underline"
-                                      title={recordingUrl}
-                                    >
-                                      Запись
-                                      <span className="text-[11px] text-muted-foreground">{getLinkHostLabel(recordingUrl)}</span>
-                                    </a>
-                                  )}
-                                  {tacticsUrl && (
-                                    <a
-                                      href={tacticsUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(event) => event.stopPropagation()}
-                                      className="inline-flex items-center gap-1 text-sm text-cyan-200 underline-offset-4 hover:text-christmas-snow hover:underline"
-                                      title={tacticsUrl}
-                                    >
-                                      Тактика
-                                      <span className="text-[11px] text-muted-foreground">{getLinkHostLabel(tacticsUrl)}</span>
-                                    </a>
-                                  )}
+                                  <a
+                                    href={recordingUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(event) => event.stopPropagation()}
+                                    className="inline-flex items-center gap-1 text-sm text-christmas-gold underline-offset-4 hover:text-christmas-snow hover:underline"
+                                    title={recordingUrl}
+                                  >
+                                    Запись
+                                    <span className="text-[11px] text-muted-foreground">{getLinkHostLabel(recordingUrl)}</span>
+                                  </a>
                                 </div>
                               ) : (
                                 <p className="mt-2 text-sm font-medium text-muted-foreground">Ссылка не указана</p>
@@ -792,7 +750,7 @@ export function EventsExplorer({
                                     <TableHead>
                                       <TableHeadHelp label="#">
                                         <p className="leading-relaxed text-muted-foreground">
-                                          Позиция игрока внутри конкретного матча. Сортировка идет по импакту, затем по
+                                          Позиция игрока внутри конкретного матча. Сортировка идет по ELO, затем по
                                           убийствам, нокам, поднятиям и меньшему числу смертей.
                                         </p>
                                       </TableHeadHelp>
@@ -856,23 +814,11 @@ export function EventsExplorer({
                                       </TableHeadHelp>
                                     </TableHead>
                                     <TableHead>
-                                      <TableHeadHelp label="Импакт">
-                                        <p className="font-medium text-christmas-snow">Как считается импакт</p>
+                                      <TableHeadHelp label="ELO">
+                                        <p className="font-medium text-christmas-snow">Как читать матчевый ELO</p>
                                         <p className="mt-1 leading-relaxed text-muted-foreground">
-                                          Импакт = max(0, round(5 × убийства + 3 × ноки + 2 × поднятия + 4 × техника -
-                                          1.5 × смерти)).
-                                        </p>
-                                        <p className="mt-2 leading-relaxed text-muted-foreground">
-                                          Вес убийств выше всего, потому что они напрямую конвертируют давление в минус
-                                          стволы. Ноки стоят ниже убийств, так как их еще надо реализовать. Техника
-                                          оценена почти как фраг, потому что уничтожение транспорта часто ломает
-                                          передвижение и весь заход. Поднятия дают заметный бонус за саппорт, но не
-                                          должны обгонять боевой вклад. Смерти штрафуют за потерю темпа, но мягко, чтобы
-                                          полезный размен или работа медика не обнулялись.
-                                        </p>
-                                        <p className="mt-2 leading-relaxed text-muted-foreground">
-                                          Процент справа показывает долю от лучшего импакта в этом матче: `impact /
-                                          bestImpact × 100`.
+                                          Используется готовый матчевый ELO из протокола. Процент справа показывает
+                                          долю от лучшего ELO в текущей игре.
                                         </p>
                                       </TableHeadHelp>
                                     </TableHead>
@@ -882,7 +828,7 @@ export function EventsExplorer({
                                   {game.players.map((player) => {
                                     const isHighlighted =
                                       focusTarget?.eventId === game.event_id && focusTarget.playerId === player.player_id
-                                    const impactWidth = Math.max(0, Math.min(100, player.impactShare))
+                                    const eloWidth = Math.max(0, Math.min(100, player.eloShare))
 
                                     return (
                                       <TableRow
@@ -925,13 +871,13 @@ export function EventsExplorer({
                                         <TableCell className="w-[180px]">
                                           <div className="space-y-1.5">
                                             <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                                              <span>{player.impactScore}</span>
-                                              <span>{Math.round(player.impactShare)}%</span>
+                                              <span>{player.elo.toFixed(0)}</span>
+                                              <span>{Math.round(player.eloShare)}%</span>
                                             </div>
                                             <div className="h-1.5 overflow-hidden rounded-full bg-background/70">
                                               <div
                                                 className="h-full rounded-full bg-gradient-to-r from-christmas-red via-christmas-gold to-christmas-green"
-                                                style={{ width: `${impactWidth}%` }}
+                                                style={{ width: `${eloWidth}%` }}
                                               />
                                             </div>
                                           </div>
@@ -958,7 +904,7 @@ export function EventsExplorer({
           <div className="grid gap-2 rounded-lg border border-border/50 bg-background/20 px-3 py-2 text-sm md:grid-cols-[1.2fr_auto_auto] md:items-center">
             <div className="min-w-0">
               <p className="font-medium text-christmas-snow">Готовые игровые выводы и рейтинги</p>
-              <p className="text-[11px] text-muted-foreground">Быстрые матчапы по кланам, связкам и закрепленным игрокам</p>
+              <p className="text-[11px] text-muted-foreground">Быстрые срезы по кланам, связкам и закрепленным игрокам</p>
             </div>
             <div className="text-[11px] text-muted-foreground">
               Закреплено: <span className="font-medium text-christmas-snow">{pinnedPlayerIds.length}</span>
@@ -975,7 +921,7 @@ export function EventsExplorer({
           <div className="grid gap-2 rounded-lg border border-border/50 bg-background/20 px-3 py-2 text-sm md:grid-cols-[1.2fr_auto_auto] md:items-center">
             <div className="min-w-0">
               <p className="font-medium text-christmas-snow">Аналитический срез по выбранным фильтрам</p>
-              <p className="text-[11px] text-muted-foreground">Сравнение карт, кланов, дек и отрядов по динамике матчей</p>
+              <p className="text-[11px] text-muted-foreground">Сравнение карт, кланов, фракций и отрядов по динамике матчей</p>
             </div>
             <div className="text-[11px] text-muted-foreground">
               Матчи: <span className="font-medium text-christmas-snow">{filteredGames.length}</span>
@@ -983,7 +929,7 @@ export function EventsExplorer({
             <div className="text-[11px] text-muted-foreground">
               Фильтров:{" "}
               <span className="font-medium text-christmas-snow">
-                {resultFilters.length + typeFilters.length + mapFilters.length + opponentFilters.length + factionFilters.length + squadFilters.length}
+                {typeFilters.length + mapFilters.length + opponentFilters.length + factionFilters.length + squadFilters.length}
               </span>
             </div>
           </div>

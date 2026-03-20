@@ -12,7 +12,6 @@ interface DailyActivityChartProps {
 
 export function DailyActivityChart({ wins, losses, periodLabel = "за всё время" }: DailyActivityChartProps) {
   const totalMatches = wins + losses
-  const winRate = totalMatches > 0 ? (wins / totalMatches) * 100 : 0
   const slices = [
     { name: "Победы", value: wins, color: "var(--christmas-green)" },
     { name: "Поражения", value: losses, color: "var(--christmas-red)" },
@@ -69,14 +68,13 @@ export function DailyActivityChart({ wins, losses, periodLabel = "за всё в
 
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="rounded-full border border-christmas-gold/20 bg-background/75 px-5 py-3 text-center shadow-lg backdrop-blur-sm">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">WR</p>
-              <p className="text-3xl font-bold text-christmas-snow">{winRate.toFixed(1)}%</p>
-              <p className="text-[11px] text-christmas-gold">по матчам с результатом</p>
+              <p className="text-3xl font-bold text-christmas-snow">{totalMatches}</p>
+              <p className="text-[11px] text-christmas-gold">игр</p>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-2 gap-2.5">
           {slices.map((slice) => {
             const percentage = totalMatches > 0 ? (slice.value / totalMatches) * 100 : 0
 
@@ -98,11 +96,6 @@ export function DailyActivityChart({ wins, losses, periodLabel = "за всё в
               </div>
             )
           })}
-          <div className="rounded-xl border border-border/50 bg-background/30 p-3">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Сыграно</p>
-            <p className="mt-2 text-2xl font-semibold leading-none text-christmas-snow">{totalMatches}</p>
-            <p className="mt-1 text-[11px] text-muted-foreground">матчи с известным результатом</p>
-          </div>
         </div>
       </CardContent>
     </Card>

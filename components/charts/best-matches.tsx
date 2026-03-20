@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { MatchRecordMetric, PlayerEventStat } from "@/lib/data-utils"
-import { Star, Trophy } from "lucide-react"
+import { Star } from "lucide-react"
 
 interface BestMatch extends PlayerEventStat {
   eventType: string
@@ -22,14 +22,6 @@ interface BestMatchesProps {
   metric?: MatchRecordMetric
 }
 
-interface AggregatedRecordEntry {
-  player_id: string
-  nickname: string
-  steam_id: string
-  bestMatch: BestMatch
-  records: BestMatch[]
-}
-
 const DEFAULT_COLLAPSED_COUNT = 10
 const TOP_CARD_CLASS = "flex h-[720px] flex-col overflow-hidden border-christmas-gold/30 bg-gradient-to-br from-christmas-red/5 via-card to-christmas-green/5"
 
@@ -40,6 +32,10 @@ function getMetricNumericValue(match: BestMatch, metric: MatchRecordMetric): num
 
   if (metric === "kda") {
     return match.kda
+  }
+
+  if (metric === "elo") {
+    return match.elo
   }
 
   return match[metric]
@@ -70,12 +66,17 @@ function getMetricValue(match: BestMatch, metric: MatchRecordMetric): string {
     return match.kda.toFixed(2)
   }
 
+  if (metric === "elo") {
+    return match.elo.toFixed(0)
+  }
+
   return match[metric].toLocaleString("ru-RU")
 }
 
 function getMetricLabel(metric: MatchRecordMetric): string {
   if (metric === "kd") return "K/D"
   if (metric === "kda") return "KDA"
+  if (metric === "elo") return "ELO"
   if (metric === "kills") return "Убийства"
   if (metric === "downs") return "Ноки"
   if (metric === "deaths") return "Смерти"
@@ -93,49 +94,16 @@ export function BestMatches({
   const [showAll, setShowAll] = useState(false)
 
   const playerSteamIds = useMemo(() => new Map(players.map((player) => [player.player_id, player.steam_id])), [players])
+  const sortedMatches = useMemo(
+    () =>
+      matches
+        .map((match) => ({ ...match, steam_id: playerSteamIds.get(match.player_id) ?? "" }))
+        .sort((left, right) => compareMatchesByMetric(left, right, metric)),
+    [matches, metric, playerSteamIds],
+  )
 
-  const groupedRecords = useMemo<AggregatedRecordEntry[]>(() => {
-    const grouped = new Map<string, AggregatedRecordEntry>()
-
-    matches.forEach((match) => {
-      const current = grouped.get(match.player_id)
-      if (!current) {
-        grouped.set(match.player_id, {
-          player_id: match.player_id,
-          nickname: match.nickname,
-          steam_id: playerSteamIds.get(match.player_id) ?? "",
-          bestMatch: match,
-          records: [match],
-        })
-        return
-      }
-
-      current.records.push(match)
-      if (compareMatchesByMetric(match, current.bestMatch, metric) >= 0) {
-        return
-      }
-      current.bestMatch = match
-    })
-
-    return Array.from(grouped.values())
-      .map((entry) => ({
-        ...entry,
-        records: [...entry.records].sort((left, right) => compareMatchesByMetric(left, right, metric)),
-      }))
-      .sort((left, right) => {
-        const bestComparison = compareMatchesByMetric(left.bestMatch, right.bestMatch, metric)
-        if (bestComparison !== 0) {
-          return bestComparison
-        }
-        if (right.records.length !== left.records.length) {
-          return right.records.length - left.records.length
-        }
-        return left.nickname.localeCompare(right.nickname, "ru")
-      })
-  }, [matches, metric, playerSteamIds])
-
-  const canExpand = groupedRecords.length > DEFAULT_COLLAPSED_COUNT
-  const visibleRecords = showAll ? groupedRecords : groupedRecords.slice(0, DEFAULT_COLLAPSED_COUNT)
+  const canExpand = sortedMatches.length > DEFAULT_COLLAPSED_COUNT
+  const visibleRecords = showAll ? sortedMatches : sortedMatches.slice(0, DEFAULT_COLLAPSED_COUNT)
 
   return (
     <div className="relative">
@@ -147,7 +115,7 @@ export function BestMatches({
               <span className="truncate">{title}</span>
             </CardTitle>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              {showAll ? `Игроков с рекордами: ${groupedRecords.length}` : `Показано: ${visibleRecords.length} из ${groupedRecords.length}`}
+              {showAll ? `Игроков в топе: ${sortedMatches.length}` : `Показано: ${visibleRecords.length} из ${sortedMatches.length}`}
             </p>
           </div>
           {canExpand && (
@@ -163,67 +131,36 @@ export function BestMatches({
           )}
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col">
-          {groupedRecords.length === 0 && <p className="text-sm text-muted-foreground">Нет данных по матчам</p>}
-          {groupedRecords.length > 0 && (
+          {sortedMatches.length === 0 && <p className="text-sm text-muted-foreground">Нет данных по матчам</p>}
+          {sortedMatches.length > 0 && (
             <div className="flex-1 overflow-y-auto pr-2">
               <div className="space-y-1.5">
-                {visibleRecords.map((entry, index) => (
-                  <div key={entry.player_id} className={`rounded-md px-2 py-1.5 transition-colors ${index < 3 ? "bg-secondary/50" : ""}`}>
+                {visibleRecords.map((match, index) => (
+                  <div
+                    key={`${match.event_id}-${match.player_id}-${match.role}-${match.map}-${index}`}
+                    className={`rounded-md px-2 py-1.5 transition-colors ${index < 3 ? "bg-secondary/50" : ""}`}
+                  >
                     <div className="flex items-start gap-3">
                       <span className="w-6 pt-1 text-center font-mono text-sm text-christmas-snow">
                         {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}.`}
                       </span>
-                      <PlayerAvatar steamId={entry.steam_id} nickname={entry.nickname} size="sm" />
+                      <PlayerAvatar steamId={match.steam_id} nickname={match.nickname} size="sm" />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <p className="truncate text-sm font-medium text-christmas-snow">{entry.nickname}</p>
-                              {entry.bestMatch.isWin && <Trophy className="h-3 w-3 shrink-0 text-christmas-gold" />}
-                              {entry.records.length > 1 && (
-                                <Badge variant="outline" className="border-christmas-gold/20 px-1.5 py-0 text-[10px] text-muted-foreground">
-                                  x{entry.records.length}
-                                </Badge>
-                              )}
+                              <p className="truncate text-sm font-medium text-christmas-snow">{match.nickname}</p>
                             </div>
                             <p className="mt-1 truncate text-xs text-muted-foreground">
-                              {entry.bestMatch.map} • {entry.bestMatch.role} • {entry.bestMatch.kills}K / {entry.bestMatch.deaths}D / {entry.bestMatch.downs}Н
+                              {match.map} • {match.role} • {match.kills}K / {match.deaths}D / {match.downs}Н
                             </p>
                           </div>
                           <Badge variant="outline" className="border-christmas-gold/30 font-mono text-christmas-gold">
-                            {getMetricLabel(metric)}: {getMetricValue(entry.bestMatch, metric)}
+                            {getMetricLabel(metric)}: {getMetricValue(match, metric)}
                           </Badge>
                         </div>
                       </div>
                     </div>
-
-                    {entry.records.length > 1 && (
-                      <details className="mt-2 rounded-md border border-border/40 bg-background/30 px-2.5 py-2">
-                        <summary className="cursor-pointer text-[11px] text-muted-foreground marker:text-christmas-gold">
-                          Все рекорды игрока
-                        </summary>
-                        <div className="mt-2 max-h-36 space-y-1.5 overflow-y-auto pr-1">
-                          {entry.records.map((match) => (
-                            <div
-                              key={`${match.event_id}-${match.player_id}-${match.role}-${match.map}`}
-                              className="flex items-start justify-between gap-3 rounded-md border border-border/30 bg-background/35 px-2 py-1.5"
-                            >
-                              <div className="min-w-0">
-                                <p className="truncate text-[11px] text-christmas-snow">
-                                  {match.map} • {match.role}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground">
-                                  {match.kills}K / {match.deaths}D / {match.downs}Н
-                                </p>
-                              </div>
-                              <span className="shrink-0 font-mono text-[11px] font-semibold text-christmas-gold">
-                                {getMetricValue(match, metric)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </details>
-                    )}
                   </div>
                 ))}
               </div>

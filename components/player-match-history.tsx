@@ -89,7 +89,7 @@ export function PlayerMatchHistory({
           <div className="space-y-2 p-2">
             {games.map((game) => {
               const resultMeta = getResultMeta(game)
-              const impactWidth = Math.max(0, Math.min(100, game.impactShare))
+              const eloWidth = Math.max(0, Math.min(100, game.eloShare))
               const squadTone = getSquadToneClasses(game.squad_label)
               const compactMetrics = [
                 {
@@ -181,7 +181,7 @@ export function PlayerMatchHistory({
                         K/D {game.kd.toFixed(2)} • общий K/D {game.cumKD.toFixed(2)}
                       </span>
                       <span className="whitespace-nowrap text-[11px] text-muted-foreground">
-                        Импакт {Math.round(game.impactShare)}%
+                        ELO {game.elo.toFixed(0)} • {Math.round(game.eloShare)}%
                       </span>
                       {onOpenGame && (
                         <Button
@@ -201,7 +201,7 @@ export function PlayerMatchHistory({
                   <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-background/70">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-christmas-red via-christmas-gold to-christmas-green"
-                      style={{ width: `${impactWidth}%` }}
+                      style={{ width: `${eloWidth}%` }}
                     />
                   </div>
                 </div>

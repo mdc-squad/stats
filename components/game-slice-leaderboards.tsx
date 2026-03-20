@@ -171,7 +171,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
         downs: number
         deaths: number
         revives: number
-        impact: number
+        elo: number
         ticketDiffTotal: number
         ticketDiffSamples: number
       }
@@ -280,7 +280,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
             downs: 0,
             deaths: 0,
             revives: 0,
-            impact: 0,
+            elo: 0,
             ticketDiffTotal: 0,
             ticketDiffSamples: 0,
           })
@@ -294,7 +294,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
         entry.downs += player.downs
         entry.deaths += player.deaths
         entry.revives += player.revives
-        entry.impact += player.impactScore
+        entry.elo += player.elo
 
         const ticketDiff = getTicketDiff(game)
         if (ticketDiff !== null) {
@@ -340,7 +340,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
         avgDowns: entry.matches > 0 ? entry.downs / entry.matches : 0,
         avgDeaths: entry.matches > 0 ? entry.deaths / entry.matches : 0,
         avgRevives: entry.matches > 0 ? entry.revives / entry.matches : 0,
-        avgImpact: entry.matches > 0 ? entry.impact / entry.matches : 0,
+        avgElo: entry.matches > 0 ? entry.elo / entry.matches : 0,
         kd: entry.deaths > 0 ? entry.kills / entry.deaths : entry.kills,
       })),
     )
@@ -374,7 +374,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
         kills: number
         deaths: number
         revives: number
-        impact: number
+        elo: number
         opponents: Set<string>
       }
     >()
@@ -395,7 +395,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
           kills: 0,
           deaths: 0,
           revives: 0,
-          impact: 0,
+          elo: 0,
           opponents: new Set<string>(),
         })
       }
@@ -409,7 +409,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
       current.kills += entry.kills
       current.deaths += entry.deaths
       current.revives += entry.revives
-      current.impact += entry.impact
+      current.elo += entry.elo
       current.opponents.add(entry.opponent)
     })
 
@@ -417,7 +417,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
       Array.from(strongPlayerMap.values()).map((entry) => ({
         ...entry,
         winRate: entry.resolvedMatches > 0 ? (entry.wins / entry.resolvedMatches) * 100 : 0,
-        avgImpact: entry.matches > 0 ? entry.impact / entry.matches : 0,
+        avgElo: entry.matches > 0 ? entry.elo / entry.matches : 0,
         avgDeaths: entry.matches > 0 ? entry.deaths / entry.matches : 0,
         kd: entry.deaths > 0 ? entry.kills / entry.deaths : entry.kills,
       })),
@@ -478,7 +478,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
       medicOpponents: playerOpponentRows
         .sort((left, right) => {
           if (right.avgRevives !== left.avgRevives) return right.avgRevives - left.avgRevives
-          if (right.avgImpact !== left.avgImpact) return right.avgImpact - left.avgImpact
+          if (right.avgElo !== left.avgElo) return right.avgElo - left.avgElo
           return right.matches - left.matches
         })
         .slice(0, 5)
@@ -488,8 +488,8 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
           subtitle: `${entry.matches} игр • WR ${entry.winRate.toFixed(0)}%`,
           metricLabel: "Поднятия за матч",
           metric: entry.avgRevives.toFixed(1),
-          helperLabel: "Средний импакт",
-          helper: entry.avgImpact.toFixed(0),
+          helperLabel: "Средний ELO",
+          helper: entry.avgElo.toFixed(0),
           steamId: entry.steam_id,
           nickname: entry.nickname,
         })),
@@ -514,7 +514,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
         })),
       strongMatchPlayers: strongPlayerRows
         .sort((left, right) => {
-          if (right.avgImpact !== left.avgImpact) return right.avgImpact - left.avgImpact
+          if (right.avgElo !== left.avgElo) return right.avgElo - left.avgElo
           if (right.kd !== left.kd) return right.kd - left.kd
           return left.avgDeaths - right.avgDeaths
         })
@@ -523,8 +523,8 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
           key: `strong-${entry.player_id}`,
           label: entry.nickname,
           subtitle: `${entry.matches} игр • ${Array.from(entry.opponents).slice(0, 2).join(", ") || "тяжелые соперники"}`,
-          metricLabel: "Импакт за матч",
-          metric: entry.avgImpact.toFixed(0),
+          metricLabel: "ELO за матч",
+          metric: entry.avgElo.toFixed(0),
           helperLabel: "Средний K/D",
           helper: entry.kd.toFixed(2),
           steamId: entry.steam_id,
@@ -559,7 +559,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
         <SliceLeaderboardCard
           title="Кому чаще отдаём"
           subtitle="Самые неприятные оппоненты по win rate и среднему разрыву билетов"
-          tooltip="Главное число — средний разрыв билетов, но уже с акцентом на слабые матчапы: чем сильнее минус, тем болезненнее средний итог против этого клана. Дополнительная метрика — средние поднятия за матч, она показывает, сколько ресурса уходит на стабилизацию команды под этим давлением."
+          tooltip="Главное число — средний разрыв билетов, но уже с акцентом на слабые противостояния: чем сильнее минус, тем болезненнее средний итог против этого клана. Дополнительная метрика — средние поднятия за матч, она показывает, сколько ресурса уходит на стабилизацию команды под этим давлением."
           items={leaderboards.hardOpponents}
           emptyText="В текущем срезе нет выраженных проблемных соперников."
           icon={Skull}
@@ -575,25 +575,25 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
         <SliceLeaderboardCard
           title="Лучшие Реаним-Паки"
           subtitle={`Кто больше всего поднимает против конкретных кланов ${leaderboards.playerScopeLabel}`}
-          tooltip="Главная метрика — среднее число поднятий конкретного игрока за матч против данного клана. Ниже — средний импакт, чтобы видеть, не сводится ли вклад только к ревайвам. Борд помогает понять, кто лучше всего удерживает строй команды в тяжёлых разменах."
+          tooltip="Главная метрика — среднее число поднятий конкретного игрока за матч против данного клана. Ниже — средний ELO, чтобы видеть, не сводится ли вклад только к ревайвам. Борд помогает понять, кто лучше всего удерживает строй команды в тяжёлых разменах."
           items={leaderboards.medicOpponents}
-          emptyText="Нет устойчивых матчапов по поднятиям в текущем срезе."
+          emptyText="Нет устойчивых срезов по поднятиям в текущем срезе."
           icon={Heart}
         />
         <SliceLeaderboardCard
           title="Лучшие Убийцы По Кланам"
           subtitle={`Кто чаще всего делает фраги и ноки против конкретных оппонентов ${leaderboards.playerScopeLabel}`}
-          tooltip="Главное число — средние убийства игрока за матч против конкретного оппонента. Ниже — его средний K/D в этом matchup. Этот рейтинг показывает, кто лучше всего конвертирует контакты во фраги именно против определённых кланов, а не в среднем по больнице."
+          tooltip="Главное число — средние убийства игрока за матч против конкретного оппонента. Ниже — его средний K/D в этом противостоянии. Этот рейтинг показывает, кто лучше всего конвертирует контакты во фраги именно против определённых кланов, а не в среднем по больнице."
           items={leaderboards.killerOpponents}
-          emptyText="Недостаточно данных для персональных килл-мэтчапов."
+          emptyText="Недостаточно данных для персональных срезов по убийствам."
           icon={Crosshair}
         />
         <SliceLeaderboardCard
           title="Холодная Голова В Тяжёлых Матчах"
-          subtitle="Игроки, которые лучше всего держат импакт против самых неудобных соперников"
-          tooltip="Здесь собираются игроки, которые не проседают по качеству игры против самых неудобных оппонентов. Главное число — средний импакт за матч, ниже — средний K/D. Борд полезен для понимания, на кого можно опираться в матчах против реально неприятных соперников."
+          subtitle="Игроки, которые лучше всего держат ELO против самых неудобных соперников"
+          tooltip="Здесь собираются игроки, которые не проседают по качеству игры против самых неудобных оппонентов. Главное число — средний ELO за матч, ниже — средний K/D. Борд полезен для понимания, на кого можно опираться в матчах против реально неприятных соперников."
           items={leaderboards.strongMatchPlayers}
-          emptyText="Не нашлось тяжёлых матчапов, на которых можно собрать отдельный рейтинг."
+          emptyText="Не нашлось тяжёлых противостояний, на которых можно собрать отдельный рейтинг."
           icon={Shield}
         />
       </div>

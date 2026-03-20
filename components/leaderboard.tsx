@@ -104,7 +104,7 @@ export function Leaderboard({
                       <span className="w-6 pt-1 text-center font-mono text-sm text-christmas-snow">{getMedal(index)}</span>
                       <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
                       <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1">
                           <div className="min-w-0">
                             <p className="font-medium text-sm truncate text-christmas-snow">{player.nickname}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -112,15 +112,16 @@ export function Leaderboard({
                               {achievements.length > 0 && (
                                 <AchievementBadges
                                   achievements={achievements}
-                                  variant="secondary"
-                                  badgeClassName="text-[10px] px-1 py-0"
-                                  collapseToSummary
+                                  display="icons"
                                   containerClassName="shrink-0"
                                 />
                               )}
                             </div>
                           </div>
-                          <Badge variant="outline" className="border-christmas-gold/30 font-mono text-christmas-gold">
+                          <Badge
+                            variant="outline"
+                            className="self-start whitespace-nowrap border-christmas-gold/30 font-mono text-christmas-gold"
+                          >
                             {formatValue ? formatValue(value) : value}
                           </Badge>
                         </div>

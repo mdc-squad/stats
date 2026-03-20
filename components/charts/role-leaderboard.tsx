@@ -22,6 +22,9 @@ interface RolePlayer {
   games: number
   kd: number
   kda: number
+  elo: number
+  tbf: number
+  rating: number
   metricValue: number
 }
 
@@ -44,6 +47,9 @@ const METRIC_LABELS: Record<RoleLeaderboardMetric, string> = {
   avgRevives: "Поднятия / игра",
   heals: "Хил",
   vehicle: "Техника",
+  elo: "ELO",
+  tbf: "TBF (30д)",
+  rating: "ОР",
   avgVehicle: "Техника / игра",
 }
 
@@ -53,6 +59,10 @@ const TOP_CARD_CLASS = "flex h-[720px] flex-col overflow-hidden border-christmas
 function formatMetricValue(player: RolePlayer, metric: RoleLeaderboardMetric): string {
   if (metric === "kd" || metric === "kda" || metric === "avgRevives" || metric === "avgVehicle") {
     return player.metricValue.toFixed(2)
+  }
+
+  if (metric === "elo" || metric === "tbf" || metric === "rating") {
+    return player.metricValue.toFixed(1)
   }
 
   return player.metricValue.toLocaleString("ru-RU")
@@ -119,7 +129,7 @@ export function RoleLeaderboard({
                     <span className="w-6 pt-1 text-center font-mono text-sm text-christmas-snow">{getMedal(index)}</span>
                     <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1">
                         <div className="min-w-0">
                           <p className="font-medium text-sm truncate text-christmas-snow">{player.nickname}</p>
                           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -127,15 +137,16 @@ export function RoleLeaderboard({
                             {(playerAchievements?.[player.player_id]?.length ?? 0) > 0 && (
                               <AchievementBadges
                                 achievements={playerAchievements?.[player.player_id] ?? []}
-                                variant="secondary"
-                                badgeClassName="text-[10px] px-1 py-0"
-                                collapseToSummary
+                                display="icons"
                                 containerClassName="shrink-0"
                               />
                             )}
                           </div>
                         </div>
-                        <Badge variant="outline" className="font-mono text-christmas-gold border-christmas-gold/30">
+                        <Badge
+                          variant="outline"
+                          className="self-start whitespace-nowrap border-christmas-gold/30 font-mono text-christmas-gold"
+                        >
                           {METRIC_LABELS[metric]}: {formatMetricValue(player, metric)}
                         </Badge>
                       </div>

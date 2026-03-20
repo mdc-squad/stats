@@ -620,6 +620,12 @@ function normalizePlayer(raw: UnknownRecord): Player {
   const winRate = toNumber(totalsRecord?.win_rate ?? raw.win_rate, events > 0 ? wins / events : 0)
   const kd = toNumber(totalsRecord?.kd ?? raw.kd, deaths > 0 ? kills / deaths : kills)
   const kda = toNumber(totalsRecord?.kda ?? raw.kda, deaths > 0 ? downs / deaths : downs)
+  const elo = toNumber(totalsRecord?.elo ?? totalsRecord?.ELO ?? raw.elo ?? raw.ELO, 0)
+  const tbf = toNumber(totalsRecord?.tbf ?? totalsRecord?.TBF ?? raw.tbf ?? raw.TBF, 0)
+  const rating = toNumber(
+    totalsRecord?.rating ?? totalsRecord?.op ?? totalsRecord?.OP ?? raw.rating ?? raw.op ?? raw.OP,
+    0,
+  )
   const isMdcMember = isRecognizedMdcRosterTag(tag)
 
   return {
@@ -646,6 +652,9 @@ function normalizePlayer(raw: UnknownRecord): Player {
       win_rate: winRate,
       kd,
       kda,
+      elo,
+      tbf,
+      rating,
     },
     favorites: {
       role_1: toNullableString(favoritesRecord?.role_1 ?? raw.MainRole),
@@ -722,6 +731,9 @@ function normalizePlayerEventStat(raw: UnknownRecord, playerLookup: Map<string, 
     vehicle: toNumber(raw.vehicle, 0),
     kd: toNumber(raw.kd, deaths > 0 ? kills / deaths : kills),
     kda: toNumber(raw.kda, deaths > 0 ? downs / deaths : downs),
+    elo: toNumber(raw.elo ?? raw.ELO, 0),
+    battleRating: toNumber(raw.battleRating ?? raw.battle_rating ?? raw.br ?? raw.BR, 0),
+    basePoints: toNumber(raw.basePoints ?? raw.base_points ?? raw.bp ?? raw.BP, 0),
   }
 }
 

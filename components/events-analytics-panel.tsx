@@ -16,7 +16,7 @@ type AnalyticsMetric =
   | "revives"
   | "kd"
   | "participants"
-  | "impact"
+  | "elo"
   | "ticketDiff"
 type AnalyticsMode = "per_match" | "cumulative"
 type AnalyticsScope = "team" | "pinned"
@@ -40,7 +40,7 @@ type AnalyticsAggregate = {
   deaths: number
   downs: number
   revives: number
-  impact: number
+  elo: number
   participants: number
   ticketDiff: number | null
 }
@@ -53,7 +53,7 @@ type SeriesState = {
   deaths: number
   downs: number
   revives: number
-  impact: number
+  elo: number
   participants: number
   ticketDiffTotal: number
   ticketDiffSamples: number
@@ -76,7 +76,7 @@ const METRIC_LABELS: Record<AnalyticsMetric, string> = {
   revives: "Поднятия",
   kd: "K/D",
   participants: "Участники",
-  impact: "Импакт",
+  elo: "ELO",
   ticketDiff: "Разница билетов",
 }
 
@@ -84,11 +84,11 @@ const BREAKDOWN_LABELS: Record<AnalyticsBreakdown, string> = {
   overall: "Общий срез",
   opponent: "По оппонентам",
   map: "По картам",
-  faction: "По декам",
+  faction: "По фракциям MDC",
   result: "По результатам",
   squad: "По отрядам",
   map_opponent: "Карта + оппонент",
-  faction_opponent: "Дека + оппонент",
+  faction_opponent: "Фракция + оппонент",
 }
 
 const SERIES_COLORS = [
@@ -170,7 +170,7 @@ function createSeriesState(): SeriesState {
     deaths: 0,
     downs: 0,
     revives: 0,
-    impact: 0,
+    elo: 0,
     participants: 0,
     ticketDiffTotal: 0,
     ticketDiffSamples: 0,
@@ -195,7 +195,7 @@ function buildAggregate(players: PastGamePlayerStat[], game: PastGameSummary): A
     deaths: players.reduce((sum, player) => sum + player.deaths, 0),
     downs: players.reduce((sum, player) => sum + player.downs, 0),
     revives: players.reduce((sum, player) => sum + player.revives, 0),
-    impact: players.reduce((sum, player) => sum + player.impactScore, 0),
+    elo: players.reduce((sum, player) => sum + player.elo, 0),
     participants: players.length,
     ticketDiff: getTicketDiff(game),
   }
@@ -207,7 +207,7 @@ function updateSeriesState(state: SeriesState, aggregate: AnalyticsAggregate, ga
   state.deaths += aggregate.deaths
   state.downs += aggregate.downs
   state.revives += aggregate.revives
-  state.impact += aggregate.impact
+  state.elo += aggregate.elo
   state.participants += aggregate.participants
 
   if (aggregate.ticketDiff !== null) {
@@ -236,8 +236,8 @@ function getPerMatchMetricValue(metric: AnalyticsMetric, aggregate: AnalyticsAgg
     return aggregate.ticketDiff
   }
 
-  if (metric === "impact") {
-    return aggregate.impact
+  if (metric === "elo") {
+    return aggregate.elo
   }
 
   if (metric === "kills") {
@@ -288,8 +288,8 @@ function getCumulativeMetricValue(metric: AnalyticsMetric, state: SeriesState): 
     return state.participants / state.matches
   }
 
-  if (metric === "impact") {
-    return state.impact / state.matches
+  if (metric === "elo") {
+    return state.elo / state.matches
   }
 
   if (metric === "ticketDiff") {
@@ -337,7 +337,7 @@ function getSeriesCandidates(
     }
 
     if (breakdown === "faction") {
-      if (game.faction_matchup) addCandidate(game.faction_matchup, game.faction_matchup)
+      if (game.faction_1) addCandidate(game.faction_1, game.faction_1)
       return
     }
 
@@ -361,8 +361,8 @@ function getSeriesCandidates(
     }
 
     if (breakdown === "faction_opponent") {
-      if (game.faction_matchup && game.opponent) {
-        addCandidate(`${game.faction_matchup}${COMBO_SEPARATOR}${game.opponent}`, `${game.faction_matchup} • ${game.opponent}`)
+      if (game.faction_1 && game.opponent) {
+        addCandidate(`${game.faction_1}${COMBO_SEPARATOR}${game.opponent}`, `${game.faction_1} • ${game.opponent}`)
       }
     }
   })
@@ -406,7 +406,7 @@ function buildComparisonSeries(
       }
 
       if (breakdown === "faction") {
-        return game.faction_matchup === candidate.key ? buildAggregate(scopedPlayers, game) : null
+        return game.faction_1 === candidate.key ? buildAggregate(scopedPlayers, game) : null
       }
 
       if (breakdown === "result") {
@@ -422,7 +422,7 @@ function buildComparisonSeries(
         return comboKey === candidate.key ? buildAggregate(scopedPlayers, game) : null
       }
 
-      const comboKey = game.faction_matchup && game.opponent ? `${game.faction_matchup}${COMBO_SEPARATOR}${game.opponent}` : null
+      const comboKey = game.faction_1 && game.opponent ? `${game.faction_1}${COMBO_SEPARATOR}${game.opponent}` : null
       return comboKey === candidate.key ? buildAggregate(scopedPlayers, game) : null
     },
   }))
@@ -535,7 +535,7 @@ export function EventsAnalyticsPanel({ games, pinnedPlayerIds }: EventsAnalytics
                 <SelectItem value="kills">Убийства</SelectItem>
                 <SelectItem value="downs">Ноки</SelectItem>
                 <SelectItem value="revives">Поднятия</SelectItem>
-                <SelectItem value="impact">Импакт</SelectItem>
+                <SelectItem value="elo">ELO</SelectItem>
                 <SelectItem value="deaths">Смерти</SelectItem>
                 <SelectItem value="participants">Участники</SelectItem>
               </SelectContent>
@@ -580,11 +580,11 @@ export function EventsAnalyticsPanel({ games, pinnedPlayerIds }: EventsAnalytics
                 <SelectItem value="overall">Общий срез</SelectItem>
                 <SelectItem value="opponent">По оппонентам</SelectItem>
                 <SelectItem value="map">По картам</SelectItem>
-                <SelectItem value="faction">По декам</SelectItem>
+                <SelectItem value="faction">По фракциям MDC</SelectItem>
                 <SelectItem value="result">По результатам</SelectItem>
                 <SelectItem value="squad">По отрядам</SelectItem>
                 <SelectItem value="map_opponent">Карта + оппонент</SelectItem>
-                <SelectItem value="faction_opponent">Дека + оппонент</SelectItem>
+                <SelectItem value="faction_opponent">Фракция + оппонент</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -765,7 +765,7 @@ export function EventsAnalyticsPanel({ games, pinnedPlayerIds }: EventsAnalytics
 
             <div className="text-[11px] text-muted-foreground">
               Серии теперь строятся не только по общему фильтру, но и по выбранной группировке: можно сравнивать оппонентов,
-              карты, деки, отряды и комбинированные связки вроде карта + оппонент или дека + оппонент.
+              карты, фракции, отряды и комбинированные связки вроде карта + оппонент или фракция + оппонент.
             </div>
           </div>
         )}

@@ -13,7 +13,7 @@ import {
   type PlayerEventStat,
   type PlayerGameHistoryEntry,
 } from "@/lib/data-utils"
-import { getSquadToneClasses } from "@/lib/squad-utils"
+import { getSquadToneClasses, SQUAD_MEMBERSHIP_MIN_GAMES } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
 import { Download, Trophy, Skull, Target, Heart, Crosshair, Sparkles, Car, Zap } from "lucide-react"
 import { toPng } from "html-to-image"
@@ -103,6 +103,7 @@ export function PlayerCard({
 
     return Array.from(bySquad.entries())
       .map(([label, games]) => ({ label, games }))
+      .filter((entry) => entry.games > SQUAD_MEMBERSHIP_MIN_GAMES)
       .sort((left, right) => right.games - left.games)
       .slice(0, 3)
   }, [matchHistory])

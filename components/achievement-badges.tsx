@@ -1,5 +1,7 @@
 "use client"
 
+import type { LucideIcon } from "lucide-react"
+import { Brain, Calendar, Car, Crosshair, Heart, Shield, Star, Syringe, Target, TrendingUp, Trophy, Users, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAchievementDescription } from "@/lib/achievement-utils"
@@ -14,6 +16,24 @@ interface AchievementBadgesProps {
   collapseToSummary?: boolean
   summaryLabel?: string
   panelClassName?: string
+  display?: "badges" | "icons"
+}
+
+const ACHIEVEMENT_ICONS: Record<string, LucideIcon> = {
+  "Убийца": Crosshair,
+  "Высокий K/D": Target,
+  "Доминатор": TrendingUp,
+  "Победитель": Trophy,
+  "Оплот клана": Calendar,
+  "Спасатель": Heart,
+  "Штурмовик": Zap,
+  "Гроза техники": Car,
+  "Истребитель брони": Shield,
+  "Ангел-хранитель": Syringe,
+  "Сквад-лидер": Users,
+  "Стратег": Brain,
+  "Боевой фактор": Star,
+  "Острие клана": Trophy,
 }
 
 export function AchievementBadges({
@@ -25,6 +45,7 @@ export function AchievementBadges({
   collapseToSummary = false,
   summaryLabel = "Ачивки",
   panelClassName,
+  display = "badges",
 }: AchievementBadgesProps) {
   if (achievements.length === 0) {
     return null
@@ -41,10 +62,23 @@ export function AchievementBadges({
       {achievements.map((achievement) => (
         <Tooltip key={achievement}>
           <TooltipTrigger asChild>
-            <button type="button" className="inline-flex cursor-help border-0 bg-transparent p-0 text-left">
-              <Badge variant={variant} className={badgeClassName}>
-                {achievement}
-              </Badge>
+            <button
+              type="button"
+              className={cn(
+                "inline-flex cursor-help border-0 bg-transparent p-0 text-left",
+                display === "icons" && "h-6 w-6 items-center justify-center rounded-full border border-christmas-gold/25 bg-background/45 text-christmas-gold hover:text-christmas-snow",
+              )}
+            >
+              {display === "icons" ? (
+                (() => {
+                  const Icon = ACHIEVEMENT_ICONS[achievement] ?? Star
+                  return <Icon className="h-3.5 w-3.5" />
+                })()
+              ) : (
+                <Badge variant={variant} className={badgeClassName}>
+                  {achievement}
+                </Badge>
+              )}
             </button>
           </TooltipTrigger>
           <TooltipContent side="top" className="max-w-xs border border-border bg-card text-card-foreground">

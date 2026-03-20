@@ -14,6 +14,8 @@ export type SquadToneKey =
 
 export type SquadIdentifier = number | string | null | undefined
 
+export const SQUAD_MEMBERSHIP_MIN_GAMES = 10
+
 function normalizeSquadToken(value: SquadIdentifier): string {
   if (typeof value === "number" && Number.isFinite(value)) {
     return String(value)

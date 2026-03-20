@@ -55,6 +55,9 @@ export interface PlayerEventStat {
   vehicle: number
   kd: number
   kda: number
+  elo: number
+  battleRating: number
+  basePoints: number
 }
 
 export interface Player {
@@ -81,6 +84,9 @@ export interface Player {
     win_rate: number
     kd: number
     kda: number
+    elo: number
+    tbf: number
+    rating: number
   }
   favorites: {
     role_1: string | null
@@ -148,6 +154,7 @@ export interface EventSliceFilters {
   eventTypes?: string[]
   maps?: string[]
   opponents?: string[]
+  factions?: string[]
   modes?: string[]
   matchups?: string[]
   sizes?: string[]
@@ -164,9 +171,15 @@ export type RoleLeaderboardMetric =
   | "heals"
   | "vehicle"
   | "avgRevives"
+  | "elo"
+  | "tbf"
+  | "rating"
   | "avgVehicle"
 
-export type MatchRecordMetric = "kd" | "kda" | "kills" | "downs" | "deaths" | "revives" | "heals" | "vehicle"
+export type MatchRecordMetric = "kd" | "kda" | "elo" | "kills" | "downs" | "deaths" | "revives" | "heals" | "vehicle"
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const TBF_WINDOW_DAYS = 30
 
 function toDateKey(value: string | null | undefined): string {
   if (!value) {
@@ -290,6 +303,38 @@ function extractDateFromEventId(value: string | null | undefined): string | null
 
 function getComparableDate(value: string | null | undefined): Date | null {
   return parseSafeDate(value) ?? parseSafeDate(extractDateFromEventId(value))
+}
+
+function getTbfReferenceDate(
+  events: Array<Pick<GameEvent, "started_at" | "event_id">>,
+  playerStats: Array<Pick<PlayerEventStat, "event_id">>,
+): Date | null {
+  let latestTimestamp = 0
+
+  events.forEach((event) => {
+    const timestamp = getComparableDate(event.started_at || event.event_id)?.getTime() ?? 0
+    if (timestamp > latestTimestamp) {
+      latestTimestamp = timestamp
+    }
+  })
+
+  playerStats.forEach((stat) => {
+    const timestamp = getComparableDate(stat.event_id)?.getTime() ?? 0
+    if (timestamp > latestTimestamp) {
+      latestTimestamp = timestamp
+    }
+  })
+
+  return latestTimestamp > 0 ? new Date(latestTimestamp) : null
+}
+
+function isInsideTbfWindow(date: Date | null, referenceDate: Date | null): boolean {
+  if (!date || !referenceDate) {
+    return false
+  }
+
+  const distance = referenceDate.getTime() - date.getTime()
+  return distance >= 0 && distance <= TBF_WINDOW_DAYS * DAY_MS
 }
 
 function extractEventIdPart(value: string | null | undefined, index: number): string | null {
@@ -723,6 +768,7 @@ export function filterDataByEventSlice(data: MDCData, filters: EventSliceFilters
     filters.eventTypes?.length ||
       filters.maps?.length ||
       filters.opponents?.length ||
+      filters.factions?.length ||
       filters.modes?.length ||
       filters.matchups?.length ||
       filters.sizes?.length ||
@@ -737,6 +783,7 @@ export function filterDataByEventSlice(data: MDCData, filters: EventSliceFilters
   const eventTypeSet = new Set((filters.eventTypes ?? []).map((value) => value.trim()).filter(Boolean))
   const mapSet = new Set((filters.maps ?? []).map((value) => value.trim()).filter(Boolean))
   const opponentSet = new Set((filters.opponents ?? []).map((value) => value.trim()).filter(Boolean))
+  const factionSet = new Set((filters.factions ?? []).map((value) => value.trim()).filter(Boolean))
   const modeSet = new Set((filters.modes ?? []).map((value) => value.trim()).filter(Boolean))
   const matchupSet = new Set((filters.matchups ?? []).map((value) => value.trim()).filter(Boolean))
   const sizeSet = new Set((filters.sizes ?? []).map((value) => value.trim()).filter(Boolean))
@@ -746,6 +793,7 @@ export function filterDataByEventSlice(data: MDCData, filters: EventSliceFilters
     const eventType = event.event_type?.trim() ?? ""
     const map = event.map?.trim() ?? ""
     const opponent = event.opponent?.trim() ?? ""
+    const faction = event.faction_1?.trim() ?? ""
     const mode = event.mode?.trim() ?? ""
     const matchup = getEventMatchupLabel(event)
     const size = getEventSizeLabel(event)
@@ -758,6 +806,9 @@ export function filterDataByEventSlice(data: MDCData, filters: EventSliceFilters
       return false
     }
     if (opponentSet.size > 0 && !opponentSet.has(opponent)) {
+      return false
+    }
+    if (factionSet.size > 0 && !factionSet.has(faction)) {
       return false
     }
     if (modeSet.size > 0 && !modeSet.has(mode)) {
@@ -809,6 +860,7 @@ export function filterDataByEventSlice(data: MDCData, filters: EventSliceFilters
 function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventStat[], events: GameEvent[]): Player[] {
   const basePlayersById = new Map(basePlayers.map((player) => [player.player_id, player]))
   const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
+  const tbfReferenceDate = getTbfReferenceDate(events, playerStats)
   const aggregates = new Map<
     string,
     {
@@ -822,9 +874,14 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
       downs: number
       revives: number
       vehicle: number
+      eloTotal: number
+      basePointsTotal: number
+      recentEloTotal: number
       wins: number
       losses: number
       eventKeys: Set<string>
+      ratedEventKeys: Set<string>
+      recentRatedEventKeys: Set<string>
       resolvedEventKeys: Set<string>
       roleCounts: Map<string, number>
       specializationCounts: Map<string, number>
@@ -851,9 +908,14 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
         downs: 0,
         revives: 0,
         vehicle: 0,
+        eloTotal: 0,
+        basePointsTotal: 0,
+        recentEloTotal: 0,
         wins: 0,
         losses: 0,
         eventKeys: new Set<string>(),
+        ratedEventKeys: new Set<string>(),
+        recentRatedEventKeys: new Set<string>(),
         resolvedEventKeys: new Set<string>(),
         roleCounts: new Map<string, number>(),
         specializationCounts: new Map<string, number>(),
@@ -878,6 +940,9 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
     const eventKey = getEventLinkKey(stat.event_id) || normalizeEventId(stat.event_id)
     const event = eventLookup.get(eventKey)
     const activityDate = event?.started_at || extractDateFromEventId(stat.event_id) || ""
+    const comparableEventDate = getComparableDate(event?.started_at || stat.event_id)
+    const statKey = eventKey || `${stat.player_id}::${stat.event_id}`
+    const eloValue = toFiniteNumber(stat.elo)
 
     current.nickname = current.nickname || stat.nickname
     current.tag = current.tag || stat.tag
@@ -891,7 +956,18 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
     current.downs += toFiniteNumber(stat.downs)
     current.revives += toFiniteNumber(stat.revives)
     current.vehicle += toFiniteNumber(stat.vehicle)
-    current.eventKeys.add(eventKey || `${stat.player_id}::${stat.event_id}`)
+    current.eloTotal += eloValue
+    current.basePointsTotal += toFiniteNumber(stat.basePoints)
+    current.eventKeys.add(statKey)
+
+    if (toFiniteNumber(stat.elo) !== 0 || toFiniteNumber(stat.battleRating) !== 0 || toFiniteNumber(stat.basePoints) !== 0) {
+      current.ratedEventKeys.add(statKey)
+    }
+
+    if (eloValue !== 0 && isInsideTbfWindow(comparableEventDate, tbfReferenceDate)) {
+      current.recentEloTotal += eloValue
+      current.recentRatedEventKeys.add(statKey)
+    }
 
     const canonicalMap =
       event?.map?.trim() ||
@@ -930,6 +1006,11 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
       const topMap = pickMostFrequentValues(aggregate.mapCounts, 1)[0] ?? basePlayer?.favorites.map ?? "Не указана"
       const kd = aggregate.deaths > 0 ? aggregate.kills / aggregate.deaths : aggregate.kills
       const kda = aggregate.deaths > 0 ? aggregate.downs / aggregate.deaths : aggregate.downs
+      const ratedGames = aggregate.ratedEventKeys.size
+      const recentRatedGames = aggregate.recentRatedEventKeys.size
+      const elo = ratedGames > 0 ? aggregate.eloTotal / ratedGames : 0
+      const tbf = recentRatedGames > 0 ? aggregate.recentEloTotal / recentRatedGames : 0
+      const rating = aggregate.basePointsTotal + tbf
 
       return {
         player_id: aggregate.player_id,
@@ -955,6 +1036,9 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
           win_rate: eventCount > 0 ? aggregate.wins / eventCount : 0,
           kd,
           kda,
+          elo,
+          tbf,
+          rating,
         },
         favorites: {
           role_1: topRoles[0] ?? basePlayer?.favorites.role_1 ?? null,
@@ -980,22 +1064,25 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
     .filter((player) => !aggregatedById.has(player.player_id))
     .map((player) => ({
       ...player,
-      totals: {
-        ...player.totals,
-        heals: 0,
-        revives: 0,
-        downs: 0,
+        totals: {
+          ...player.totals,
+          heals: 0,
+          revives: 0,
+          downs: 0,
         kills: 0,
         deaths: 0,
         vehicle: 0,
         events: 0,
         wins: 0,
-        losses: 0,
-        win_rate: 0,
-        kd: 0,
-        kda: 0,
-      },
-    }))
+          losses: 0,
+          win_rate: 0,
+          kd: 0,
+          kda: 0,
+          elo: 0,
+          tbf: 0,
+          rating: 0,
+        },
+      }))
 
   return [...aggregatedPlayers, ...playersWithZeroEvents].sort((left, right) => {
       if (right.totals.events !== left.totals.events) {
@@ -1467,10 +1554,26 @@ export function getTopByRole(
   limit = 5,
   roleDomain: string[] = [],
   metric: RoleLeaderboardMetric = "kd",
+  events: GameEvent[] = [],
 ) {
+  const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
+  const tbfReferenceDate = getTbfReferenceDate(events, playerStats)
   const roleData: Record<
     string,
-    { kills: number; deaths: number; downs: number; revives: number; heals: number; vehicle: number; games: number }
+    {
+      kills: number
+      deaths: number
+      downs: number
+      revives: number
+      heals: number
+      vehicle: number
+      elo: number
+      basePoints: number
+      recentElo: number
+      games: number
+      ratedGames: number
+      recentRatedGames: number
+    }
   > = {}
   const rawObservedRoles = playerStats
     .map((stat) => stat.role?.trim() ?? "")
@@ -1490,7 +1593,20 @@ export function getTopByRole(
     if (!canonicalRoles.includes(targetRole)) return
 
     if (!roleData[stat.player_id]) {
-      roleData[stat.player_id] = { kills: 0, deaths: 0, downs: 0, revives: 0, heals: 0, vehicle: 0, games: 0 }
+      roleData[stat.player_id] = {
+        kills: 0,
+        deaths: 0,
+        downs: 0,
+        revives: 0,
+        heals: 0,
+        vehicle: 0,
+        elo: 0,
+        basePoints: 0,
+        recentElo: 0,
+        games: 0,
+        ratedGames: 0,
+        recentRatedGames: 0,
+      }
     }
     roleData[stat.player_id].kills += stat.kills
     roleData[stat.player_id].deaths += stat.deaths
@@ -1498,7 +1614,18 @@ export function getTopByRole(
     roleData[stat.player_id].revives += stat.revives
     roleData[stat.player_id].heals += stat.heals
     roleData[stat.player_id].vehicle += stat.vehicle
+    roleData[stat.player_id].elo += stat.elo
+    roleData[stat.player_id].basePoints += stat.basePoints
     roleData[stat.player_id].games += 1
+    if (stat.elo !== 0 || stat.battleRating !== 0 || stat.basePoints !== 0) {
+      roleData[stat.player_id].ratedGames += 1
+    }
+    const event = eventLookup.get(stat.normalized_event_id)
+    const eventDate = getComparableDate(event?.started_at || stat.event_id)
+    if (stat.elo !== 0 && isInsideTbfWindow(eventDate, tbfReferenceDate)) {
+      roleData[stat.player_id].recentElo += stat.elo
+      roleData[stat.player_id].recentRatedGames += 1
+    }
   })
 
   return Object.entries(roleData)
@@ -1507,6 +1634,9 @@ export function getTopByRole(
       const player = players.find((p) => p.player_id === playerId)
       const kd = d.deaths > 0 ? d.kills / d.deaths : d.kills
       const kda = d.deaths > 0 ? d.downs / d.deaths : d.downs
+      const elo = d.ratedGames > 0 ? d.elo / d.ratedGames : 0
+      const tbf = d.recentRatedGames > 0 ? d.recentElo / d.recentRatedGames : 0
+      const rating = d.basePoints + tbf
       return {
         player_id: playerId,
         nickname: player?.nickname || "Unknown",
@@ -1520,6 +1650,9 @@ export function getTopByRole(
         games: d.games,
         kd,
         kda,
+        elo,
+        tbf,
+        rating,
         metricValue:
           metric === "kills"
             ? d.kills
@@ -1535,6 +1668,12 @@ export function getTopByRole(
             ? d.vehicle
             : metric === "avgRevives"
             ? d.revives / d.games
+            : metric === "elo"
+            ? elo
+            : metric === "tbf"
+            ? tbf
+            : metric === "rating"
+            ? rating
             : metric === "avgVehicle"
             ? d.vehicle / d.games
             : metric === "kda"
@@ -1567,8 +1706,7 @@ export interface AggregatedPlayerEventStat extends PlayerEventStat {
 
 export interface PastGamePlayerStat extends AggregatedPlayerEventStat {
   steam_id: string
-  impactScore: number
-  impactShare: number
+  eloShare: number
   rank: number
   squad_label: string
   squad_labels: string[]
@@ -1633,20 +1771,15 @@ export interface PlayerGameHistoryEntry {
   squad_label: string
   squads: SquadIdentifier[]
   squad_labels: string[]
-  impactScore: number
-  impactShare: number
+  elo: number
+  eloShare: number
   cumKD: number
   cumKills: number
   cumDeaths: number
 }
 
-function calculateImpactScore(stat: Pick<PlayerEventStat, "kills" | "downs" | "revives" | "vehicle" | "deaths">): number {
-  const rawScore = stat.kills * 5 + stat.downs * 3 + stat.revives * 2 + stat.vehicle * 4 - stat.deaths * 1.5
-  return Math.max(0, Math.round(rawScore))
-}
-
 function compareMatchPlayers(left: PastGamePlayerStat, right: PastGamePlayerStat): number {
-  if (right.impactScore !== left.impactScore) return right.impactScore - left.impactScore
+  if (right.elo !== left.elo) return right.elo - left.elo
   if (right.kills !== left.kills) return right.kills - left.kills
   if (right.downs !== left.downs) return right.downs - left.downs
   if (right.revives !== left.revives) return right.revives - left.revives
@@ -1673,6 +1806,9 @@ function aggregatePlayerEventStats(playerStats: PlayerEventStat[]): AggregatedPl
       kills: number
       deaths: number
       vehicle: number
+      elo: number
+      battleRating: number
+      basePoints: number
       records: number
     }
   >()
@@ -1699,6 +1835,9 @@ function aggregatePlayerEventStats(playerStats: PlayerEventStat[]): AggregatedPl
         kills: 0,
         deaths: 0,
         vehicle: 0,
+        elo: 0,
+        battleRating: 0,
+        basePoints: 0,
         records: 0,
       })
     }
@@ -1713,6 +1852,9 @@ function aggregatePlayerEventStats(playerStats: PlayerEventStat[]): AggregatedPl
     current.kills += toFiniteNumber(stat.kills)
     current.deaths += toFiniteNumber(stat.deaths)
     current.vehicle += toFiniteNumber(stat.vehicle)
+    current.elo += toFiniteNumber(stat.elo)
+    current.battleRating += toFiniteNumber(stat.battleRating)
+    current.basePoints += toFiniteNumber(stat.basePoints)
 
     const role = stat.role?.trim()
     if (role) current.roles.add(role)
@@ -1759,6 +1901,9 @@ function aggregatePlayerEventStats(playerStats: PlayerEventStat[]): AggregatedPl
       vehicle: entry.vehicle,
       kd,
       kda,
+      elo: entry.elo,
+      battleRating: entry.battleRating,
+      basePoints: entry.basePoints,
       roles,
       specializations,
       squads,
@@ -1817,8 +1962,7 @@ export function getPastGames(
             nickname: player?.nickname || stat.nickname || "Unknown",
             tag: player?.tag || stat.tag || "",
             steam_id: player?.steam_id || "",
-            impactScore: calculateImpactScore(stat),
-            impactShare: 0,
+            eloShare: 0,
             rank: 0,
             squad_label: squadLabel,
             squad_labels: squadLabels.length > 0 ? squadLabels : [squadLabel],
@@ -1826,11 +1970,11 @@ export function getPastGames(
         })
         .sort(compareMatchPlayers)
 
-      const topImpact = playersWithRank[0]?.impactScore ?? 0
+      const topElo = playersWithRank[0]?.elo ?? 0
       const rankedPlayers = playersWithRank.map((stat, index) => ({
         ...stat,
         rank: index + 1,
-        impactShare: topImpact > 0 ? (stat.impactScore / topImpact) * 100 : 0,
+        eloShare: topElo > 0 ? (stat.elo / topElo) * 100 : 0,
       }))
 
       return {
@@ -1910,8 +2054,8 @@ export function getPlayerGameHistory(
         squad_label: playerGame.squad_label,
         squads: playerGame.squads,
         squad_labels: playerGame.squad_labels,
-        impactScore: playerGame.impactScore,
-        impactShare: playerGame.impactShare,
+        elo: playerGame.elo,
+        eloShare: playerGame.eloShare,
       }
     })
     .filter((entry): entry is Omit<PlayerGameHistoryEntry, "cumKD" | "cumKills" | "cumDeaths"> => entry !== null)
@@ -1979,11 +2123,13 @@ export function getTopMatchRecords(
   limit = 10,
 ) {
   const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
-
-  return aggregatePlayerEventStats(playerStats)
+  const sortedRecords = aggregatePlayerEventStats(playerStats)
     .filter((stat) => {
       if (metric === "kd" || metric === "kda") {
         return stat.deaths > 0 || stat.kills > 0
+      }
+      if (metric === "elo") {
+        return stat.elo !== 0
       }
       return stat[metric] > 0
     })
@@ -2002,8 +2148,9 @@ export function getTopMatchRecords(
       }
     })
     .sort((left, right) => {
-      const leftValue = metric === "kd" ? left.kd : metric === "kda" ? left.kda : left[metric]
-      const rightValue = metric === "kd" ? right.kd : metric === "kda" ? right.kda : right[metric]
+      const leftValue = metric === "kd" ? left.kd : metric === "kda" ? left.kda : metric === "elo" ? left.elo : left[metric]
+      const rightValue =
+        metric === "kd" ? right.kd : metric === "kda" ? right.kda : metric === "elo" ? right.elo : right[metric]
 
       if (rightValue !== leftValue) {
         return rightValue - leftValue
@@ -2015,6 +2162,17 @@ export function getTopMatchRecords(
         return left.deaths - right.deaths
       }
       return left.nickname.localeCompare(right.nickname, "ru")
+    })
+
+  const seenPlayers = new Set<string>()
+
+  return sortedRecords
+    .filter((record) => {
+      if (seenPlayers.has(record.player_id)) {
+        return false
+      }
+      seenPlayers.add(record.player_id)
+      return true
     })
     .slice(0, limit)
 }

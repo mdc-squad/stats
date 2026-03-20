@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PlayerAvatar } from "@/components/player-avatar"
 import type { PastGameSummary } from "@/lib/data-utils"
-import { getSquadToneClasses } from "@/lib/squad-utils"
+import { getSquadToneClasses, SQUAD_MEMBERSHIP_MIN_GAMES } from "@/lib/squad-utils"
 import { Shield, Target, Trophy, Users } from "lucide-react"
 
 interface PinnedSquadLeaderboardsProps {
@@ -24,7 +24,7 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
         wins: number
         kills: number
         deaths: number
-        impact: number
+        elo: number
         uniquePlayers: Set<string>
         players: Map<
           string,
@@ -36,7 +36,7 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
             wins: number
             kills: number
             deaths: number
-            impact: number
+            elo: number
           }
         >
       }
@@ -65,7 +65,7 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
             wins: 0,
             kills: 0,
             deaths: 0,
-            impact: 0,
+            elo: 0,
             uniquePlayers: new Set<string>(),
             players: new Map(),
           })
@@ -77,7 +77,7 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
         squad.games += 1
         squad.kills += playersInSquad.reduce((sum, player) => sum + player.kills, 0)
         squad.deaths += playersInSquad.reduce((sum, player) => sum + player.deaths, 0)
-        squad.impact += playersInSquad.reduce((sum, player) => sum + player.impactScore, 0)
+        squad.elo += playersInSquad.reduce((sum, player) => sum + player.elo, 0)
         if (game.is_win) {
           squad.wins += 1
         }
@@ -94,7 +94,7 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
               wins: 0,
               kills: 0,
               deaths: 0,
-              impact: 0,
+              elo: 0,
             })
           }
 
@@ -104,7 +104,7 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
           squadPlayer.games += 1
           squadPlayer.kills += player.kills
           squadPlayer.deaths += player.deaths
-          squadPlayer.impact += player.impactScore
+          squadPlayer.elo += player.elo
           if (game.is_win) {
             squadPlayer.wins += 1
           }
@@ -117,22 +117,27 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
         ...squad,
         winRate: squad.games > 0 ? (squad.wins / squad.games) * 100 : 0,
         kd: squad.deaths > 0 ? squad.kills / squad.deaths : squad.kills,
-        avgImpact: squad.games > 0 ? squad.impact / squad.games : 0,
+        avgElo: squad.games > 0 ? squad.elo / squad.games : 0,
         playersRanked: Array.from(squad.players.values())
           .map((player) => ({
             ...player,
             winRate: player.games > 0 ? (player.wins / player.games) * 100 : 0,
             kd: player.deaths > 0 ? player.kills / player.deaths : player.kills,
-            avgImpact: player.games > 0 ? player.impact / player.games : 0,
+            avgElo: player.games > 0 ? player.elo / player.games : 0,
           }))
+          .filter((player) => player.games > SQUAD_MEMBERSHIP_MIN_GAMES)
           .sort((left, right) => {
-            if (right.avgImpact !== left.avgImpact) return right.avgImpact - left.avgImpact
+            if (right.avgElo !== left.avgElo) return right.avgElo - left.avgElo
             if (right.kills !== left.kills) return right.kills - left.kills
             return right.games - left.games
           }),
       }))
+      .map((squad) => ({
+        ...squad,
+        eligiblePlayersCount: squad.playersRanked.length,
+      }))
       .sort((left, right) => {
-        if (right.avgImpact !== left.avgImpact) return right.avgImpact - left.avgImpact
+        if (right.avgElo !== left.avgElo) return right.avgElo - left.avgElo
         if (right.winRate !== left.winRate) return right.winRate - left.winRate
         return right.games - left.games
       })
@@ -176,6 +181,9 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
         <div>
           <p className="text-base font-semibold text-christmas-snow">Топы по отрядам</p>
           <p className="text-sm text-muted-foreground">Рейтинг отрядов и лидеры внутри них для закрепленных игроков</p>
+          <p className="text-[11px] text-muted-foreground">
+            Игрок относится к цвету, если сыграл в нём более {SQUAD_MEMBERSHIP_MIN_GAMES} игр.
+          </p>
         </div>
         <Badge variant="outline" className="border-christmas-gold/30 text-christmas-gold">
           {squadStats.length} отрядов
@@ -196,14 +204,14 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
                         #{index + 1} • {squad.label}
                       </Badge>
                       <Badge variant="outline" className="border-christmas-gold/30 text-christmas-gold">
-                        {squad.uniquePlayers.size} игроков
+                        {squad.eligiblePlayersCount} игроков
                       </Badge>
                     </div>
                     <CardTitle className="text-base text-christmas-snow">Сквадовый рейтинг</CardTitle>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-semibold text-christmas-snow">{squad.avgImpact.toFixed(1)}</p>
-                    <p className="text-[11px] text-muted-foreground">ср. импакт</p>
+                    <p className="text-2xl font-semibold text-christmas-snow">{squad.avgElo.toFixed(1)}</p>
+                    <p className="text-[11px] text-muted-foreground">ср. ELO</p>
                   </div>
                 </div>
               </CardHeader>
@@ -234,25 +242,31 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
 
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-christmas-snow">Лидеры внутри отряда</p>
-                  {squad.playersRanked.slice(0, 5).map((player, playerIndex) => (
-                    <div
-                      key={`${squad.label}-${player.player_id}`}
-                      className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/35 px-3 py-2"
-                    >
-                      <span className="w-6 text-center font-mono text-sm text-christmas-gold">{playerIndex + 1}</span>
-                      <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-christmas-snow">{player.nickname}</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {player.games} игр • WR {player.winRate.toFixed(0)}%
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-christmas-snow">{player.avgImpact.toFixed(1)}</p>
-                        <p className="text-[11px] text-muted-foreground">K/D {player.kd.toFixed(2)}</p>
-                      </div>
+                  {squad.playersRanked.length === 0 ? (
+                    <div className="rounded-lg border border-border/50 bg-background/35 px-3 py-2 text-[11px] text-muted-foreground">
+                      Среди закреплённых игроков нет тех, кто сыграл за этот цвет более {SQUAD_MEMBERSHIP_MIN_GAMES} игр.
                     </div>
-                  ))}
+                  ) : (
+                    squad.playersRanked.slice(0, 5).map((player, playerIndex) => (
+                      <div
+                        key={`${squad.label}-${player.player_id}`}
+                        className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/35 px-3 py-2"
+                      >
+                        <span className="w-6 text-center font-mono text-sm text-christmas-gold">{playerIndex + 1}</span>
+                        <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-christmas-snow">{player.nickname}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {player.games} игр • WR {player.winRate.toFixed(0)}%
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-christmas-snow">{player.avgElo.toFixed(1)}</p>
+                          <p className="text-[11px] text-muted-foreground">K/D {player.kd.toFixed(2)}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>

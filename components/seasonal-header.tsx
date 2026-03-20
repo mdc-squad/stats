@@ -7,7 +7,6 @@ import { withBasePath } from "@/lib/base-path"
 
 interface SeasonalHeaderProps {
   playersCount: number
-  eventsCount: number
   theme: SeasonalTheme
 }
 
@@ -22,7 +21,7 @@ const ICON_BY_THEME: Record<SeasonalThemeIcon, LucideIcon> = {
   trophy: Trophy,
 }
 
-export function SeasonalHeader({ playersCount, eventsCount, theme }: SeasonalHeaderProps) {
+export function SeasonalHeader({ playersCount, theme }: SeasonalHeaderProps) {
   const ThemeIcon = ICON_BY_THEME[theme.icon] ?? Sparkles
 
   return (
@@ -33,20 +32,20 @@ export function SeasonalHeader({ playersCount, eventsCount, theme }: SeasonalHea
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
             <div className="relative shrink-0">
-              <div className="overflow-hidden rounded-full border border-christmas-gold/30 bg-background/70 p-1 shadow-lg shadow-black/20">
+              <div className="overflow-hidden rounded-full border border-christmas-gold/30 bg-background/70 p-1.5 shadow-lg shadow-black/20">
                 <img
                   src={withBasePath("/mdc-clan-emblem.png")}
                   alt="Эмблема клана MDC"
-                  className="h-12 w-12 rounded-full object-cover"
+                  className="h-16 w-16 rounded-full object-cover md:h-20 md:w-20"
                 />
               </div>
-              <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-christmas-gold/30 bg-background/90">
-                <ThemeIcon className="h-3.5 w-3.5 text-christmas-green" />
+              <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-christmas-gold/30 bg-background/90 md:h-8 md:w-8">
+                <ThemeIcon className="h-4 w-4 text-christmas-green" />
               </div>
             </div>
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold text-christmas-snow leading-tight">MDC CLAN</h1>
-              <p className="text-sm text-christmas-gold font-medium truncate">Mors De Caelo Task Force • {theme.subtitle}</p>
+              <h1 className="text-2xl font-bold leading-tight text-christmas-snow md:text-3xl">Mors De Caelo</h1>
+              <p className="mt-1 text-sm font-medium text-christmas-gold md:text-base">{theme.subtitle}</p>
             </div>
           </div>
 
@@ -54,11 +53,6 @@ export function SeasonalHeader({ playersCount, eventsCount, theme }: SeasonalHea
             <div className="text-center">
               <p className="text-2xl font-bold text-christmas-snow">{playersCount}</p>
               <p className="text-christmas-gold/80 text-xs">игроков</p>
-            </div>
-            <div className="h-8 w-px bg-border" />
-            <div className="text-center">
-              <p className="text-2xl font-bold text-christmas-snow">{eventsCount}</p>
-              <p className="text-christmas-gold/80 text-xs">событий</p>
             </div>
           </div>
         </div>
