@@ -4,13 +4,38 @@ import { useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PlayerAvatar } from "@/components/player-avatar"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { PastGameSummary } from "@/lib/data-utils"
 import { getSquadToneClasses, SQUAD_MEMBERSHIP_MIN_GAMES } from "@/lib/squad-utils"
-import { Shield, Target, Trophy, Users } from "lucide-react"
+import { CircleHelp, Shield, Target, Trophy, Users } from "lucide-react"
 
 interface PinnedSquadLeaderboardsProps {
   games: PastGameSummary[]
   pinnedPlayerIds: string[]
+}
+
+function SquadAvgEloHelp() {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-christmas-snow"
+          aria-label="Как считается средний ELO отряда"
+        >
+          <span>ср. ELO</span>
+          <CircleHelp className="h-3.5 w-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs border border-border bg-card text-card-foreground">
+        <p className="font-medium text-christmas-snow">Как считается средний ELO отряда</p>
+        <p className="mt-1 text-muted-foreground">
+          Для каждого матча берём средний ELO игроков этого цвета: сумма ELO участников отряда делится на число игроков
+          отряда в матче. Затем это матчевое среднее усредняется по всем играм отряда в текущем срезе.
+        </p>
+      </TooltipContent>
+    </Tooltip>
+  )
 }
 
 export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadLeaderboardsProps) {
@@ -73,11 +98,12 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
 
         const squad = squads.get(squadLabel)
         if (!squad) return
+        const matchAvgElo = playersInSquad.reduce((sum, player) => sum + player.elo, 0) / playersInSquad.length
 
         squad.games += 1
         squad.kills += playersInSquad.reduce((sum, player) => sum + player.kills, 0)
         squad.deaths += playersInSquad.reduce((sum, player) => sum + player.deaths, 0)
-        squad.elo += playersInSquad.reduce((sum, player) => sum + player.elo, 0)
+        squad.elo += matchAvgElo
         if (game.is_win) {
           squad.wins += 1
         }
@@ -211,7 +237,9 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-semibold text-christmas-snow">{squad.avgElo.toFixed(1)}</p>
-                    <p className="text-[11px] text-muted-foreground">ср. ELO</p>
+                    <div className="flex justify-end">
+                      <SquadAvgEloHelp />
+                    </div>
                   </div>
                 </div>
               </CardHeader>
