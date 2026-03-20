@@ -1010,7 +1010,7 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
       const recentRatedGames = aggregate.recentRatedEventKeys.size
       const elo = ratedGames > 0 ? aggregate.eloTotal / ratedGames : 0
       const tbf = recentRatedGames > 0 ? aggregate.recentEloTotal / recentRatedGames : 0
-      const rating = aggregate.basePointsTotal + tbf
+      const rating = basePlayer?.totals.rating ?? 0
 
       return {
         player_id: aggregate.player_id,
@@ -1080,7 +1080,7 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
           kda: 0,
           elo: 0,
           tbf: 0,
-          rating: 0,
+          rating: player.totals.rating ?? 0,
         },
       }))
 
@@ -1636,7 +1636,7 @@ export function getTopByRole(
       const kda = d.deaths > 0 ? d.downs / d.deaths : d.downs
       const elo = d.ratedGames > 0 ? d.elo / d.ratedGames : 0
       const tbf = d.recentRatedGames > 0 ? d.recentElo / d.recentRatedGames : 0
-      const rating = d.basePoints + tbf
+      const rating = player?.totals.rating ?? 0
       return {
         player_id: playerId,
         nickname: player?.nickname || "Unknown",
@@ -2109,6 +2109,7 @@ export function getPlayerProgress(playerId: string, playerStats: PlayerEventStat
       kills: stat.kills,
       deaths: stat.deaths,
       kd: stat.kd,
+      elo: stat.elo,
       cumKD: cumDeaths > 0 ? cumKills / cumDeaths : cumKills,
       cumKills,
       cumDeaths,
