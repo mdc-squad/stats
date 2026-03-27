@@ -7,8 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { Calendar as DatePickerCalendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
 import { MultiValueFilter, type MultiValueFilterOption } from "@/components/multi-value-filter"
 import { Leaderboard } from "@/components/leaderboard"
 import { AvgStatLeaderboard } from "@/components/avg-stat-leaderboard"
@@ -214,6 +215,32 @@ function buildDateRangeFromCustomInput(fromValue: string, toValue: string): { fr
     from: from && !Number.isNaN(from.getTime()) ? from : undefined,
     to: to && !Number.isNaN(to.getTime()) ? to : undefined,
   }
+}
+
+function parseDateInputValue(value: string): Date | undefined {
+  if (!value) {
+    return undefined
+  }
+
+  const [year, month, day] = value.split("-").map((part) => Number(part))
+  if (!year || !month || !day) {
+    return undefined
+  }
+
+  const parsed = new Date(year, month - 1, day)
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed
+}
+
+function formatDateInputValue(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function formatDateFilterLabel(value: string): string {
+  const parsed = parseDateInputValue(value)
+  return parsed ? parsed.toLocaleDateString("ru-RU") : "Выберите дату"
 }
 
 function isLectureEventType(value: string): boolean {
@@ -430,6 +457,8 @@ export default function YearReviewPage() {
   const [selectedFactions, setSelectedFactions] = useState<string[]>([])
   const [selectedRoleMetric, setSelectedRoleMetric] = useState<RoleLeaderboardMetric>("kd")
   const [activeTab, setActiveTab] = useState("leaderboards")
+  const [isCustomDateFromOpen, setIsCustomDateFromOpen] = useState(false)
+  const [isCustomDateToOpen, setIsCustomDateToOpen] = useState(false)
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
   const [selectedPlayersForChart, setSelectedPlayersForChart] = useState<string[]>([])
   const [gameFocusTarget, setGameFocusTarget] = useState<{ eventId: string; playerId: string } | null>(null)
@@ -1406,21 +1435,61 @@ export default function YearReviewPage() {
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 <label className="space-y-2">
                   <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
-                  <Input
-                    type="date"
-                    value={customDateFrom}
-                    onChange={(event) => setCustomDateFrom(event.target.value)}
-                    className="date-input-contrast border-christmas-gold/20 bg-background/50 text-christmas-snow"
-                  />
+                  <Popover open={isCustomDateFromOpen} onOpenChange={setIsCustomDateFromOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-between border-christmas-gold/20 bg-background/50 text-christmas-snow hover:bg-background/60 hover:text-christmas-snow"
+                      >
+                        <span className={customDateFrom ? "text-christmas-snow" : "text-muted-foreground"}>
+                          {formatDateFilterLabel(customDateFrom)}
+                        </span>
+                        <Calendar className="h-4 w-4 text-christmas-gold" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-auto border-christmas-gold/20 bg-card/95 p-0">
+                      <DatePickerCalendar
+                        mode="single"
+                        selected={parseDateInputValue(customDateFrom)}
+                        defaultMonth={parseDateInputValue(customDateFrom)}
+                        onSelect={(date) => {
+                          if (!date) return
+                          setCustomDateFrom(formatDateInputValue(date))
+                          setIsCustomDateFromOpen(false)
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </label>
                 <label className="space-y-2">
                   <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
-                  <Input
-                    type="date"
-                    value={customDateTo}
-                    onChange={(event) => setCustomDateTo(event.target.value)}
-                    className="date-input-contrast border-christmas-gold/20 bg-background/50 text-christmas-snow"
-                  />
+                  <Popover open={isCustomDateToOpen} onOpenChange={setIsCustomDateToOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-between border-christmas-gold/20 bg-background/50 text-christmas-snow hover:bg-background/60 hover:text-christmas-snow"
+                      >
+                        <span className={customDateTo ? "text-christmas-snow" : "text-muted-foreground"}>
+                          {formatDateFilterLabel(customDateTo)}
+                        </span>
+                        <Calendar className="h-4 w-4 text-christmas-gold" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-auto border-christmas-gold/20 bg-card/95 p-0">
+                      <DatePickerCalendar
+                        mode="single"
+                        selected={parseDateInputValue(customDateTo)}
+                        defaultMonth={parseDateInputValue(customDateTo)}
+                        onSelect={(date) => {
+                          if (!date) return
+                          setCustomDateTo(formatDateInputValue(date))
+                          setIsCustomDateToOpen(false)
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </label>
               </div>
             )}
