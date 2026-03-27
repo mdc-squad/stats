@@ -108,7 +108,7 @@ export function OverallStatsPanel({ stats, periodLabel = "за всё время
         <p className="text-xs text-muted-foreground">{periodLabel}</p>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="mx-auto grid max-w-6xl grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
+        <div className="mx-auto grid max-w-5xl grid-cols-2 gap-3 md:grid-cols-3">
           {statItems.map((item) => (
             <div
               key={item.label}
