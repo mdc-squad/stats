@@ -37,14 +37,14 @@ export function WinrateProgressChart({ data }: WinrateProgressChartProps) {
 
   if (chartData.length === 0) {
     return (
-      <Card>
+      <Card className="flex h-full min-h-[420px] flex-col border-christmas-gold/20 bg-card/60">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
             <TrendingUp className="w-4 h-4" />
             Средний Win Rate
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-1 flex-col">
           <p className="text-sm text-muted-foreground">Нет данных по результатам для расчёта Win Rate</p>
         </CardContent>
       </Card>
@@ -52,15 +52,15 @@ export function WinrateProgressChart({ data }: WinrateProgressChartProps) {
   }
 
   return (
-    <Card>
+    <Card className="flex h-full min-h-[420px] flex-col border-christmas-gold/20 bg-card/60">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
           <TrendingUp className="w-4 h-4" />
           Средний Win Rate
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="h-[200px]">
+      <CardContent className="flex flex-1 flex-col">
+        <div className="h-[300px] flex-1">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ left: -10, right: 10, top: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />

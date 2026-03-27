@@ -1,7 +1,7 @@
 "use client"
 
 import type { LucideIcon } from "lucide-react"
-import { Brain, Calendar, Car, Crosshair, Heart, Shield, Star, Syringe, Target, TrendingUp, Trophy, Users, Zap } from "lucide-react"
+import { Award, Calendar, Car, Crosshair, Crown, Heart, Shield, Star, Syringe, Target, TrendingUp, Trophy, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAchievementDescription } from "@/lib/achievement-utils"
@@ -28,12 +28,12 @@ const ACHIEVEMENT_ICONS: Record<string, LucideIcon> = {
   "Спасатель": Heart,
   "Штурмовик": Zap,
   "Гроза техники": Car,
-  "Истребитель брони": Shield,
+  "Истребитель брони": Car,
   "Ангел-хранитель": Syringe,
-  "Сквад-лидер": Users,
-  "Стратег": Brain,
-  "Боевой фактор": Star,
-  "Острие клана": Trophy,
+  "Сквад-лидер": Shield,
+  "MVP": Award,
+  "В тонусе": Star,
+  "Эталон": Crown,
 }
 
 export function AchievementBadges({
@@ -66,7 +66,8 @@ export function AchievementBadges({
               type="button"
               className={cn(
                 "inline-flex cursor-help border-0 bg-transparent p-0 text-left",
-                display === "icons" && "h-6 w-6 items-center justify-center rounded-full border border-christmas-gold/25 bg-background/45 text-christmas-gold hover:text-christmas-snow",
+                display === "icons" &&
+                  "h-7 w-7 items-center justify-center rounded-full border border-christmas-gold/35 bg-background/70 text-christmas-gold shadow-sm shadow-black/20 transition-colors hover:border-christmas-gold/60 hover:bg-background/85 hover:text-christmas-snow",
               )}
             >
               {display === "icons" ? (

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { MatchRecordMetric, PlayerEventStat } from "@/lib/data-utils"
+import { cn } from "@/lib/utils"
 import { Star } from "lucide-react"
 
 interface BestMatch extends PlayerEventStat {
@@ -23,7 +24,8 @@ interface BestMatchesProps {
 }
 
 const DEFAULT_COLLAPSED_COUNT = 10
-const TOP_CARD_CLASS = "flex h-[720px] flex-col overflow-hidden border-christmas-gold/30 bg-gradient-to-br from-christmas-red/5 via-card to-christmas-green/5"
+const TOP_CARD_CLASS =
+  "flex flex-col overflow-hidden border-christmas-gold/30 bg-gradient-to-br from-christmas-red/5 via-card to-christmas-green/5"
 
 function getMetricNumericValue(match: BestMatch, metric: MatchRecordMetric): number {
   if (metric === "kd") {
@@ -107,7 +109,7 @@ export function BestMatches({
 
   return (
     <div className="relative">
-      <Card className={TOP_CARD_CLASS}>
+      <Card className={cn(TOP_CARD_CLASS, showAll && "h-[720px]")}>
         <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-christmas-gold">
@@ -121,19 +123,19 @@ export function BestMatches({
           {canExpand && (
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="h-7 shrink-0 px-2 text-[10px] text-muted-foreground hover:bg-background/50 hover:text-christmas-snow"
+              className="h-8 shrink-0 border-christmas-gold/35 bg-christmas-gold/10 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-christmas-snow hover:border-christmas-gold/60 hover:bg-christmas-gold/20"
               onClick={() => setShowAll((current) => !current)}
             >
               {showAll ? "Свернуть" : "Весь топ"}
             </Button>
           )}
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col">
+        <CardContent className={cn("flex flex-col", showAll && "min-h-0 flex-1")}>
           {sortedMatches.length === 0 && <p className="text-sm text-muted-foreground">Нет данных по матчам</p>}
           {sortedMatches.length > 0 && (
-            <div className="flex-1 overflow-y-auto pr-2">
+            <div className={cn("pr-2", showAll && "min-h-0 flex-1 overflow-y-auto")}>
               <div className="space-y-1.5">
                 {visibleRecords.map((match, index) => (
                   <div

@@ -19,7 +19,7 @@ export function DailyActivityChart({ wins, losses, periodLabel = "за всё в
 
   if (totalMatches === 0) {
     return (
-      <Card>
+      <Card className="flex h-full min-h-[420px] flex-col border-christmas-gold/20 bg-card/60">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
             <Calendar className="w-4 h-4" />
@@ -27,7 +27,7 @@ export function DailyActivityChart({ wins, losses, periodLabel = "за всё в
           </CardTitle>
           <p className="text-xs text-muted-foreground">{periodLabel}</p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-1 flex-col">
           <p className="text-sm text-muted-foreground">Нет данных по результатам событий</p>
         </CardContent>
       </Card>
@@ -35,7 +35,7 @@ export function DailyActivityChart({ wins, losses, periodLabel = "за всё в
   }
 
   return (
-    <Card>
+    <Card className="flex h-full min-h-[420px] flex-col border-christmas-gold/20 bg-card/60">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
           <Calendar className="w-4 h-4" />
@@ -43,8 +43,8 @@ export function DailyActivityChart({ wins, losses, periodLabel = "за всё в
         </CardTitle>
         <p className="text-xs text-muted-foreground">{periodLabel}</p>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="relative h-[220px] rounded-xl border border-border/50 bg-background/25 px-2">
+      <CardContent className="flex flex-1 flex-col space-y-3">
+        <div className="relative h-[240px] rounded-xl border border-border/50 bg-background/25 px-2">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart margin={{ top: 16, right: 16, bottom: 16, left: 16 }}>
               <Pie

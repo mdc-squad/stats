@@ -37,14 +37,14 @@ export function ActivityChart({ data }: ActivityChartProps) {
 
   if (chartData.length === 0) {
     return (
-      <Card>
+      <Card className="flex h-full min-h-[420px] flex-col border-christmas-gold/20 bg-card/60">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
             <Activity className="w-4 h-4" />
             Активность по месяцам
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-1 flex-col">
           <p className="text-sm text-muted-foreground">Нет данных по результатам событий</p>
         </CardContent>
       </Card>
@@ -52,15 +52,15 @@ export function ActivityChart({ data }: ActivityChartProps) {
   }
 
   return (
-    <Card>
+    <Card className="flex h-full min-h-[420px] flex-col border-christmas-gold/20 bg-card/60">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
           <Activity className="w-4 h-4" />
           Активность по месяцам
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="h-[200px]">
+      <CardContent className="flex flex-1 flex-col">
+        <div className="h-[300px] flex-1">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ left: -20, right: 10 }}>
               <defs>

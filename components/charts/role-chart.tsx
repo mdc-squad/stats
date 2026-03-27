@@ -46,15 +46,15 @@ export function RoleChart({ data }: RoleChartProps) {
   const totalCount = data.reduce((sum, item) => sum + item.count, 0)
 
   return (
-    <Card className="border-christmas-gold/20">
+    <Card className="flex h-full min-h-[420px] flex-col border-christmas-gold/20 bg-card/60">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
           <Users className="w-4 h-4" />
           Распределение ролей
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="h-[280px]">
+      <CardContent className="flex flex-1 flex-col">
+        <div className="h-[320px] flex-1">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie

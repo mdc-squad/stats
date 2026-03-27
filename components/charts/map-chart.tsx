@@ -8,7 +8,7 @@ interface MapChartProps {
   data: { map: string; count: number; wins: number; resolved: number; winRate: number }[]
 }
 
-const TOP_MAPS_LIMIT = 16
+const TOP_MAPS_LIMIT = 12
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
@@ -32,18 +32,18 @@ export function MapChart({ data }: MapChartProps) {
   const chartData = data.slice(0, TOP_MAPS_LIMIT)
   const maxCount = Math.max(...chartData.map((item) => item.count), 1)
   const yAxisWidth = Math.min(160, Math.max(86, Math.max(...chartData.map((item) => item.map.length), 0) * 7))
-  const chartHeight = Math.max(300, Math.min(560, chartData.length * 30 + 36))
+  const chartHeight = Math.max(260, chartData.length * 24 + 24)
 
   if (chartData.length === 0) {
     return (
-      <Card className="border-christmas-gold/20">
+      <Card className="flex h-full min-h-[420px] flex-col border-christmas-gold/20 bg-card/60">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
             <Map className="w-4 h-4" />
             Популярные карты
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-1 flex-col">
           <p className="text-sm text-muted-foreground">Нет данных по картам</p>
         </CardContent>
       </Card>
@@ -51,14 +51,14 @@ export function MapChart({ data }: MapChartProps) {
   }
 
   return (
-    <Card className="border-christmas-gold/20">
+    <Card className="flex h-full min-h-[420px] flex-col border-christmas-gold/20 bg-card/60">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
           <Map className="w-4 h-4" />
           Популярные карты
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col">
         <div style={{ height: chartHeight }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} layout="vertical" margin={{ top: 8, right: 28, left: 0, bottom: 8 }}>

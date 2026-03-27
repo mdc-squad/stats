@@ -23,7 +23,8 @@ interface LeaderboardProps {
 }
 
 const DEFAULT_COLLAPSED_COUNT = 10
-const TOP_CARD_CLASS = "flex h-[720px] flex-col overflow-hidden border-christmas-gold/30 bg-gradient-to-br from-christmas-red/5 via-card to-christmas-green/5"
+const TOP_CARD_CLASS =
+  "flex flex-col overflow-hidden border-christmas-gold/30 bg-gradient-to-br from-christmas-red/5 via-card to-christmas-green/5"
 
 export function Leaderboard({
   title,
@@ -57,6 +58,7 @@ export function Leaderboard({
       <Card
         className={cn(
           TOP_CARD_CLASS,
+          showAll && "h-[720px]",
           variant === "christmas" && "from-christmas-red/5 via-card to-christmas-green/5",
           className,
         )}
@@ -74,17 +76,17 @@ export function Leaderboard({
           {canExpand && (
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="h-7 shrink-0 px-2 text-[10px] text-muted-foreground hover:bg-background/50 hover:text-christmas-snow"
+              className="h-8 shrink-0 border-christmas-gold/35 bg-christmas-gold/10 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-christmas-snow hover:border-christmas-gold/60 hover:bg-christmas-gold/20"
               onClick={() => setShowAll((current) => !current)}
             >
               {showAll ? "Свернуть" : "Весь топ"}
             </Button>
           )}
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col">
-          <div className="flex-1 overflow-y-auto pr-2">
+        <CardContent className={cn("flex flex-col", showAll && "min-h-0 flex-1")}>
+          <div className={cn("pr-2", showAll && "min-h-0 flex-1 overflow-y-auto")}>
             <div className="space-y-1.5">
               {visiblePlayers.map((player, index) => {
                 const rawValue = player.totals[stat]

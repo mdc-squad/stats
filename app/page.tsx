@@ -24,7 +24,6 @@ import { BestMatches } from "@/components/charts/best-matches"
 import { PlayerCard } from "@/components/player-card"
 import { PlayerSelector } from "@/components/player-selector"
 import { SquadOverview } from "@/components/squad-overview"
-import { SquadBuilder } from "@/components/squad-builder"
 import { Snowfall } from "@/components/snowfall"
 import { SeasonalHeader } from "@/components/seasonal-header"
 import { OverallStatsPanel } from "@/components/overall-stats-panel"
@@ -64,8 +63,10 @@ import {
 import { fetchAllData, type SyncProgressUpdate } from "@/lib/api"
 import { getSeasonalTheme, type SeasonalTheme } from "@/lib/seasonal-theme"
 import {
+  Award,
   Trophy,
   Crosshair,
+  Crown,
   Target,
   Users,
   Calendar,
@@ -174,8 +175,7 @@ const ROLE_METRIC_OPTIONS: Array<{ value: RoleLeaderboardMetric; label: string }
   { value: "kd", label: "K/D" },
   { value: "kda", label: "KDA" },
   { value: "elo", label: "ELO" },
-  { value: "tbf", label: "TBF (30д)" },
-  { value: "rating", label: "ОР" },
+  { value: "tbf", label: "ТБФ (30д)" },
   { value: "kills", label: "Убийства" },
   { value: "deaths", label: "Смерти" },
   { value: "downs", label: "Ноки" },
@@ -1079,9 +1079,9 @@ export default function YearReviewPage() {
     register(topKills, "Убийца")
     register(topKD, "Высокий K/D")
     register(topKDA, "Доминатор")
-    register(topELO, "Стратег")
-    register(topTBF, "Боевой фактор")
-    register(topRating, "Острие клана")
+    register(topELO, "MVP")
+    register(topTBF, "В тонусе")
+    register(topRating, "Эталон")
     register(topWinRate, "Победитель")
     register(topEvents, "Оплот клана")
     register(topRevives, "Спасатель")
@@ -1410,7 +1410,7 @@ export default function YearReviewPage() {
                     type="date"
                     value={customDateFrom}
                     onChange={(event) => setCustomDateFrom(event.target.value)}
-                    className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                    className="date-input-contrast border-christmas-gold/20 bg-background/50 text-christmas-snow"
                   />
                 </label>
                 <label className="space-y-2">
@@ -1419,7 +1419,7 @@ export default function YearReviewPage() {
                     type="date"
                     value={customDateTo}
                     onChange={(event) => setCustomDateTo(event.target.value)}
-                    className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                    className="date-input-contrast border-christmas-gold/20 bg-background/50 text-christmas-snow"
                   />
                 </label>
               </div>
@@ -1433,24 +1433,26 @@ export default function YearReviewPage() {
         <section>
           <h2 className="text-lg font-semibold mb-4 text-christmas-snow">Статистика по типам событий</h2>
           <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-6">
-            {eventTypeStats.map((et) => (
-              <Card key={et.type} className="h-full border-christmas-gold/20">
-                <CardContent className="flex h-full min-h-[132px] flex-col justify-between p-3 text-center">
-                  <p className="mb-2 line-clamp-2 text-sm font-medium text-christmas-snow">{et.type}</p>
-                  <p className="text-2xl font-bold text-christmas-snow">{et.count}</p>
-                  {!isLectureEventType(et.type) && (
-                    <p className="mt-1 text-[11px] text-muted-foreground">
+            {eventTypeStats.map((et) => {
+              const isLecture = isLectureEventType(et.type)
+
+              return (
+                <Card key={et.type} className="h-full border-christmas-gold/20">
+                  <CardContent className="flex h-full min-h-[132px] flex-col justify-between p-3 text-center">
+                    <p className="mb-2 line-clamp-2 text-sm font-medium text-christmas-snow">{et.type}</p>
+                    <p className="text-2xl font-bold text-christmas-snow">{et.count}</p>
+                    <p className={`mt-1 text-[11px] text-muted-foreground ${isLecture ? "opacity-0" : ""}`} aria-hidden={isLecture}>
                       {et.resolved > 0 ? `WR ${((et.wins / et.resolved) * 100).toFixed(0)}%` : "без результата"}
                     </p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         </section>
 
         {/* Charts Section */}
-        <section className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 items-start">
+        <section className="grid auto-rows-fr grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           <DailyActivityChart
             wins={overallStats.wins}
             losses={overallStats.losses}
@@ -1458,9 +1460,6 @@ export default function YearReviewPage() {
           />
           <ActivityChart data={monthlyActivity} />
           <WeeklyActivityChart data={weeklyParticipation} />
-        </section>
-
-        <section className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 items-start">
           <WinrateProgressChart data={dailyActivity} />
           <MapChart data={mapStats} />
           <RoleChart data={roleStats} />
@@ -1505,12 +1504,6 @@ export default function YearReviewPage() {
             >
               Отряды
             </TabsTrigger>
-            <TabsTrigger
-              value="squad-builder"
-              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-emerald-500/30 bg-emerald-500/10 text-christmas-snow data-[state=active]:bg-emerald-500 data-[state=active]:border-emerald-500 data-[state=active]:text-white hover:bg-emerald-500/20 transition-all"
-            >
-              Сборка сквада
-            </TabsTrigger>
           </TabsList>
 
           {/* Leaderboards Tab */}
@@ -1543,11 +1536,11 @@ export default function YearReviewPage() {
                 stat="elo"
                 formatValue={(v) => v.toFixed(1)}
                 playerAchievements={playerAchievements}
-                icon={<Shield className="w-4 h-4" />}
+                icon={<Award className="w-4 h-4" />}
                 variant="christmas"
               />
               <Leaderboard
-                title="Топ по TBF (30д)"
+                title="Топ по ТБФ"
                 players={leaderboardTBF}
                 stat="tbf"
                 formatValue={(v) => v.toFixed(1)}
@@ -1561,7 +1554,7 @@ export default function YearReviewPage() {
                 stat="rating"
                 formatValue={(v) => v.toFixed(1)}
                 playerAchievements={playerAchievements}
-                icon={<Sparkles className="w-4 h-4" />}
+                icon={<Crown className="w-4 h-4" />}
                 variant="christmas"
               />
               <Leaderboard
@@ -1661,9 +1654,6 @@ export default function YearReviewPage() {
               <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-medium text-christmas-snow">Выберите критерий</p>
-                  <p className="text-xs text-muted-foreground">
-                    Селектор меняет порядок карточек и сам показатель, который показывается внутри роли.
-                  </p>
                 </div>
                 <div className="w-full sm:w-[220px]">
                   <Select
@@ -1705,8 +1695,7 @@ export default function YearReviewPage() {
 
           <TabsContent value="records" className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              Рекорды ниже показаны за одну отдельную игру. В каждой категории у игрока берётся только лучший матч, поэтому
-              один игрок не занимает несколько позиций в одном топе.
+              Рекорды ниже показаны за одну отдельную игру. В каждой категории у игрока берётся только лучший матч.
             </p>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               <BestMatches
@@ -1836,11 +1825,6 @@ export default function YearReviewPage() {
           {/* Squads Tab */}
           <TabsContent value="group" className="space-y-4">
             <SquadOverview games={pastGames} />
-          </TabsContent>
-
-          {/* Squad Builder Tab */}
-          <TabsContent value="squad-builder" className="space-y-4">
-            <SquadBuilder players={activePlayers} playerStats={data.player_event_stats} roles={data.dictionaries?.roles ?? []} />
           </TabsContent>
         </Tabs>
       </main>

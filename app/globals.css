@@ -137,6 +137,18 @@
   }
 }
 
+@layer components {
+  .date-input-contrast {
+    color-scheme: dark;
+  }
+
+  .date-input-contrast::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: invert(0.94) sepia(0.12) saturate(1.1) brightness(1.02);
+    opacity: 0.9;
+  }
+}
+
 /* Snowfall animation */
 @keyframes snowfall {
   0% {

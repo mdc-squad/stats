@@ -32,14 +32,14 @@ export function SeasonalHeader({ playersCount, theme }: SeasonalHeaderProps) {
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
             <div className="relative shrink-0">
-              <div className="overflow-hidden rounded-full border border-christmas-gold/30 bg-background/70 p-1.5 shadow-lg shadow-black/20">
+              <div className="h-20 w-20 overflow-hidden rounded-full bg-background/45 shadow-xl shadow-black/25 md:h-24 md:w-24">
                 <img
                   src={withBasePath("/mdc-clan-emblem.png")}
                   alt="Эмблема клана MDC"
-                  className="h-16 w-16 rounded-full object-cover md:h-20 md:w-20"
+                  className="h-full w-full rounded-full object-cover"
                 />
               </div>
-              <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-christmas-gold/30 bg-background/90 md:h-8 md:w-8">
+              <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-christmas-gold/25 bg-background/90 shadow-lg shadow-black/20 md:h-8 md:w-8">
                 <ThemeIcon className="h-4 w-4 text-christmas-green" />
               </div>
             </div>
