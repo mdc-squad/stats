@@ -108,11 +108,11 @@ export function OverallStatsPanel({ stats, periodLabel = "за всё время
         <p className="text-xs text-muted-foreground">{periodLabel}</p>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-9">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-9">
           {statItems.map((item) => (
             <div
               key={item.label}
-              className="flex min-h-[116px] flex-col items-center justify-center rounded-xl border border-border/50 bg-background/45 px-3 py-4 text-center xl:min-h-[104px] xl:px-2.5 xl:py-3"
+              className="flex min-h-[116px] flex-col items-center justify-center rounded-xl border border-border/50 bg-background/45 px-3 py-4 text-center lg:min-h-[104px] lg:px-2.5 lg:py-3"
             >
               <div className={`${item.color} mb-2 flex justify-center opacity-80`}>{item.icon}</div>
               <p className="text-2xl font-bold leading-none text-christmas-snow">{item.value}</p>

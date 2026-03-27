@@ -716,14 +716,17 @@ export default function YearReviewPage() {
       return selectedPeriodOption.summary
     }
 
+    const formattedFrom = customDateFrom ? formatDateFilterLabel(customDateFrom) : ""
+    const formattedTo = customDateTo ? formatDateFilterLabel(customDateTo) : ""
+
     if (customDateFrom && customDateTo) {
-      return `Срез: ${customDateFrom} - ${customDateTo}`
+      return `Срез: ${formattedFrom} - ${formattedTo}`
     }
     if (customDateFrom) {
-      return `Срез: с ${customDateFrom}`
+      return `Срез: с ${formattedFrom}`
     }
     if (customDateTo) {
-      return `Срез: до ${customDateTo}`
+      return `Срез: до ${formattedTo}`
     }
 
     return selectedPeriodOption.summary
