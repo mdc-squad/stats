@@ -5,9 +5,9 @@ import { PlayerAvatar } from "@/components/player-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { getMetricIcon } from "@/lib/app-icons"
 import type { MatchRecordMetric, PlayerEventStat } from "@/lib/data-utils"
 import { cn } from "@/lib/utils"
-import { Star } from "lucide-react"
 
 interface BestMatch extends PlayerEventStat {
   eventType: string
@@ -94,6 +94,7 @@ export function BestMatches({
   metric = "kd",
 }: BestMatchesProps) {
   const [showAll, setShowAll] = useState(false)
+  const TitleIcon = getMetricIcon(metric)
 
   const playerSteamIds = useMemo(() => new Map(players.map((player) => [player.player_id, player.steam_id])), [players])
   const sortedMatches = useMemo(
@@ -113,7 +114,7 @@ export function BestMatches({
         <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-christmas-gold">
-              <Star className="w-4 h-4" />
+              <TitleIcon className="w-4 h-4" />
               <span className="truncate">{title}</span>
             </CardTitle>
             <p className="mt-1 text-[10px] text-muted-foreground">

@@ -5,8 +5,9 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { getMetricIcon } from "@/lib/app-icons"
 import type { PastGamePlayerStat, PastGameSummary } from "@/lib/data-utils"
-import { Activity, Crosshair, Heart, Shield, Skull, TrendingUp, Zap } from "lucide-react"
+import { Activity, Crosshair, Shield, Skull, TrendingUp, Zap } from "lucide-react"
 
 type AnalyticsMetric =
   | "winRate"
@@ -614,7 +615,10 @@ export function EventsAnalyticsPanel({ games, pinnedPlayerIds }: EventsAnalytics
           </div>
           <div className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-3">
             <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <Heart className="w-3.5 h-3.5 text-orange-300" />
+              {(() => {
+                const Icon = getMetricIcon("revives")
+                return <Icon className="w-3.5 h-3.5 text-orange-300" />
+              })()}
               Ср. поднятия
             </p>
             <p className="mt-2 text-2xl font-semibold text-christmas-snow">{analytics.summary.avgRevives.toFixed(1)}</p>

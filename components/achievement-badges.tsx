@@ -1,10 +1,9 @@
 "use client"
 
-import type { LucideIcon } from "lucide-react"
-import { Award, Calendar, Car, ChevronsUp, Crosshair, Crown, Heart, Star, Syringe, Target, TrendingUp, Trophy, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAchievementDescription } from "@/lib/achievement-utils"
+import { getAchievementIcon } from "@/lib/app-icons"
 import { cn } from "@/lib/utils"
 
 interface AchievementBadgesProps {
@@ -17,23 +16,6 @@ interface AchievementBadgesProps {
   summaryLabel?: string
   panelClassName?: string
   display?: "badges" | "icons"
-}
-
-const ACHIEVEMENT_ICONS: Record<string, LucideIcon> = {
-  "Убийца": Crosshair,
-  "Высокий K/D": Target,
-  "Доминатор": TrendingUp,
-  "Победитель": Trophy,
-  "Оплот клана": Calendar,
-  "Спасатель": Heart,
-  "Штурмовик": Zap,
-  "Гроза техники": Car,
-  "Истребитель брони": Car,
-  "Ангел-хранитель": Syringe,
-  "Сквад-лидер": ChevronsUp,
-  "MVP": Award,
-  "В тонусе": Star,
-  "Эталон": Crown,
 }
 
 export function AchievementBadges({
@@ -72,7 +54,7 @@ export function AchievementBadges({
             >
               {display === "icons" ? (
                 (() => {
-                  const Icon = ACHIEVEMENT_ICONS[achievement] ?? Star
+                  const Icon = getAchievementIcon(achievement)
                   return <Icon className="h-3.5 w-3.5" />
                 })()
               ) : (

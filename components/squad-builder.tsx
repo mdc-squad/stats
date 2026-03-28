@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { PlayerAvatar } from "@/components/player-avatar"
 import { RoleIcon } from "@/components/role-icon"
+import { getMetricIcon } from "@/lib/app-icons"
 import { type Player, type PlayerEventStat } from "@/lib/data-utils"
 import {
   Users,
@@ -20,7 +21,6 @@ import {
   Plus,
   Minus,
   Shield,
-  Heart,
   Car,
   ChevronDown,
   ChevronUp,
@@ -1413,7 +1413,10 @@ export function SquadBuilder({ players, playerStats, roles = [] }: SquadBuilderP
                             <span>Общий опыт: {slot.player.totals.events} событий</span>
                             {normalizeRoleKey(slot.role) === normalizeRoleKey("Медик") && (
                               <span className="text-pink-400">
-                                <Heart className="w-3 h-3 inline mr-1" />
+                                {(() => {
+                                  const Icon = getMetricIcon("revives")
+                                  return <Icon className="w-3 h-3 inline mr-1" />
+                                })()}
                                 {slotRoleStats?.revives ?? slot.player.totals.revives}
                               </span>
                             )}

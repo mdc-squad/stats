@@ -62,22 +62,13 @@ import {
   getTopMatchRecords,
   type RoleLeaderboardMetric,
 } from "@/lib/data-utils"
+import { getMetricIcon } from "@/lib/app-icons"
 import { fetchAllData, type SyncProgressUpdate } from "@/lib/api"
 import { getSeasonalTheme, type SeasonalTheme } from "@/lib/seasonal-theme"
 import {
-  Award,
-  Trophy,
-  Crosshair,
-  Crown,
-  Target,
   Calendar,
-  Cross,
-  Heart,
-  Zap,
-  Star,
   Sparkles,
-  Car,
-  TrendingUp,
+  Star,
   RotateCcw,
 } from "lucide-react"
 
@@ -1233,6 +1224,28 @@ export default function YearReviewPage() {
     return <RoleIcon role={role} />
   }
 
+  const renderMetricIcon = (
+    metric:
+      | "kd"
+      | "kda"
+      | "elo"
+      | "tbf"
+      | "rating"
+      | "kills"
+      | "win_rate"
+      | "events"
+      | "revives"
+      | "heals"
+      | "downs"
+      | "vehicle"
+      | "avgVehicle"
+      | "avgHeals"
+      | "avgRevives",
+  ) => {
+    const Icon = getMetricIcon(metric)
+    return <Icon className="w-4 h-4" />
+  }
+
   const handleOpenGame = useCallback((eventId: string, playerId: string) => {
     startTransition(() => {
       setActiveTab("games")
@@ -1565,7 +1578,7 @@ export default function YearReviewPage() {
                 stat="kd"
                 formatValue={(v) => v.toFixed(2)}
                 playerAchievements={playerAchievements}
-                icon={<Target className="w-4 h-4" />}
+                icon={renderMetricIcon("kd")}
                 variant="christmas"
               />
               <Leaderboard
@@ -1574,7 +1587,7 @@ export default function YearReviewPage() {
                 stat="kda"
                 formatValue={(v) => v.toFixed(2)}
                 playerAchievements={playerAchievements}
-                icon={<TrendingUp className="w-4 h-4" />}
+                icon={renderMetricIcon("kda")}
                 variant="christmas"
               />
               <Leaderboard
@@ -1583,7 +1596,7 @@ export default function YearReviewPage() {
                 stat="elo"
                 formatValue={(v) => v.toFixed(1)}
                 playerAchievements={playerAchievements}
-                icon={<Award className="w-4 h-4" />}
+                icon={renderMetricIcon("elo")}
                 variant="christmas"
               />
               <Leaderboard
@@ -1592,7 +1605,7 @@ export default function YearReviewPage() {
                 stat="tbf"
                 formatValue={(v) => v.toFixed(1)}
                 playerAchievements={playerAchievements}
-                icon={<Star className="w-4 h-4" />}
+                icon={renderMetricIcon("tbf")}
                 variant="christmas"
               />
               <Leaderboard
@@ -1601,7 +1614,7 @@ export default function YearReviewPage() {
                 stat="rating"
                 formatValue={(v) => v.toFixed(1)}
                 playerAchievements={playerAchievements}
-                icon={<Crown className="w-4 h-4" />}
+                icon={renderMetricIcon("rating")}
                 variant="christmas"
               />
               <Leaderboard
@@ -1609,7 +1622,7 @@ export default function YearReviewPage() {
                 players={leaderboardKills}
                 stat="kills"
                 playerAchievements={playerAchievements}
-                icon={<Crosshair className="w-4 h-4" />}
+                icon={renderMetricIcon("kills")}
                 variant="christmas"
               />
               <Leaderboard
@@ -1618,7 +1631,7 @@ export default function YearReviewPage() {
                 stat="win_rate"
                 formatValue={(v) => `${(v * 100).toFixed(0)}%`}
                 playerAchievements={playerAchievements}
-                icon={<Trophy className="w-4 h-4" />}
+                icon={renderMetricIcon("win_rate")}
                 variant="christmas"
               />
               <Leaderboard
@@ -1627,7 +1640,7 @@ export default function YearReviewPage() {
                 stat="events"
                 formatValue={(v) => `${v} боевых событий`}
                 playerAchievements={playerAchievements}
-                icon={<Calendar className="w-4 h-4" />}
+                icon={renderMetricIcon("events")}
                 variant="christmas"
               />
               <Leaderboard
@@ -1635,7 +1648,7 @@ export default function YearReviewPage() {
                 players={leaderboardRevives}
                 stat="revives"
                 playerAchievements={playerAchievements}
-                icon={<Cross className="w-4 h-4" />}
+                icon={renderMetricIcon("revives")}
                 variant="christmas"
               />
               <Leaderboard
@@ -1643,7 +1656,7 @@ export default function YearReviewPage() {
                 players={leaderboardHeals}
                 stat="heals"
                 playerAchievements={playerAchievements}
-                icon={<Heart className="w-4 h-4" />}
+                icon={renderMetricIcon("heals")}
                 variant="christmas"
               />
               <Leaderboard
@@ -1651,7 +1664,7 @@ export default function YearReviewPage() {
                 players={leaderboardDowns}
                 stat="downs"
                 playerAchievements={playerAchievements}
-                icon={<Zap className="w-4 h-4" />}
+                icon={renderMetricIcon("downs")}
                 variant="christmas"
               />
               <Leaderboard
@@ -1659,7 +1672,7 @@ export default function YearReviewPage() {
                 players={leaderboardVehicle}
                 stat="vehicle"
                 playerAchievements={playerAchievements}
-                icon={<Car className="w-4 h-4" />}
+                icon={renderMetricIcon("vehicle")}
                 variant="christmas"
               />
               <AvgStatLeaderboard
@@ -1669,7 +1682,7 @@ export default function YearReviewPage() {
                 totalStat="vehicle"
                 formatValue={(v) => v.toFixed(2)}
                 playerAchievements={playerAchievements}
-                icon={<Car className="w-4 h-4" />}
+                icon={renderMetricIcon("avgVehicle")}
                 variant="christmas"
               />
               <AvgStatLeaderboard
@@ -1679,7 +1692,7 @@ export default function YearReviewPage() {
                 totalStat="heals"
                 formatValue={(v) => v.toFixed(2)}
                 playerAchievements={playerAchievements}
-                icon={<Heart className="w-4 h-4" />}
+                icon={renderMetricIcon("avgHeals")}
                 variant="christmas"
               />
               <AvgStatLeaderboard
@@ -1689,7 +1702,7 @@ export default function YearReviewPage() {
                 totalStat="revives"
                 formatValue={(v) => v.toFixed(2)}
                 playerAchievements={playerAchievements}
-                icon={<Cross className="w-4 h-4" />}
+                icon={renderMetricIcon("avgRevives")}
                 variant="christmas"
               />
             </div>

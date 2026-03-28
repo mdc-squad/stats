@@ -16,9 +16,10 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { HealIcon } from "@/lib/app-icons"
 import type { PastGameSummary, Player } from "@/lib/data-utils"
 import { getSquadToneClasses } from "@/lib/squad-utils"
-import { Calendar, CircleHelp, Crosshair, Filter, Heart, Search, Shield, Trophy, Users } from "lucide-react"
+import { Calendar, CircleHelp, Crosshair, Filter, Search, Shield, Trophy, Users } from "lucide-react"
 
 interface EventsExplorerProps {
   games: PastGameSummary[]
@@ -692,7 +693,7 @@ export function EventsExplorer({
                             </div>
                             <div className="rounded-lg border border-border/50 bg-background/35 p-2.5">
                               <p className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-                                <Heart className="w-3.5 h-3.5" />
+                                <HealIcon className="w-3.5 h-3.5" />
                                 Хил
                               </p>
                               <p className="mt-2 text-sm font-medium text-christmas-snow">{game.totalHeals}</p>

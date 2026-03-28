@@ -2,7 +2,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Calendar, CircleHelp, Crosshair, Skull, Target, Zap, Car, TrendingUp, Cross, Heart } from "lucide-react"
+import { getMetricIcon } from "@/lib/app-icons"
+import { CircleHelp, TrendingUp } from "lucide-react"
 
 interface OverallStatsPanelProps {
   stats: {
@@ -26,55 +27,55 @@ export function OverallStatsPanel({ stats, periodLabel = "за всё время
     {
       label: "Всего событий",
       value: stats.totalEvents,
-      icon: <Calendar className="w-4 h-4" />,
+      icon: getMetricIcon("events"),
       color: "text-christmas-gold",
     },
     {
       label: "Хила",
       value: stats.totalHeals.toLocaleString(),
-      icon: <Cross className="w-4 h-4" />,
+      icon: getMetricIcon("heals"),
       color: "text-rose-300",
     },
     {
       label: "Поднятий",
       value: stats.totalRevives.toLocaleString(),
-      icon: <Heart className="w-4 h-4" />,
+      icon: getMetricIcon("revives"),
       color: "text-sky-300",
     },
     {
       label: "Ноков",
       value: stats.totalDowns.toLocaleString(),
-      icon: <Zap className="w-4 h-4" />,
+      icon: getMetricIcon("downs"),
       color: "text-orange-400",
     },
     {
       label: "Убийств",
       value: stats.totalKills.toLocaleString(),
-      icon: <Crosshair className="w-4 h-4" />,
+      icon: getMetricIcon("kills"),
       color: "text-christmas-green",
     },
     {
       label: "Смертей",
       value: stats.totalDeaths.toLocaleString(),
-      icon: <Skull className="w-4 h-4" />,
+      icon: getMetricIcon("deaths"),
       color: "text-christmas-red",
     },
     {
       label: "Техника",
       value: stats.totalVehicle.toLocaleString(),
-      icon: <Car className="w-4 h-4" />,
+      icon: getMetricIcon("vehicle"),
       color: "text-blue-400",
     },
     {
       label: "K/D",
       value: stats.averageKD.toFixed(2),
-      icon: <Target className="w-4 h-4" />,
+      icon: getMetricIcon("kd"),
       color: "text-christmas-gold",
     },
     {
       label: "KDA",
       value: stats.averageKDA.toFixed(2),
-      icon: <TrendingUp className="w-4 h-4" />,
+      icon: getMetricIcon("kda"),
       color: "text-purple-400",
     },
   ]
@@ -110,14 +111,21 @@ export function OverallStatsPanel({ stats, periodLabel = "за всё время
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-9">
           {statItems.map((item) => (
+            (() => {
+              const Icon = item.icon
+              return (
             <div
               key={item.label}
               className="flex min-h-[116px] flex-col items-center justify-center rounded-xl border border-border/50 bg-background/45 px-3 py-4 text-center lg:min-h-[104px] lg:px-2.5 lg:py-3"
             >
-              <div className={`${item.color} mb-2 flex justify-center opacity-80`}>{item.icon}</div>
+              <div className={`${item.color} mb-2 flex justify-center opacity-80`}>
+                <Icon className="w-4 h-4" />
+              </div>
               <p className="text-2xl font-bold leading-none text-christmas-snow">{item.value}</p>
               <p className="mt-1 text-[9px] uppercase tracking-[0.18em] text-muted-foreground">{item.label}</p>
             </div>
+              )
+            })()
           ))}
         </div>
       </CardContent>

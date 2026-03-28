@@ -13,9 +13,10 @@ import {
   type PlayerEventStat,
   type PlayerGameHistoryEntry,
 } from "@/lib/data-utils"
+import { getMetricIcon } from "@/lib/app-icons"
 import { getSquadToneClasses, SQUAD_MEMBERSHIP_MIN_GAMES } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
-import { Download, Trophy, Skull, Target, Heart, Crosshair, Sparkles, Car, Zap } from "lucide-react"
+import { Download, Sparkles, Target } from "lucide-react"
 import { toPng } from "html-to-image"
 
 interface PlayerCardProps {
@@ -138,31 +139,31 @@ export function PlayerCard({
     {
       label: "Убийств",
       value: player.totals.kills,
-      icon: Crosshair,
+      icon: getMetricIcon("kills"),
       accentClass: "bg-christmas-green/10 border-christmas-green/20 text-christmas-green",
     },
     {
       label: "Ноков",
       value: player.totals.downs,
-      icon: Zap,
+      icon: getMetricIcon("downs"),
       accentClass: "bg-orange-500/10 border-orange-500/20 text-orange-400",
     },
     {
       label: "Смертей",
       value: player.totals.deaths,
-      icon: Skull,
+      icon: getMetricIcon("deaths"),
       accentClass: "bg-christmas-red/10 border-christmas-red/20 text-christmas-red",
     },
     {
       label: "Техника",
       value: player.totals.vehicle,
-      icon: Car,
+      icon: getMetricIcon("vehicle"),
       accentClass: "bg-blue-500/10 border-blue-500/20 text-blue-400",
     },
     {
       label: "Побед",
       value: `${(player.totals.win_rate * 100).toFixed(0)}%`,
-      icon: Trophy,
+      icon: getMetricIcon("win_rate"),
       accentClass: "bg-christmas-gold/10 border-christmas-gold/20 text-christmas-gold",
     },
   ] as const
@@ -171,12 +172,12 @@ export function PlayerCard({
     {
       label: "Событий",
       value: `${player.totals.events}`,
-      icon: Target,
+      icon: getMetricIcon("events"),
     },
     {
       label: "Подъёмов",
       value: `${player.totals.revives}`,
-      icon: Heart,
+      icon: getMetricIcon("revives"),
     },
     {
       label: "Любимая карта",
@@ -357,11 +358,17 @@ export function PlayerCard({
 
               <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
                 <span>
-                  <Target className="mr-1 inline h-3 w-3" />
+                  {(() => {
+                    const EventsIcon = getMetricIcon("events")
+                    return <EventsIcon className="mr-1 inline h-3 w-3" />
+                  })()}
                   {player.totals.events} событий
                 </span>
                 <span>
-                  <Heart className="mr-1 inline h-3 w-3" />
+                  {(() => {
+                    const RevivesIcon = getMetricIcon("revives")
+                    return <RevivesIcon className="mr-1 inline h-3 w-3" />
+                  })()}
                   {player.totals.revives} подъёмов
                 </span>
                 <span>Карта: {player.favorites.map || "Не указана"}</span>

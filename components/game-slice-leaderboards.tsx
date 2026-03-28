@@ -5,8 +5,9 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { PlayerAvatar } from "@/components/player-avatar"
+import { getMetricIcon } from "@/lib/app-icons"
 import type { PastGameSummary } from "@/lib/data-utils"
-import { CircleHelp, Crosshair, Heart, Map as MapIcon, Shield, Skull, Trophy } from "lucide-react"
+import { CircleHelp, Crosshair, Map as MapIcon, Shield, Skull, Trophy } from "lucide-react"
 
 interface GameSliceLeaderboardsProps {
   games: PastGameSummary[]
@@ -125,6 +126,8 @@ function SliceLeaderboardCard({
 }
 
 export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeaderboardsProps) {
+  const RevivesIcon = getMetricIcon("revives")
+
   const leaderboards = useMemo(() => {
     const pinnedSet = new Set(pinnedPlayerIds)
     const usePinnedOnly = pinnedPlayerIds.length > 0
@@ -578,7 +581,7 @@ export function GameSliceLeaderboards({ games, pinnedPlayerIds }: GameSliceLeade
           tooltip="Главная метрика — среднее число поднятий конкретного игрока за матч против данного клана. Ниже — средний ELO, чтобы видеть, не сводится ли вклад только к ревайвам. Борд помогает понять, кто лучше всего удерживает строй команды в тяжёлых разменах."
           items={leaderboards.medicOpponents}
           emptyText="Нет устойчивых срезов по поднятиям в текущем срезе."
-          icon={Heart}
+          icon={RevivesIcon}
         />
         <SliceLeaderboardCard
           title="Лучшие Убийцы По Кланам"
