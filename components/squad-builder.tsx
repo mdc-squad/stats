@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { PlayerAvatar } from "@/components/player-avatar"
+import { RoleIcon } from "@/components/role-icon"
 import { type Player, type PlayerEventStat } from "@/lib/data-utils"
 import {
   Users,
@@ -19,12 +20,8 @@ import {
   Plus,
   Minus,
   Shield,
-  Crosshair,
   Heart,
   Car,
-  Target,
-  Syringe,
-  Zap,
   ChevronDown,
   ChevronUp,
 } from "lucide-react"
@@ -57,31 +54,6 @@ type RoleStatSummary = {
   killsPerGame: number
   revivesPerGame: number
   vehiclePerGame: number
-}
-
-const ROLE_ICONS: Record<string, React.ReactNode> = {
-  SL: <Shield className="w-4 h-4" />,
-  Медик: <Syringe className="w-4 h-4" />,
-  ГП: <Zap className="w-4 h-4" />,
-  Стрелок: <Crosshair className="w-4 h-4" />,
-  LAT: <Target className="w-4 h-4" />,
-  HAT: <Target className="w-4 h-4" />,
-  Тандем: <Target className="w-4 h-4" />,
-  Пулемётчик: <Crosshair className="w-4 h-4" />,
-  "Л. пулемёт": <Crosshair className="w-4 h-4" />,
-  "Т. пулемёт": <Crosshair className="w-4 h-4" />,
-  Снайпер: <Target className="w-4 h-4" />,
-  Марксмен: <Target className="w-4 h-4" />,
-  Разведчик: <Target className="w-4 h-4" />,
-  Рейдер: <Target className="w-4 h-4" />,
-  Сапёр: <Shield className="w-4 h-4" />,
-  Инженер: <Shield className="w-4 h-4" />,
-  "SL Крюмен": <Shield className="w-4 h-4" />,
-  Крюмен: <Car className="w-4 h-4" />,
-  "SL Пилот": <Shield className="w-4 h-4" />,
-  Пилот: <Car className="w-4 h-4" />,
-  "Без кита": <Users className="w-4 h-4" />,
-  Гранатомётчик: <Target className="w-4 h-4" />,
 }
 
 const METADATA_STOPWORDS = [
@@ -1199,7 +1171,7 @@ export function SquadBuilder({ players, playerStats, roles = [] }: SquadBuilderP
                 {requiredRoles.map((role, index) => (
                   <div key={`${role}-${index}`} className="flex items-center">
                     <Badge variant="secondary" className="rounded-r-none border-r-0 flex items-center gap-1">
-                      {ROLE_ICONS[role] ?? <Users className="w-4 h-4" />}
+                      <RoleIcon role={role} />
                       {role}
                     </Badge>
                     <Button
@@ -1223,7 +1195,7 @@ export function SquadBuilder({ players, playerStats, roles = [] }: SquadBuilderP
                     {roleOptions.map((role) => (
                       <SelectItem key={role} value={role}>
                         <span className="flex items-center gap-2">
-                          {ROLE_ICONS[role] ?? <Users className="w-4 h-4" />}
+                          <RoleIcon role={role} />
                           {role}
                         </span>
                       </SelectItem>
@@ -1414,7 +1386,7 @@ export function SquadBuilder({ players, playerStats, roles = [] }: SquadBuilderP
                     <Select value={slot.role} onValueChange={(value) => changeRole(index, value)}>
                       <SelectTrigger className="w-[140px] bg-secondary/50 border-christmas-gold/20">
                         <span className="flex items-center gap-2">
-                          {ROLE_ICONS[slot.role] ?? <Users className="w-4 h-4" />}
+                          <RoleIcon role={slot.role} />
                           <span className="text-xs">{slot.role}</span>
                         </span>
                       </SelectTrigger>
@@ -1422,7 +1394,7 @@ export function SquadBuilder({ players, playerStats, roles = [] }: SquadBuilderP
                         {roleOptions.map((role) => (
                           <SelectItem key={role} value={role}>
                             <span className="flex items-center gap-2">
-                              {ROLE_ICONS[role] ?? <Users className="w-4 h-4" />}
+                              <RoleIcon role={role} />
                               {role}
                             </span>
                           </SelectItem>

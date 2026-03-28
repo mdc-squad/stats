@@ -1,7 +1,7 @@
 "use client"
 
 import type { LucideIcon } from "lucide-react"
-import { Award, Calendar, Car, Crosshair, Crown, Heart, Shield, Star, Syringe, Target, TrendingUp, Trophy, Zap } from "lucide-react"
+import { Award, Calendar, Car, ChevronsUp, Crosshair, Crown, Heart, Star, Syringe, Target, TrendingUp, Trophy, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAchievementDescription } from "@/lib/achievement-utils"
@@ -30,7 +30,7 @@ const ACHIEVEMENT_ICONS: Record<string, LucideIcon> = {
   "Гроза техники": Car,
   "Истребитель брони": Car,
   "Ангел-хранитель": Syringe,
-  "Сквад-лидер": Shield,
+  "Сквад-лидер": ChevronsUp,
   "MVP": Award,
   "В тонусе": Star,
   "Эталон": Crown,

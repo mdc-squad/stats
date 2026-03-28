@@ -24,6 +24,7 @@ import { RoleLeaderboard } from "@/components/charts/role-leaderboard"
 import { BestMatches } from "@/components/charts/best-matches"
 import { PlayerCard } from "@/components/player-card"
 import { PlayerSelector } from "@/components/player-selector"
+import { RoleIcon } from "@/components/role-icon"
 import { SquadOverview } from "@/components/squad-overview"
 import { Snowfall } from "@/components/snowfall"
 import { SeasonalHeader } from "@/components/seasonal-header"
@@ -69,14 +70,12 @@ import {
   Crosshair,
   Crown,
   Target,
-  Users,
   Calendar,
-  Shield,
+  Cross,
   Heart,
   Zap,
   Star,
   Sparkles,
-  Syringe,
   Car,
   TrendingUp,
   RotateCcw,
@@ -176,7 +175,7 @@ const ROLE_METRIC_OPTIONS: Array<{ value: RoleLeaderboardMetric; label: string }
   { value: "kd", label: "K/D" },
   { value: "kda", label: "KDA" },
   { value: "elo", label: "ELO" },
-  { value: "tbf", label: "ТБФ (30д)" },
+  { value: "tbf", label: "ТБФ" },
   { value: "kills", label: "Убийства" },
   { value: "deaths", label: "Смерти" },
   { value: "downs", label: "Ноки" },
@@ -1231,31 +1230,7 @@ export default function YearReviewPage() {
   }, [data])
 
   const getRoleIcon = (role: string) => {
-    const icons: Record<string, React.ReactNode> = {
-      SL: <Shield className="w-4 h-4" />,
-      Медик: <Syringe className="w-4 h-4" />,
-      ГП: <Zap className="w-4 h-4" />,
-      Стрелок: <Crosshair className="w-4 h-4" />,
-      LAT: <Target className="w-4 h-4" />,
-      HAT: <Target className="w-4 h-4" />,
-      Тандем: <Target className="w-4 h-4" />,
-      Гранатомётчик: <Target className="w-4 h-4" />,
-      Пулемётчик: <Crosshair className="w-4 h-4" />,
-      "Л. пулемёт": <Crosshair className="w-4 h-4" />,
-      "Т. пулемёт": <Crosshair className="w-4 h-4" />,
-      Снайпер: <Target className="w-4 h-4" />,
-      Марксмен: <Target className="w-4 h-4" />,
-      Разведчик: <Target className="w-4 h-4" />,
-      Рейдер: <Target className="w-4 h-4" />,
-      Сапёр: <Shield className="w-4 h-4" />,
-      Инженер: <Shield className="w-4 h-4" />,
-      "SL Крюмен": <Shield className="w-4 h-4" />,
-      Крюмен: <Car className="w-4 h-4" />,
-      "SL Пилот": <Shield className="w-4 h-4" />,
-      Пилот: <Car className="w-4 h-4" />,
-      "Без кита": <Users className="w-4 h-4" />,
-    }
-    return icons[role] || <Users className="w-4 h-4" />
+    return <RoleIcon role={role} />
   }
 
   const handleOpenGame = useCallback((eventId: string, playerId: string) => {
@@ -1660,7 +1635,7 @@ export default function YearReviewPage() {
                 players={leaderboardRevives}
                 stat="revives"
                 playerAchievements={playerAchievements}
-                icon={<Heart className="w-4 h-4" />}
+                icon={<Cross className="w-4 h-4" />}
                 variant="christmas"
               />
               <Leaderboard
@@ -1668,7 +1643,7 @@ export default function YearReviewPage() {
                 players={leaderboardHeals}
                 stat="heals"
                 playerAchievements={playerAchievements}
-                icon={<Syringe className="w-4 h-4" />}
+                icon={<Heart className="w-4 h-4" />}
                 variant="christmas"
               />
               <Leaderboard
@@ -1714,7 +1689,7 @@ export default function YearReviewPage() {
                 totalStat="revives"
                 formatValue={(v) => v.toFixed(2)}
                 playerAchievements={playerAchievements}
-                icon={<Syringe className="w-4 h-4" />}
+                icon={<Cross className="w-4 h-4" />}
                 variant="christmas"
               />
             </div>
