@@ -197,43 +197,28 @@ export function SeasonalHeader({ playersCount, theme }: SeasonalHeaderProps) {
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-christmas-red via-christmas-green to-christmas-gold" />
 
       <div className="container mx-auto px-4 py-5">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-4 min-w-0">
-              <div className="relative shrink-0">
-                <div className="h-20 w-20 overflow-hidden rounded-full bg-background/45 shadow-xl shadow-black/25 md:h-24 md:w-24">
-                  <img
-                    src={withBasePath("/mdc-clan-emblem.png")}
-                    alt="Эмблема клана MDC"
-                    className="h-full w-full rounded-full object-cover"
-                  />
-                </div>
-                <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-christmas-gold/25 bg-background/90 shadow-lg shadow-black/20 md:h-8 md:w-8">
-                  <ThemeIcon className="h-4 w-4 text-christmas-green" />
-                </div>
+        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="relative shrink-0">
+              <div className="h-20 w-20 overflow-hidden rounded-full bg-background/45 shadow-xl shadow-black/25 md:h-24 md:w-24">
+                <img
+                  src={withBasePath("/mdc-clan-emblem.png")}
+                  alt="Эмблема клана MDC"
+                  className="h-full w-full rounded-full object-cover"
+                />
               </div>
-
-              <div className="min-w-0">
-                <h1 className="text-2xl font-bold leading-tight text-christmas-snow md:text-3xl">Mors De Caelo</h1>
-                <p className="mt-1 text-sm font-medium text-christmas-gold md:text-base">{theme.subtitle}</p>
+              <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-christmas-gold/25 bg-background/90 shadow-lg shadow-black/20 md:h-8 md:w-8">
+                <ThemeIcon className="h-4 w-4 text-christmas-green" />
               </div>
             </div>
 
-            <div className="flex flex-wrap items-stretch gap-2 lg:justify-end">
-              <HeaderStat icon={Users} label="Игроков" value={playersCount.toString()} />
-              <HeaderStat icon={CalendarDays} label="Основан" value={CLAN_FOUNDATION_LABEL} />
-              <HeaderStat icon={Sparkles} label="Возраст" value={clanAgeLabel} />
-
-              {timeline?.celebrationLabel ? (
-                <div className="inline-flex items-center gap-2 rounded-2xl border border-christmas-red/20 bg-christmas-red/10 px-3 py-2 text-xs font-medium text-christmas-snow shadow-lg shadow-black/10">
-                  <Sparkles className="h-3.5 w-3.5 text-christmas-gold" />
-                  <span>{timeline.celebrationLabel}</span>
-                </div>
-              ) : null}
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold leading-tight text-christmas-snow md:text-3xl">Mors De Caelo</h1>
+              <p className="mt-1 text-sm font-medium text-christmas-gold md:text-base">{theme.subtitle}</p>
             </div>
           </div>
 
-          <div className="flex flex-col items-center gap-1 text-center">
+          <div className="flex min-w-0 flex-col items-center gap-1 text-center lg:px-2">
             <button
               type="button"
               onClick={() => void toggleAnthem()}
@@ -256,6 +241,19 @@ export function SeasonalHeader({ playersCount, theme }: SeasonalHeaderProps) {
             <span className="text-[11px] text-muted-foreground">
               {isPlaying ? "Гимн звучит" : "Нажатие включает гимн"}
             </span>
+          </div>
+
+          <div className="flex flex-wrap items-stretch gap-2 lg:justify-end">
+            <HeaderStat icon={Users} label="Игроков" value={playersCount.toString()} />
+            <HeaderStat icon={CalendarDays} label="Основан" value={CLAN_FOUNDATION_LABEL} />
+            <HeaderStat icon={Sparkles} label="Возраст" value={clanAgeLabel} />
+
+            {timeline?.celebrationLabel ? (
+              <div className="inline-flex items-center gap-2 rounded-2xl border border-christmas-red/20 bg-christmas-red/10 px-3 py-2 text-xs font-medium text-christmas-snow shadow-lg shadow-black/10">
+                <Sparkles className="h-3.5 w-3.5 text-christmas-gold" />
+                <span>{timeline.celebrationLabel}</span>
+              </div>
+            ) : null}
           </div>
         </div>
 
