@@ -156,7 +156,7 @@ pnpm start
 pnpm lint
 
 # локально собрать как GitHub Pages
-STATIC_EXPORT=true NEXT_PUBLIC_BASE_PATH=/mdc-player-statictics pnpm build
+STATIC_EXPORT=true NEXT_PUBLIC_BASE_PATH=/stats pnpm build
 ```
 
 ## Docker-файлы

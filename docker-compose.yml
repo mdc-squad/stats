@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: mdc-player-statictics
+    container_name: mdc-stats
     ports:
       - "${APP_PORT:-3001}:3000"
     network_mode: bridge
@@ -17,7 +17,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: deps
-    container_name: mdc-player-statictics-dev
+    container_name: mdc-stats-dev
     working_dir: /app
     command: sh -lc "if [ ! -d node_modules/.pnpm ]; then pnpm install --no-frozen-lockfile; fi && pnpm dev -H 0.0.0.0 -p 3000"
     ports:
