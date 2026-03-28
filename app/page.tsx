@@ -667,9 +667,11 @@ export default function YearReviewPage() {
             ? "var(--christmas-red)"
             : syncProgress?.stage === "done"
             ? "var(--christmas-green)"
-            : "var(--christmas-gold)",
+            : syncProgress?.active || isCacheProbablyStale
+            ? "var(--christmas-gold)"
+            : "var(--christmas-green)",
       }) as ThemeVariableStyle,
-    [syncProgress],
+    [isCacheProbablyStale, syncProgress],
   )
 
   const seasonalVariables = useMemo(
@@ -1870,7 +1872,10 @@ export default function YearReviewPage() {
 
             {selectedPlayersForChart.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
-                <Star className="w-12 h-12 mx-auto mb-4 text-christmas-gold opacity-50" />
+                {(() => {
+                  const EmptyStateIcon = getMetricIcon("tbf")
+                  return <EmptyStateIcon className="w-12 h-12 mx-auto mb-4 text-christmas-gold opacity-50" />
+                })()}
                 <p className="text-christmas-snow">Выберите одного или нескольких игроков для просмотра прогресса</p>
               </div>
             )}
