@@ -1,3 +1,4 @@
+import { readFile, stat } from "node:fs/promises"
 import { expect, test, type Page } from "@playwright/test"
 
 function getPlayersPanel(page: Page) {
@@ -14,6 +15,16 @@ function getRoleMetricSelector(page: Page) {
 
 function getRoleRadarTitle(page: Page) {
   return page.locator('[data-slot="card-title"]').filter({ hasText: "Роли" }).first()
+}
+
+async function readPngSize(path: string): Promise<{ width: number; height: number }> {
+  const buffer = await readFile(path)
+  expect(buffer.subarray(12, 16).toString("ascii")).toBe("IHDR")
+
+  return {
+    width: buffer.readUInt32BE(16),
+    height: buffer.readUInt32BE(20),
+  }
 }
 
 async function openPlayersTab(page: Page) {
@@ -79,4 +90,29 @@ test("players tab applies role metric selector to the card", async ({ page }) =>
   await expect(getRoleMetricSelector(page)).toHaveText("ТБФ")
   await expect(getRoleRadarTitle(page)).toBeVisible()
   await expect(getRoleRadarTitle(page)).toContainText("ТБФ")
+})
+
+test("players tab exports player card as png", async ({ page }) => {
+  await openPlayersTab(page)
+  await selectPlayerWithEnoughGames(page)
+
+  const playerCard = page.locator('[id^="player-card-"]').first()
+  await expect(playerCard).toBeVisible()
+  await playerCard.hover()
+
+  const downloadPromise = page.waitForEvent("download")
+  await page.getByRole("button", { name: "Скачать карточку игрока" }).click()
+  const download = await downloadPromise
+
+  expect(download.suggestedFilename()).toMatch(/-stats\.png$/i)
+
+  const downloadPath = await download.path()
+  expect(downloadPath).not.toBeNull()
+
+  const fileStats = await stat(downloadPath!)
+  expect(fileStats.size).toBeGreaterThan(100_000)
+
+  const { width, height } = await readPngSize(downloadPath!)
+  expect(width).toBeGreaterThan(1000)
+  expect(height).toBeGreaterThan(1500)
 })

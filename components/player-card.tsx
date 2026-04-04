@@ -229,6 +229,33 @@ export function PlayerCard({
     if (!cardRef.current) return
 
     try {
+      if (typeof document !== "undefined" && "fonts" in document) {
+        await document.fonts.ready
+      }
+
+      const images = Array.from(cardRef.current.querySelectorAll("img"))
+      await Promise.all(
+        images.map(
+          (image) =>
+            new Promise<void>((resolve) => {
+              if (image.complete) {
+                resolve()
+                return
+              }
+
+              const done = () => resolve()
+              image.addEventListener("load", done, { once: true })
+              image.addEventListener("error", done, { once: true })
+            }),
+        ),
+      )
+
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve())
+        })
+      })
+
       const dataUrl = await toPng(cardRef.current, {
         quality: 1,
         pixelRatio: 2,
@@ -626,6 +653,8 @@ export function PlayerCard({
         variant="secondary"
         className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100"
         onClick={handleExport}
+        aria-label="Скачать карточку игрока"
+        title="Скачать карточку игрока"
       >
         <Download className="h-4 w-4" />
       </Button>
