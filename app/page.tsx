@@ -19,7 +19,6 @@ import { RoleChart } from "@/components/charts/role-chart"
 import { DailyActivityChart } from "@/components/charts/daily-activity-chart"
 import { WeeklyActivityChart } from "@/components/charts/weekly-activity-chart"
 import { WinrateProgressChart } from "@/components/charts/winrate-progress-chart"
-import { PlayerProgressChart } from "@/components/charts/player-progress-chart"
 import { RoleLeaderboard } from "@/components/charts/role-leaderboard"
 import { BestMatches } from "@/components/charts/best-matches"
 import { PlayerCard } from "@/components/player-card"
@@ -57,7 +56,7 @@ import {
   getTopByAvgVehicle,
   getTopByAvgRevives,
   getTopByAvgHeals,
-  getMaxKDByRole,
+  getMaxRoleMetricByRole,
   getAverageValues,
   getTopMatchRecords,
   type RoleLeaderboardMetric,
@@ -178,6 +177,7 @@ const ROLE_METRIC_OPTIONS: Array<{ value: RoleLeaderboardMetric; label: string }
 ]
 
 const MIN_COMPETITIVE_EVENTS_FOR_TOPS = 11
+const MIN_PLAYER_CARD_SAMPLE_SIZE = 10
 const LEADERBOARD_PREVIEW_LIMIT = 10
 const VEHICLE_LEADERBOARD_PREVIEW_LIMIT = 5
 
@@ -881,17 +881,6 @@ export default function YearReviewPage() {
     () => (clanData ? clanData.players.length : eligibleClanPlayers.length),
     [clanData, eligibleClanPlayers.length],
   )
-  const eligibleClanPlayerIds = useMemo(
-    () => new Set(eligibleClanPlayers.map((player) => player.player_id)),
-    [eligibleClanPlayers],
-  )
-  const eligibleClanPlayerStats = useMemo(
-    () =>
-      data
-        ? data.player_event_stats.filter((stat) => eligibleClanPlayerIds.has(stat.player_id))
-        : [],
-    [data, eligibleClanPlayerIds],
-  )
   const competitiveClanPlayers = useMemo(
     () => (competitiveData ? competitiveData.players.filter((player) => player.is_mdc_member) : []),
     [competitiveData],
@@ -990,10 +979,17 @@ export default function YearReviewPage() {
     selectedRoleMetric,
   ])
 
-  const maxRoleKD = useMemo(() => {
+  const roleMetricMaxima = useMemo(() => {
     if (!data) return {}
-    return getMaxKDByRole(eligibleClanPlayerStats)
-  }, [data, eligibleClanPlayerStats])
+    const roleSource = competitiveData ?? data
+    return getMaxRoleMetricByRole(
+      roleSource.player_event_stats,
+      roleSource.players,
+      selectedRoleMetric,
+      roleSource.dictionaries?.roles ?? [],
+      roleSource.events,
+    )
+  }, [competitiveData, data, selectedRoleMetric])
 
   // Basic leaderboards
   const leaderboardKills = useMemo(
@@ -1157,14 +1153,12 @@ export default function YearReviewPage() {
     return entries
   }, [data, selectedPlayersForChart])
 
-  const isSingleProgressSelection = selectedProgressEntries.length === 1
-
   const selectedPlayerHistories = useMemo(() => {
     const selectedIds = Array.from(new Set(selectedPlayersForChart))
     const historyByPlayerId = new Map<string, ReturnType<typeof getPlayerGameHistory>>()
 
     selectedIds.forEach((playerId) => {
-      historyByPlayerId.set(playerId, getPlayerGameHistory(playerId, pastGames, 20))
+      historyByPlayerId.set(playerId, getPlayerGameHistory(playerId, pastGames, Math.max(pastGames.length, 1)))
     })
 
     return historyByPlayerId
@@ -1219,6 +1213,40 @@ export default function YearReviewPage() {
       kd: Math.max(...players.map((p) => p.totals.kd), 1),
       kda: Math.max(...players.map((p) => p.totals.kda), 1),
       win_rate: Math.max(...players.map((p) => p.totals.win_rate), 1),
+    }
+  }, [data])
+
+  const skillMaxima = useMemo(() => {
+    if (!data) {
+      return {
+        kd: 1,
+        kda: 1,
+        avgRevives: 1,
+        avgVehicle: 1,
+      }
+    }
+
+    const qualifiedPlayers = data.players.filter((player) => player.totals.events >= MIN_PLAYER_CARD_SAMPLE_SIZE)
+    if (qualifiedPlayers.length === 0) {
+      return {
+        kd: 1,
+        kda: 1,
+        avgRevives: 1,
+        avgVehicle: 1,
+      }
+    }
+
+    return {
+      kd: Math.max(...qualifiedPlayers.map((player) => player.totals.kd), 1),
+      kda: Math.max(...qualifiedPlayers.map((player) => player.totals.kda), 1),
+      avgRevives: Math.max(
+        ...qualifiedPlayers.map((player) => (player.totals.events > 0 ? player.totals.revives / player.totals.events : 0)),
+        1,
+      ),
+      avgVehicle: Math.max(
+        ...qualifiedPlayers.map((player) => (player.totals.events > 0 ? player.totals.vehicle / player.totals.events : 0)),
+        1,
+      ),
     }
   }, [data])
 
@@ -1832,38 +1860,58 @@ export default function YearReviewPage() {
           <TabsContent value="progress" className="space-y-4">
             <Card className="border-christmas-gold/20">
               <CardHeader>
-                <CardTitle className="text-base text-christmas-snow">Выберите игроков для просмотра прогресса</CardTitle>
+                <CardTitle className="text-base text-christmas-snow">Выберите игроков для просмотра статистики</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
                 <PlayerSelector
                   players={activePlayers}
                   selected={selectedPlayersForChart}
                   onSelectionChange={setSelectedPlayersForChart}
-                  placeholder="Найти игрока..."
+                  placeholder="Найти игрока для статистики..."
                 />
+                <div className="space-y-2">
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Диаграмма ролей</p>
+                  <Select
+                    value={selectedRoleMetric}
+                    onValueChange={(value) => setSelectedRoleMetric(value as RoleLeaderboardMetric)}
+                  >
+                    <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
+                      <SelectValue placeholder="Показатель" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLE_METRIC_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardContent>
             </Card>
 
             {selectedProgressEntries.length > 0 && (
               <div className="space-y-4">
                 {selectedProgressEntries.map(({ player, progress }, index) => (
-                  <div
-                    key={player.player_id}
-                    className={isSingleProgressSelection ? "space-y-4" : "grid grid-cols-1 gap-4 lg:grid-cols-2"}
-                  >
-                    <PlayerProgressChart data={progress} nickname={player.nickname} />
+                  <div key={player.player_id}>
                     <PlayerCard
                       player={player}
                       rank={index + 1}
                       footerLabel={seasonalTheme.summaryLabel}
                       achievements={playerAchievements[player.player_id] ?? []}
-                      maxValues={maxValues}
-                      avgValues={avgValues}
-                      maxRoleKD={maxRoleKD}
-                      playerStats={data.player_event_stats}
+                      playerStats={(competitiveData ?? data).player_event_stats}
                       matchHistory={selectedPlayerHistories.get(player.player_id) ?? []}
+                      progress={progress}
+                      roleMetric={selectedRoleMetric}
+                      roleMetricMaxima={roleMetricMaxima}
+                      roleDomain={(competitiveData ?? data).dictionaries?.roles ?? []}
+                      squadDomain={(competitiveData ?? data).dictionaries?.squads ?? []}
+                      events={(competitiveData ?? data).events}
+                      skillMaxima={skillMaxima}
+                      activityAverage={avgValues.events}
+                      activityMax={maxValues.events}
                       onOpenGame={handleOpenGame}
-                      layout={isSingleProgressSelection ? "expanded" : "compact"}
+                      layout="expanded"
                     />
                   </div>
                 ))}
@@ -1876,20 +1924,20 @@ export default function YearReviewPage() {
                   const EmptyStateIcon = getMetricIcon("tbf")
                   return <EmptyStateIcon className="w-12 h-12 mx-auto mb-4 text-christmas-gold opacity-50" />
                 })()}
-                <p className="text-christmas-snow">Выберите одного или нескольких игроков для просмотра прогресса</p>
+                <p className="text-christmas-snow">Выберите одного или нескольких игроков для просмотра статистики</p>
               </div>
             )}
 
             {selectedPlayersForChart.length > 0 && selectedProgressEntries.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                <p className="text-christmas-snow">Для выбранных игроков пока нет данных прогресса</p>
+                <p className="text-christmas-snow">Для выбранных игроков пока нет данных статистики</p>
               </div>
             )}
           </TabsContent>
 
           {/* Squads Tab */}
           <TabsContent value="group" className="space-y-4">
-            <SquadOverview games={pastGames} />
+            <SquadOverview games={pastGames} players={data.players} squadDomain={data.dictionaries?.squads ?? []} />
           </TabsContent>
         </Tabs>
       </main>

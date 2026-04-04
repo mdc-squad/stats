@@ -95,6 +95,144 @@ function toNullableNumber(value: unknown): number | null {
   return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : null
 }
 
+function normalizePlayerTeams(value: unknown): Array<string | number> {
+  const parsed = parseMaybeJson(value)
+
+  const collect = (input: unknown): Array<string | number> => {
+    if (Array.isArray(input)) {
+      return input.flatMap((entry) => collect(entry))
+    }
+
+    if (typeof input === "number" && Number.isFinite(input)) {
+      return [input]
+    }
+
+    if (typeof input === "string") {
+      const trimmed = input.trim()
+      return trimmed ? [trimmed] : []
+    }
+
+    const record = toRecord(input)
+    if (!record) {
+      return []
+    }
+
+    const directCandidates = [
+      record.label,
+      record.name,
+      record.team,
+      record.team_name,
+      record.teamName,
+      record.color,
+      record.squad,
+      record.squad_name,
+      record.squadName,
+      record.id,
+      record.no,
+    ]
+
+    const directValues = directCandidates.flatMap((candidate) => collect(candidate))
+    if (directValues.length > 0) {
+      return directValues
+    }
+
+    return Object.values(record).flatMap((entry) => collect(entry))
+  }
+
+  return Array.from(
+    new Map(
+      collect(parsed)
+        .map((entry) => (typeof entry === "string" ? entry.trim() : entry))
+        .filter((entry) => (typeof entry === "string" ? entry.length > 0 : Number.isFinite(entry)))
+        .map((entry) => [String(entry), entry]),
+    ).values(),
+  )
+}
+
+function collectTeamMemberNames(value: unknown): string[] {
+  const parsed = parseMaybeJson(value)
+
+  if (Array.isArray(parsed)) {
+    return parsed.flatMap((entry) => collectTeamMemberNames(entry))
+  }
+
+  if (typeof parsed === "string") {
+    const trimmed = parsed.trim()
+    return trimmed ? [trimmed] : []
+  }
+
+  const record = toRecord(parsed)
+  if (!record) {
+    return []
+  }
+
+  const directCandidates = [record.nickname, record.name, record.player, record.player_name, record.playerName]
+  const directMatches = directCandidates.flatMap((candidate) => collectTeamMemberNames(candidate))
+  if (directMatches.length > 0) {
+    return directMatches
+  }
+
+  return Object.values(record).flatMap((entry) => collectTeamMemberNames(entry))
+}
+
+function normalizeTeamAssignments(value: unknown): Map<string, Array<string | number>> {
+  const parsed = parseMaybeJson(value)
+  const root = toRecord(parsed)
+  if (!root) {
+    return new Map()
+  }
+
+  const assignments = new Map<string, Set<string | number>>()
+
+  Object.entries(root).forEach(([teamLabel, members]) => {
+    const normalizedTeamLabel = teamLabel.trim()
+    if (!normalizedTeamLabel) {
+      return
+    }
+
+    collectTeamMemberNames(members).forEach((nickname) => {
+      const key = normalizeKey(nickname)
+      if (!key) {
+        return
+      }
+
+      if (!assignments.has(key)) {
+        assignments.set(key, new Set())
+      }
+
+      assignments.get(key)?.add(normalizedTeamLabel)
+    })
+  })
+
+  return new Map(
+    Array.from(assignments.entries()).map(([nickname, teams]) => [nickname, Array.from(teams)]),
+  )
+}
+
+function applyTeamsToPlayers(players: Player[], teamsPayload: unknown): Player[] {
+  const assignments = normalizeTeamAssignments(teamsPayload)
+  if (assignments.size === 0) {
+    return players
+  }
+
+  return players.map((player) => ({
+    ...player,
+    teams: assignments.get(normalizeKey(player.nickname)) ?? [],
+  }))
+}
+
+function applyTeamsToData(data: MDCData, teamsPayload: unknown): MDCData {
+  const players = applyTeamsToPlayers(data.players, teamsPayload)
+  if (players === data.players) {
+    return data
+  }
+
+  return {
+    ...data,
+    players,
+  }
+}
+
 function normalizeClanRosterTag(value: string): string {
   return value
     .trim()
@@ -639,6 +777,7 @@ function normalizePlayer(raw: UnknownRecord): Player {
     joined_at: toString(raw.joined_at, ""),
     last_active_at: toString(raw.last_active_at, ""),
     tenure: toString(raw.tenure, ""),
+    teams: normalizePlayerTeams(raw.teams ?? raw.Teams ?? raw.team ?? raw.squads),
     totals: {
       heals,
       revives,
@@ -798,6 +937,13 @@ async function fetchJsonWithOptions(url: string, options: FetchApiOptions = {}):
   }
 
   throw new Error(`API request failed after retries (${requestUrl})`)
+}
+
+async function fetchTeamsPayload(options: FetchApiOptions = {}): Promise<unknown> {
+  return fetchJsonWithOptions(`${API_BASE}/teams`, {
+    ...options,
+    publish: false,
+  })
 }
 
 async function fetchPagedPlayerEventStatsRaw(options: FetchApiOptions = {}): Promise<unknown[]> {
@@ -963,6 +1109,7 @@ export async function fetchAllData(options: FetchApiOptions = {}): Promise<MDCDa
   })
 
   const pagedRawStatsPromise = fetchPagedPlayerEventStatsRaw(options).catch(() => [])
+  const teamsPayloadPromise = fetchTeamsPayload(options).catch(() => null)
   let allError: unknown = null
   let normalizedFromAll: MDCData | null = null
   let rootFromAll: UnknownRecord | null = null
@@ -975,7 +1122,7 @@ export async function fetchAllData(options: FetchApiOptions = {}): Promise<MDCDa
     })
     const payload = await fetchJsonWithOptions(`${API_BASE}/all`, options)
     rootFromAll = toRecord(parseMaybeJson(payload))
-    normalizedFromAll = normalizeMDCData(payload)
+    normalizedFromAll = applyTeamsToData(normalizeMDCData(payload), await teamsPayloadPromise)
     reportSyncProgress(options, {
       stage: "all",
       percent: 22,
@@ -998,9 +1145,10 @@ export async function fetchAllData(options: FetchApiOptions = {}): Promise<MDCDa
           meta: rootFromAll?.meta ?? {},
           playersEvents: pagedRawStats,
         })
+        const mergedWithExplicitTeams = applyTeamsToData(mergedWithPagedStats, await teamsPayloadPromise)
 
-        if (compareCompleteness(normalizedFromAll, mergedWithPagedStats) > 0) {
-          normalizedFromAll = mergedWithPagedStats
+        if (compareCompleteness(normalizedFromAll, mergedWithExplicitTeams) > 0) {
+          normalizedFromAll = mergedWithExplicitTeams
         }
       }
     } catch {
@@ -1062,6 +1210,7 @@ export async function fetchAllData(options: FetchApiOptions = {}): Promise<MDCDa
       clans: clansResult.status === "fulfilled" ? clansResult.value : [],
       dictionaries: dictionariesResult.status === "fulfilled" ? dictionariesResult.value : {},
     })
+    const normalizedWithTeams = applyTeamsToData(normalized, await teamsPayloadPromise)
 
     reportSyncProgress(options, {
       stage: "done",
@@ -1069,7 +1218,7 @@ export async function fetchAllData(options: FetchApiOptions = {}): Promise<MDCDa
       message: "Синхронизация завершена (fallback)",
     })
 
-    return normalized
+    return normalizedWithTeams
   }
 
   reportSyncProgress(options, {
@@ -1095,8 +1244,13 @@ export async function fetchEvents(options: FetchApiOptions = {}): Promise<GameEv
 }
 
 export async function fetchPlayers(options: FetchApiOptions = {}): Promise<Player[]> {
-  const payload = await fetchJsonWithOptions(`${API_BASE}/players`, options)
-  return extractArray(payload, ["players"]).map((value) => normalizePlayer(toRecord(value) ?? {}))
+  const [payload, teamsPayload] = await Promise.all([
+    fetchJsonWithOptions(`${API_BASE}/players`, options),
+    fetchTeamsPayload(options).catch(() => null),
+  ])
+
+  const players = extractArray(payload, ["players"]).map((value) => normalizePlayer(toRecord(value) ?? {}))
+  return applyTeamsToPlayers(players, teamsPayload)
 }
 
 export async function fetchPlayerEventStats(options: FetchApiOptions = {}): Promise<PlayerEventStat[]> {

@@ -27,3 +27,7 @@ yarn-error.log*
 next-env.d.ts
 # pnpm local store
 .pnpm-store/
+
+# playwright
+/playwright-report/
+/test-results/

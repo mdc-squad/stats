@@ -16,6 +16,7 @@ interface AchievementBadgesProps {
   summaryLabel?: string
   panelClassName?: string
   display?: "badges" | "icons"
+  showIcons?: boolean
 }
 
 export function AchievementBadges({
@@ -28,6 +29,7 @@ export function AchievementBadges({
   summaryLabel = "Ачивки",
   panelClassName,
   display = "badges",
+  showIcons = false,
 }: AchievementBadgesProps) {
   if (achievements.length === 0) {
     return null
@@ -58,8 +60,13 @@ export function AchievementBadges({
                   return <Icon className="h-3.5 w-3.5" />
                 })()
               ) : (
-                <Badge variant={variant} className={badgeClassName}>
-                  {achievement}
+                <Badge variant={variant} className={cn("gap-1.5", badgeClassName)}>
+                  {showIcons &&
+                    (() => {
+                      const Icon = getAchievementIcon(achievement)
+                      return <Icon className="h-3 w-3 shrink-0" />
+                    })()}
+                  <span>{achievement}</span>
                 </Badge>
               )}
             </button>

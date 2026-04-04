@@ -5,12 +5,14 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PlayerAvatar } from "@/components/player-avatar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { PastGameSummary } from "@/lib/data-utils"
-import { getSquadToneClasses, SQUAD_MEMBERSHIP_MIN_GAMES } from "@/lib/squad-utils"
+import type { PastGameSummary, Player } from "@/lib/data-utils"
+import { getSquadLabels, getSquadToneClasses } from "@/lib/squad-utils"
 import { CircleHelp, Shield, Target, Trophy, Users } from "lucide-react"
 
 interface PinnedSquadLeaderboardsProps {
   games: PastGameSummary[]
+  players: Player[]
+  squadDomain: string[]
   pinnedPlayerIds: string[]
 }
 
@@ -38,9 +40,12 @@ function SquadAvgEloHelp() {
   )
 }
 
-export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadLeaderboardsProps) {
+export function PinnedSquadLeaderboards({ games, players, squadDomain, pinnedPlayerIds }: PinnedSquadLeaderboardsProps) {
   const squadStats = useMemo(() => {
     const pinnedSet = new Set(pinnedPlayerIds)
+    const explicitSquadsByPlayerId = new Map(
+      players.map((player) => [player.player_id, new Set(getSquadLabels(player.teams ?? [], squadDomain))]),
+    )
     const squads = new Map<
       string,
       {
@@ -151,7 +156,7 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
             kd: player.deaths > 0 ? player.kills / player.deaths : player.kills,
             avgElo: player.games > 0 ? player.elo / player.games : 0,
           }))
-          .filter((player) => player.games > SQUAD_MEMBERSHIP_MIN_GAMES)
+          .filter((player) => explicitSquadsByPlayerId.get(player.player_id)?.has(squad.label) === true)
           .sort((left, right) => {
             if (right.avgElo !== left.avgElo) return right.avgElo - left.avgElo
             if (right.kills !== left.kills) return right.kills - left.kills
@@ -162,12 +167,13 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
         ...squad,
         eligiblePlayersCount: squad.playersRanked.length,
       }))
+      .filter((squad) => squad.eligiblePlayersCount > 0)
       .sort((left, right) => {
         if (right.avgElo !== left.avgElo) return right.avgElo - left.avgElo
         if (right.winRate !== left.winRate) return right.winRate - left.winRate
         return right.games - left.games
       })
-  }, [games, pinnedPlayerIds])
+  }, [games, pinnedPlayerIds, players, squadDomain])
 
   if (pinnedPlayerIds.length === 0) {
     return (
@@ -208,7 +214,7 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
           <p className="text-base font-semibold text-christmas-snow">Топы по отрядам</p>
           <p className="text-sm text-muted-foreground">Рейтинг отрядов и лидеры внутри них для закрепленных игроков</p>
           <p className="text-[11px] text-muted-foreground">
-            Игрок относится к цвету, если сыграл в нём более {SQUAD_MEMBERSHIP_MIN_GAMES} игр.
+            Закрепление игроков берётся из `teams` API.
           </p>
         </div>
         <Badge variant="outline" className="border-christmas-gold/30 text-christmas-gold">
@@ -272,7 +278,7 @@ export function PinnedSquadLeaderboards({ games, pinnedPlayerIds }: PinnedSquadL
                   <p className="text-sm font-medium text-christmas-snow">Лидеры внутри отряда</p>
                   {squad.playersRanked.length === 0 ? (
                     <div className="rounded-lg border border-border/50 bg-background/35 px-3 py-2 text-[11px] text-muted-foreground">
-                      Среди закреплённых игроков нет тех, кто сыграл за этот цвет более {SQUAD_MEMBERSHIP_MIN_GAMES} игр.
+                      Среди закреплённых игроков нет тех, кто относится к этому цвету.
                     </div>
                   ) : (
                     squad.playersRanked.slice(0, 5).map((player, playerIndex) => (

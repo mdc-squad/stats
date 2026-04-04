@@ -1,10 +1,14 @@
 "use client"
 
+import { useState } from "react"
 import { ArrowUpRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { RoleIcon } from "@/components/role-icon"
+import { SpecializationIcon, getSpecializationLabel } from "@/components/specialization-icon"
 import type { PlayerGameHistoryEntry } from "@/lib/data-utils"
+import { getEventTypeMeta } from "@/lib/data-utils"
 import { getSquadToneClasses } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
 
@@ -15,20 +19,33 @@ interface PlayerMatchHistoryProps {
   layout?: "compact" | "expanded"
 }
 
-function formatMatchDate(value: string): string {
-  if (!value) return "Дата не указана"
+function formatMatchDateParts(value: string): { date: string; time: string } {
+  if (!value) {
+    return {
+      date: "Дата не указана",
+      time: "",
+    }
+  }
 
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) {
-    return value
+    return {
+      date: value,
+      time: "",
+    }
   }
 
-  return parsed.toLocaleString("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
+  return {
+    date: parsed.toLocaleDateString("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }),
+    time: parsed.toLocaleTimeString("ru-RU", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  }
 }
 
 function getResultMeta(entry: Pick<PlayerGameHistoryEntry, "is_win" | "result">): {
@@ -61,154 +78,147 @@ export function PlayerMatchHistory({
   onOpenGame,
   layout = "compact",
 }: PlayerMatchHistoryProps) {
+  const [showAll, setShowAll] = useState(false)
   const isExpanded = layout === "expanded"
+  const visibleGames = showAll ? games : games.slice(0, 5)
+
+  const content = (
+    <div className={cn("space-y-2", isExpanded ? "p-3" : "p-2")}>
+      {visibleGames.map((game) => {
+        const resultMeta = getResultMeta(game)
+        const squadTone = getSquadToneClasses(game.squad_label)
+        const eventTypeMeta = getEventTypeMeta(game.event_type)
+        const { date, time } = formatMatchDateParts(game.started_at)
+        const matchup = game.faction_matchup || [game.faction_1, game.faction_2].filter(Boolean).join(" vs ")
+        const primaryRole = game.roles[0] || game.role
+        const primarySpecialization = game.specializations[0] || game.specialization
+        const metrics = [
+          { label: "Поднятия", value: game.revives.toLocaleString("ru-RU") },
+          { label: "Хил", value: game.heals.toLocaleString("ru-RU") },
+          { label: "Ноки", value: game.downs.toLocaleString("ru-RU") },
+          { label: "Убийства", value: game.kills.toLocaleString("ru-RU") },
+          { label: "Смерти", value: game.deaths.toLocaleString("ru-RU") },
+          { label: "Техника", value: game.vehicle.toLocaleString("ru-RU") },
+          { label: "KD", value: game.kd.toFixed(2) },
+          { label: "KDA", value: game.kda.toFixed(2) },
+          { label: "ELO", value: game.elo.toFixed(1) },
+          { label: "Место", value: `${game.rank}/${game.participants}` },
+        ]
+
+        return (
+          <div
+            key={`${game.event_id}-${game.player_id}`}
+            className="rounded-lg border border-border/50 bg-background/40 px-3 py-3"
+          >
+            <div className="flex flex-wrap items-start gap-2">
+              <Badge variant="outline" className={cn("h-auto px-2 py-0.5 text-[10px]", resultMeta.className)}>
+                {resultMeta.label}
+              </Badge>
+              <Badge
+                variant="outline"
+                className="h-auto border-christmas-gold/30 px-2 py-0.5 text-[10px] text-christmas-gold"
+              >
+                <span className="mr-1">{eventTypeMeta.icon}</span>
+                {eventTypeMeta.label}
+              </Badge>
+              <Badge variant="outline" className={cn("h-auto px-2 py-0.5 text-[10px]", squadTone.badge)}>
+                {game.squad_label}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {date}
+                {time ? ` • ${time}` : ""}
+              </span>
+              {onOpenGame && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto h-7 shrink-0 px-2 text-christmas-gold hover:bg-christmas-gold/10 hover:text-christmas-snow"
+                  onClick={() => onOpenGame(game.event_id, playerId)}
+                >
+                  Матч
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+
+            <div className="mt-2 space-y-1.5">
+              <p className="text-sm font-semibold leading-tight text-christmas-snow">
+                {game.map}
+                {game.mode ? ` • ${game.mode}` : ""}
+              </p>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                {matchup && <span>{matchup}</span>}
+                {game.opponent && <span>Соперник: {game.opponent}</span>}
+                <span className="inline-flex items-center gap-1.5">
+                  <RoleIcon role={primaryRole} className="h-4 w-4" />
+                  {game.role || "Роль не указана"}
+                </span>
+                {primarySpecialization && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <SpecializationIcon specialization={primarySpecialization} className="h-4 w-4" />
+                    {getSpecializationLabel(primarySpecialization)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {metrics.map((metric) => (
+                <div
+                  key={`${game.event_id}-${metric.label}`}
+                  className="inline-flex items-center gap-1 rounded-md border border-border/50 bg-background/55 px-2 py-1"
+                >
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{metric.label}</span>
+                  <span className="text-xs font-semibold text-christmas-snow">{metric.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
 
   return (
     <div className={cn("space-y-2.5", isExpanded && "space-y-3")}>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-christmas-snow">История игр</p>
-          <p className="text-[11px] text-muted-foreground">Последние матчи игрока с местом и динамикой по игре</p>
+          <p className="text-sm font-semibold text-christmas-snow">Последние матчи игрока</p>
         </div>
-        <Badge variant="outline" className="border-christmas-gold/30 text-christmas-gold">
-          {games.length}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="border-christmas-gold/30 text-christmas-gold">
+            {games.length}
+          </Badge>
+          {games.length > 5 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-christmas-gold/25 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10"
+              onClick={() => setShowAll((current) => !current)}
+            >
+              {showAll ? "Скрыть" : "Весь список"}
+            </Button>
+          )}
+        </div>
       </div>
 
       {games.length === 0 ? (
         <div className="rounded-lg border border-border/50 bg-background/40 px-3 py-2.5 text-sm text-muted-foreground">
           Для игрока пока нет истории матчей.
         </div>
-      ) : (
+      ) : showAll ? (
         <ScrollArea
           className={cn(
             "rounded-lg border border-border/50 bg-background/20",
-            isExpanded ? "h-[320px] lg:h-[360px]" : "h-[260px]",
+            isExpanded ? "h-[360px] lg:h-[420px]" : "h-[320px]",
           )}
         >
-          <div className="space-y-2 p-2">
-            {games.map((game) => {
-              const resultMeta = getResultMeta(game)
-              const eloWidth = Math.max(0, Math.min(100, game.eloShare))
-              const squadTone = getSquadToneClasses(game.squad_label)
-              const compactMetrics = [
-                {
-                  label: "K",
-                  value: game.kills,
-                  className: "border-christmas-green/20 bg-christmas-green/10 text-christmas-snow",
-                },
-                {
-                  label: "Dn",
-                  value: game.downs,
-                  className: "border-orange-500/20 bg-orange-500/10 text-christmas-snow",
-                },
-                {
-                  label: "D",
-                  value: game.deaths,
-                  className: "border-christmas-red/20 bg-christmas-red/10 text-christmas-snow",
-                },
-                {
-                  label: "Rev",
-                  value: game.revives,
-                  className: "border-blue-500/20 bg-blue-500/10 text-christmas-snow",
-                },
-                {
-                  label: "#",
-                  value: `${game.rank}/${game.participants}`,
-                  className: "border-christmas-gold/25 bg-christmas-gold/10 text-christmas-snow",
-                },
-              ] as const
-
-              return (
-                <div
-                  key={`${game.event_id}-${game.player_id}`}
-                  className={cn(
-                    "rounded-md border border-border/50 bg-background/55 px-2.5 py-1.5",
-                    isExpanded && "px-3 py-2",
-                  )}
-                >
-                  <div className="flex flex-wrap items-center gap-1.5 text-left">
-                    <div className="flex min-w-0 flex-wrap items-center gap-1">
-                      <Badge variant="outline" className={`h-auto px-1.5 py-0 text-[9px] ${resultMeta.className}`}>
-                        {resultMeta.label}
-                      </Badge>
-                      <Badge variant="outline" className={`h-auto px-1.5 py-0 text-[9px] ${squadTone.badge}`}>
-                        {game.squad_label}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="h-auto border-christmas-gold/30 px-1.5 py-0 text-[9px] text-christmas-gold"
-                      >
-                        {game.event_type}
-                      </Badge>
-                      <span
-                        className={cn(
-                          "max-w-[160px] truncate text-[12px] font-semibold leading-tight text-christmas-snow",
-                          isExpanded && "max-w-[260px] text-[13px]",
-                        )}
-                      >
-                        {game.map}
-                      </span>
-                      {game.opponent && (
-                        <span
-                          className={cn(
-                            "max-w-[140px] truncate text-[11px] leading-tight text-christmas-gold",
-                            isExpanded && "max-w-[220px]",
-                          )}
-                        >
-                          vs {game.opponent}
-                        </span>
-                      )}
-                      <span className="whitespace-nowrap text-[11px] leading-tight text-muted-foreground">
-                        {formatMatchDate(game.started_at)}
-                        {game.role ? ` • ${game.role}` : ""}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1 sm:ml-auto">
-                      {compactMetrics.map((metric) => (
-                        <div
-                          key={`${game.event_id}-${metric.label}`}
-                          className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 ${metric.className}`}
-                        >
-                          <span className="text-[9px] uppercase leading-none tracking-wide text-muted-foreground">
-                            {metric.label}
-                          </span>
-                          <span className="text-xs font-semibold leading-none">{metric.value}</span>
-                        </div>
-                      ))}
-                      <span className="whitespace-nowrap text-[11px] text-muted-foreground">
-                        K/D {game.kd.toFixed(2)} • общий K/D {game.cumKD.toFixed(2)}
-                      </span>
-                      <span className="whitespace-nowrap text-[11px] text-muted-foreground">
-                        ELO {game.elo.toFixed(0)} • {Math.round(game.eloShare)}%
-                      </span>
-                      {onOpenGame && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 shrink-0 px-2 text-christmas-gold hover:bg-christmas-gold/10 hover:text-christmas-snow"
-                          onClick={() => onOpenGame(game.event_id, playerId)}
-                        >
-                          Матч
-                          <ArrowUpRight className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-background/70">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-christmas-red via-christmas-gold to-christmas-green"
-                      style={{ width: `${eloWidth}%` }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          {content}
         </ScrollArea>
+      ) : (
+        <div className="rounded-lg border border-border/50 bg-background/20">{content}</div>
       )}
     </div>
   )

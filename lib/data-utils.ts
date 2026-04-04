@@ -71,6 +71,7 @@ export interface Player {
   joined_at: string
   last_active_at: string
   tenure: string
+  teams: SquadIdentifier[]
   totals: {
     heals: number
     revives: number
@@ -1023,6 +1024,7 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
         joined_at: basePlayer?.joined_at ?? "",
         last_active_at: aggregate.latestActivityAt || basePlayer?.last_active_at || "",
         tenure: basePlayer?.tenure ?? "",
+        teams: basePlayer?.teams ?? [],
         totals: {
           heals: aggregate.heals,
           revives: aggregate.revives,
@@ -1556,131 +1558,71 @@ export function getTopByRole(
   metric: RoleLeaderboardMetric = "kd",
   events: GameEvent[] = [],
 ) {
-  const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
-  const tbfReferenceDate = getTbfReferenceDate(events, playerStats)
-  const roleData: Record<
-    string,
-    {
-      kills: number
-      deaths: number
-      downs: number
-      revives: number
-      heals: number
-      vehicle: number
-      elo: number
-      basePoints: number
-      recentElo: number
-      games: number
-      ratedGames: number
-      recentRatedGames: number
-    }
-  > = {}
   const rawObservedRoles = playerStats
     .map((stat) => stat.role?.trim() ?? "")
     .filter(Boolean)
   const { lookup, entries } = buildDomainLookup(roleDomain, rawObservedRoles)
   const targetRole = resolveRoleName(role, lookup, entries)
-  const normalizedTargetRole = normalizeMapNameKey(targetRole)
-
-  if (!targetRole || normalizedTargetRole === normalizeMapNameKey("Без кита")) {
+  if (!targetRole || isRoleWithoutKit(targetRole)) {
     return []
   }
 
-  aggregatePlayerEventStats(playerStats).forEach((stat) => {
-    const canonicalRoles = stat.roles
-      .map((roleName) => resolveRoleName(roleName, lookup, entries))
-      .filter(Boolean)
-    if (!canonicalRoles.includes(targetRole)) return
+  const playerRatings = new Map(players.map((player) => [player.player_id, player.totals.rating]))
+  const roleEntriesByPlayer = buildRoleMetricEntries(playerStats, roleDomain, events, playerRatings)
 
-    if (!roleData[stat.player_id]) {
-      roleData[stat.player_id] = {
-        kills: 0,
-        deaths: 0,
-        downs: 0,
-        revives: 0,
-        heals: 0,
-        vehicle: 0,
-        elo: 0,
-        basePoints: 0,
-        recentElo: 0,
-        games: 0,
-        ratedGames: 0,
-        recentRatedGames: 0,
+  return Array.from(roleEntriesByPlayer.entries())
+    .map(([playerId, entriesByRole]) => {
+      const player = players.find((candidate) => candidate.player_id === playerId)
+      const entry = entriesByRole.get(targetRole)
+      if (!entry || entry.games < 10) {
+        return null
       }
-    }
-    roleData[stat.player_id].kills += stat.kills
-    roleData[stat.player_id].deaths += stat.deaths
-    roleData[stat.player_id].downs += stat.downs
-    roleData[stat.player_id].revives += stat.revives
-    roleData[stat.player_id].heals += stat.heals
-    roleData[stat.player_id].vehicle += stat.vehicle
-    roleData[stat.player_id].elo += stat.elo
-    roleData[stat.player_id].basePoints += stat.basePoints
-    roleData[stat.player_id].games += 1
-    if (stat.elo !== 0 || stat.battleRating !== 0 || stat.basePoints !== 0) {
-      roleData[stat.player_id].ratedGames += 1
-    }
-    const event = eventLookup.get(stat.normalized_event_id)
-    const eventDate = getComparableDate(event?.started_at || stat.event_id)
-    if (stat.elo !== 0 && isInsideTbfWindow(eventDate, tbfReferenceDate)) {
-      roleData[stat.player_id].recentElo += stat.elo
-      roleData[stat.player_id].recentRatedGames += 1
-    }
-  })
 
-  return Object.entries(roleData)
-    .filter(([, d]) => d.games >= 10)
-    .map(([playerId, d]) => {
-      const player = players.find((p) => p.player_id === playerId)
-      const kd = d.deaths > 0 ? d.kills / d.deaths : d.kills
-      const kda = d.deaths > 0 ? d.downs / d.deaths : d.downs
-      const elo = d.ratedGames > 0 ? d.elo / d.ratedGames : 0
-      const tbf = d.recentRatedGames > 0 ? d.recentElo / d.recentRatedGames : 0
-      const rating = player?.totals.rating ?? 0
       return {
         player_id: playerId,
         nickname: player?.nickname || "Unknown",
         steam_id: player?.steam_id || "",
-        kills: d.kills,
-        deaths: d.deaths,
-        downs: d.downs,
-        revives: d.revives,
-        heals: d.heals,
-        vehicle: d.vehicle,
-        games: d.games,
-        kd,
-        kda,
-        elo,
-        tbf,
-        rating,
+        kills: entry.kills,
+        deaths: entry.deaths,
+        downs: entry.downs,
+        revives: entry.revives,
+        heals: entry.heals,
+        vehicle: entry.vehicle,
+        games: entry.games,
+        kd: entry.kd,
+        kda: entry.kda,
+        elo: entry.elo,
+        tbf: entry.tbf,
+        rating: entry.rating,
         metricValue:
           metric === "kills"
-            ? d.kills
+            ? entry.kills
             : metric === "deaths"
-            ? d.deaths
+            ? entry.deaths
             : metric === "downs"
-            ? d.downs
+            ? entry.downs
             : metric === "revives"
-            ? d.revives
+            ? entry.revives
             : metric === "heals"
-            ? d.heals
+            ? entry.heals
             : metric === "vehicle"
-            ? d.vehicle
+            ? entry.vehicle
             : metric === "avgRevives"
-            ? d.revives / d.games
-            : metric === "elo"
-            ? elo
-            : metric === "tbf"
-            ? tbf
-            : metric === "rating"
-            ? rating
+            ? entry.avgRevives
             : metric === "avgVehicle"
-            ? d.vehicle / d.games
+            ? entry.avgVehicle
+            : metric === "elo"
+            ? entry.elo
+            : metric === "tbf"
+            ? entry.tbf
+            : metric === "rating"
+            ? entry.rating
             : metric === "kda"
-            ? kda
-            : kd,
+            ? entry.kda
+            : entry.kd,
       }
     })
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
     .sort((left, right) => {
       if (right.metricValue !== left.metricValue) {
         return right.metricValue - left.metricValue
@@ -1694,6 +1636,116 @@ export function getTopByRole(
       return left.nickname.localeCompare(right.nickname, "ru")
     })
     .slice(0, limit)
+}
+
+export function getPlayerRoleMetricBreakdown(
+  playerId: string,
+  playerStats: PlayerEventStat[],
+  metric: RoleLeaderboardMetric = "kd",
+  roleDomain: string[] = [],
+  events: GameEvent[] = [],
+  playerRating = 0,
+): PlayerRoleMetricEntry[] {
+  const roleEntriesByPlayer = buildRoleMetricEntries(
+    playerStats,
+    roleDomain,
+    events,
+    new Map([[playerId, playerRating]]),
+  )
+
+  return Array.from(roleEntriesByPlayer.get(playerId)?.values() ?? [])
+    .filter((entry) => entry.games >= 10)
+    .map((entry) => ({
+      ...entry,
+      metricValue:
+        metric === "kills"
+          ? entry.kills
+          : metric === "deaths"
+          ? entry.deaths
+          : metric === "downs"
+          ? entry.downs
+          : metric === "revives"
+          ? entry.revives
+          : metric === "heals"
+          ? entry.heals
+          : metric === "vehicle"
+          ? entry.vehicle
+          : metric === "avgRevives"
+          ? entry.avgRevives
+          : metric === "avgVehicle"
+          ? entry.avgVehicle
+          : metric === "elo"
+          ? entry.elo
+          : metric === "tbf"
+          ? entry.tbf
+          : metric === "rating"
+          ? entry.rating
+          : metric === "kda"
+          ? entry.kda
+          : entry.kd,
+    }))
+    .sort((left, right) => {
+      if (right.games !== left.games) {
+        return right.games - left.games
+      }
+      if (right.metricValue !== left.metricValue) {
+        return right.metricValue - left.metricValue
+      }
+      return left.role.localeCompare(right.role, "ru")
+    })
+}
+
+export function getMaxRoleMetricByRole(
+  playerStats: PlayerEventStat[],
+  players: Player[],
+  metric: RoleLeaderboardMetric = "kd",
+  roleDomain: string[] = [],
+  events: GameEvent[] = [],
+): Record<string, number> {
+  const playerRatings = new Map(players.map((player) => [player.player_id, player.totals.rating]))
+  const roleEntriesByPlayer = buildRoleMetricEntries(playerStats, roleDomain, events, playerRatings)
+  const maxValuesByRole: Record<string, number> = {}
+
+  roleEntriesByPlayer.forEach((entriesByRole) => {
+    entriesByRole.forEach((entry) => {
+      if (entry.games < 10) {
+        return
+      }
+
+      const metricValue =
+        metric === "kills"
+          ? entry.kills
+          : metric === "deaths"
+          ? entry.deaths
+          : metric === "downs"
+          ? entry.downs
+          : metric === "revives"
+          ? entry.revives
+          : metric === "heals"
+          ? entry.heals
+          : metric === "vehicle"
+          ? entry.vehicle
+          : metric === "avgRevives"
+          ? entry.avgRevives
+          : metric === "avgVehicle"
+          ? entry.avgVehicle
+          : metric === "elo"
+          ? entry.elo
+          : metric === "tbf"
+          ? entry.tbf
+          : metric === "rating"
+          ? entry.rating
+          : metric === "kda"
+          ? entry.kda
+          : entry.kd
+
+      if (!maxValuesByRole[entry.role] || metricValue > maxValuesByRole[entry.role]) {
+        maxValuesByRole[entry.role] = metricValue
+      }
+    })
+  })
+
+  return maxValuesByRole
 }
 
 export interface AggregatedPlayerEventStat extends PlayerEventStat {
@@ -1752,6 +1804,10 @@ export interface PlayerGameHistoryEntry {
   started_at: string
   event_type: string
   map: string
+  mode: string | null
+  faction_1: string | null
+  faction_2: string | null
+  faction_matchup: string | null
   opponent: string | null
   result: string | null
   is_win: boolean | null
@@ -1767,6 +1823,8 @@ export interface PlayerGameHistoryEntry {
   kda: number
   role: string
   roles: string[]
+  specialization: string
+  specializations: string[]
   squad_no: SquadIdentifier
   squad_label: string
   squads: SquadIdentifier[]
@@ -1778,6 +1836,38 @@ export interface PlayerGameHistoryEntry {
   cumDeaths: number
 }
 
+export interface PlayerProgressPoint {
+  game: number
+  date: string
+  kd: number
+  elo: number
+  tbf: number
+  cumKD: number
+  kills: number
+  deaths: number
+  cumKills: number
+  cumDeaths: number
+}
+
+export interface PlayerRoleMetricEntry {
+  role: string
+  games: number
+  kills: number
+  deaths: number
+  downs: number
+  revives: number
+  heals: number
+  vehicle: number
+  kd: number
+  kda: number
+  elo: number
+  tbf: number
+  rating: number
+  avgRevives: number
+  avgVehicle: number
+  metricValue: number
+}
+
 function compareMatchPlayers(left: PastGamePlayerStat, right: PastGamePlayerStat): number {
   if (right.elo !== left.elo) return right.elo - left.elo
   if (right.kills !== left.kills) return right.kills - left.kills
@@ -1785,6 +1875,146 @@ function compareMatchPlayers(left: PastGamePlayerStat, right: PastGamePlayerStat
   if (right.revives !== left.revives) return right.revives - left.revives
   if (left.deaths !== right.deaths) return left.deaths - right.deaths
   return left.nickname.localeCompare(right.nickname, "ru")
+}
+
+export function isRoleWithoutKit(role: string | null | undefined): boolean {
+  const normalized = normalizeMapNameKey(role ?? "")
+  return normalized === normalizeMapNameKey("Без кита") || normalized === "unarmed" || normalized === "recruit"
+}
+
+function buildRoleMetricEntries(
+  playerStats: PlayerEventStat[],
+  roleDomain: string[] = [],
+  events: GameEvent[] = [],
+  playerRatings: Map<string, number> = new Map(),
+): Map<string, Map<string, PlayerRoleMetricEntry>> {
+  const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
+  const tbfReferenceDate = getTbfReferenceDate(events, playerStats)
+  const rawObservedRoles = playerStats
+    .map((stat) => stat.role?.trim() ?? "")
+    .filter(Boolean)
+  const { lookup, entries } = buildDomainLookup(roleDomain, rawObservedRoles)
+  const aggregates = new Map<
+    string,
+    Map<
+      string,
+      {
+        kills: number
+        deaths: number
+        downs: number
+        revives: number
+        heals: number
+        vehicle: number
+        elo: number
+        recentElo: number
+        games: number
+        ratedGames: number
+        recentRatedGames: number
+      }
+    >
+  >()
+
+  aggregatePlayerEventStats(playerStats).forEach((stat) => {
+    const canonicalRoles = Array.from(
+      new Set(
+        stat.roles
+          .map((roleName) => resolveRoleName(roleName, lookup, entries))
+          .filter((roleName) => roleName && !isRoleWithoutKit(roleName)),
+      ),
+    )
+
+    if (canonicalRoles.length === 0) {
+      return
+    }
+
+    const event = eventLookup.get(stat.normalized_event_id)
+    const eventDate = getComparableDate(event?.started_at || stat.event_id)
+
+    if (!aggregates.has(stat.player_id)) {
+      aggregates.set(stat.player_id, new Map())
+    }
+
+    const playerRoles = aggregates.get(stat.player_id)
+    if (!playerRoles) {
+      return
+    }
+
+    canonicalRoles.forEach((roleName) => {
+      if (!playerRoles.has(roleName)) {
+        playerRoles.set(roleName, {
+          kills: 0,
+          deaths: 0,
+          downs: 0,
+          revives: 0,
+          heals: 0,
+          vehicle: 0,
+          elo: 0,
+          recentElo: 0,
+          games: 0,
+          ratedGames: 0,
+          recentRatedGames: 0,
+        })
+      }
+
+      const current = playerRoles.get(roleName)
+      if (!current) {
+        return
+      }
+
+      current.kills += stat.kills
+      current.deaths += stat.deaths
+      current.downs += stat.downs
+      current.revives += stat.revives
+      current.heals += stat.heals
+      current.vehicle += stat.vehicle
+      current.elo += stat.elo
+      current.games += 1
+
+      if (stat.elo !== 0 || stat.battleRating !== 0 || stat.basePoints !== 0) {
+        current.ratedGames += 1
+      }
+
+      if (stat.elo !== 0 && isInsideTbfWindow(eventDate, tbfReferenceDate)) {
+        current.recentElo += stat.elo
+        current.recentRatedGames += 1
+      }
+    })
+  })
+
+  const byPlayerId = new Map<string, Map<string, PlayerRoleMetricEntry>>()
+
+  aggregates.forEach((roles, playerId) => {
+    const entriesByRole = new Map<string, PlayerRoleMetricEntry>()
+    roles.forEach((aggregate, roleName) => {
+      const kd = aggregate.deaths > 0 ? aggregate.kills / aggregate.deaths : aggregate.kills
+      const kda = aggregate.deaths > 0 ? aggregate.downs / aggregate.deaths : aggregate.downs
+      const elo = aggregate.ratedGames > 0 ? aggregate.elo / aggregate.ratedGames : 0
+      const tbf = aggregate.recentRatedGames > 0 ? aggregate.recentElo / aggregate.recentRatedGames : 0
+      const rating = playerRatings.get(playerId) ?? 0
+      entriesByRole.set(roleName, {
+        role: roleName,
+        games: aggregate.games,
+        kills: aggregate.kills,
+        deaths: aggregate.deaths,
+        downs: aggregate.downs,
+        revives: aggregate.revives,
+        heals: aggregate.heals,
+        vehicle: aggregate.vehicle,
+        kd,
+        kda,
+        elo,
+        tbf,
+        rating,
+        avgRevives: aggregate.games > 0 ? aggregate.revives / aggregate.games : 0,
+        avgVehicle: aggregate.games > 0 ? aggregate.vehicle / aggregate.games : 0,
+        metricValue: 0,
+      })
+    })
+
+    byPlayerId.set(playerId, entriesByRole)
+  })
+
+  return byPlayerId
 }
 
 function aggregatePlayerEventStats(playerStats: PlayerEventStat[]): AggregatedPlayerEventStat[] {
@@ -2035,6 +2265,10 @@ export function getPlayerGameHistory(
         started_at: game.started_at,
         event_type: game.event_type,
         map: game.map,
+        mode: game.mode,
+        faction_1: game.faction_1,
+        faction_2: game.faction_2,
+        faction_matchup: game.faction_matchup,
         opponent: game.opponent,
         result: game.result,
         is_win: game.is_win,
@@ -2050,6 +2284,8 @@ export function getPlayerGameHistory(
         kda: playerGame.kda,
         role: playerGame.role,
         roles: playerGame.roles,
+        specialization: playerGame.specialization,
+        specializations: playerGame.specializations,
         squad_no: playerGame.squad_no,
         squad_label: playerGame.squad_label,
         squads: playerGame.squads,
@@ -2085,23 +2321,55 @@ export function getPlayerGameHistory(
     .slice(0, limit)
 }
 
-export function getPlayerProgress(playerId: string, playerStats: PlayerEventStat[], events: GameEvent[]) {
+export function getPlayerProgress(
+  playerId: string,
+  playerStats: PlayerEventStat[],
+  events: GameEvent[],
+): PlayerProgressPoint[] {
   const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
 
   const stats = aggregatePlayerEventStats(playerStats)
     .filter((stat) => stat.player_id === playerId)
     .map((stat) => {
       const event = eventLookup.get(stat.normalized_event_id)
-      return { ...stat, date: event?.started_at || extractDateFromEventId(stat.event_id) || "" }
+      const rawDate = event?.started_at || extractDateFromEventId(stat.event_id) || ""
+      return {
+        ...stat,
+        date: rawDate,
+        comparableDate: getComparableDate(rawDate || stat.event_id),
+      }
     })
     .filter((stat) => stat.date)
-    .sort((left, right) => left.date.localeCompare(right.date))
+    .sort((left, right) => {
+      const leftTime = left.comparableDate?.getTime() ?? 0
+      const rightTime = right.comparableDate?.getTime() ?? 0
+      if (leftTime !== rightTime) {
+        return leftTime - rightTime
+      }
+      return left.event_id.localeCompare(right.event_id, "ru")
+    })
 
   let cumKills = 0
   let cumDeaths = 0
+  let rollingTbfSum = 0
+  const rollingTbfWindow: Array<{ timestamp: number; elo: number }> = []
+
   return stats.map((stat, index) => {
     cumKills += stat.kills
     cumDeaths += stat.deaths
+
+    const timestamp = stat.comparableDate?.getTime() ?? 0
+    while (rollingTbfWindow.length > 0 && timestamp - rollingTbfWindow[0].timestamp > TBF_WINDOW_DAYS * DAY_MS) {
+      const removed = rollingTbfWindow.shift()
+      if (removed) {
+        rollingTbfSum -= removed.elo
+      }
+    }
+
+    if (timestamp > 0 && stat.elo !== 0) {
+      rollingTbfWindow.push({ timestamp, elo: stat.elo })
+      rollingTbfSum += stat.elo
+    }
 
     return {
       game: index + 1,
@@ -2110,6 +2378,7 @@ export function getPlayerProgress(playerId: string, playerStats: PlayerEventStat
       deaths: stat.deaths,
       kd: stat.kd,
       elo: stat.elo,
+      tbf: rollingTbfWindow.length > 0 ? rollingTbfSum / rollingTbfWindow.length : 0,
       cumKD: cumDeaths > 0 ? cumKills / cumDeaths : cumKills,
       cumKills,
       cumDeaths,
@@ -2191,6 +2460,24 @@ export const EVENT_TYPE_ICONS: Record<string, { icon: string; name: string }> = 
   "📚": { icon: "📚", name: "Лекция" },
 }
 
+export function getEventTypeMeta(eventType: string | null | undefined): { icon: string; label: string } {
+  const normalized = eventType?.trim() ?? ""
+
+  for (const [prefix, meta] of Object.entries(EVENT_TYPE_ICONS)) {
+    if (normalized.startsWith(prefix) || normalized.includes(meta.name)) {
+      return {
+        icon: meta.icon,
+        label: normalized.replace(prefix, "").trim() || meta.name,
+      }
+    }
+  }
+
+  return {
+    icon: "🎮",
+    label: normalized || "Событие",
+  }
+}
+
 export function getWeeklyParticipation(
   events: GameEvent[],
   playerStats: PlayerEventStat[],
@@ -2258,39 +2545,7 @@ export function getTopByAvgHeals(players: Player[], minEvents = 3, limit = 10): 
 }
 
 export function getMaxKDByRole(playerStats: PlayerEventStat[]): Record<string, number> {
-  const roleData: Record<string, { kills: number; deaths: number; games: number }[]> = {}
-
-  // Group stats by player and role
-  const playerRoleStats: Record<string, Record<string, { kills: number; deaths: number; games: number }>> = {}
-
-  playerStats.forEach((stat) => {
-    if (!stat.role) return
-
-    if (!playerRoleStats[stat.player_id]) {
-      playerRoleStats[stat.player_id] = {}
-    }
-    if (!playerRoleStats[stat.player_id][stat.role]) {
-      playerRoleStats[stat.player_id][stat.role] = { kills: 0, deaths: 0, games: 0 }
-    }
-    playerRoleStats[stat.player_id][stat.role].kills += stat.kills
-    playerRoleStats[stat.player_id][stat.role].deaths += stat.deaths
-    playerRoleStats[stat.player_id][stat.role].games++
-  })
-
-  // Calculate max K/D for each role (minimum 10 games for reliable comparisons)
-  const maxKDByRole: Record<string, number> = {}
-
-  Object.values(playerRoleStats).forEach((roles) => {
-    Object.entries(roles).forEach(([role, stats]) => {
-      if (stats.games < 10) return
-      const kd = stats.deaths > 0 ? stats.kills / stats.deaths : stats.kills
-      if (!maxKDByRole[role] || kd > maxKDByRole[role]) {
-        maxKDByRole[role] = kd
-      }
-    })
-  })
-
-  return maxKDByRole
+  return getMaxRoleMetricByRole(playerStats, [], "kd")
 }
 
 export function getAverageValues(players: Player[]): {

@@ -915,7 +915,12 @@ export function EventsExplorer({
             </div>
           </div>
           <GameSliceLeaderboards games={filteredGames} pinnedPlayerIds={pinnedPlayerIds} />
-          <PinnedSquadLeaderboards games={filteredGames} pinnedPlayerIds={pinnedPlayerIds} />
+          <PinnedSquadLeaderboards
+            games={filteredGames}
+            players={players}
+            squadDomain={squadDomain}
+            pinnedPlayerIds={pinnedPlayerIds}
+          />
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-0 space-y-3">

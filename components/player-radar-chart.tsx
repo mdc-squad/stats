@@ -2,136 +2,157 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip, PolarRadiusAxis } from "recharts"
-import type { Player, PlayerEventStat } from "@/lib/data-utils"
+import type { GameEvent, Player, PlayerEventStat, PlayerRoleMetricEntry, RoleLeaderboardMetric } from "@/lib/data-utils"
+import { getPlayerRoleMetricBreakdown } from "@/lib/data-utils"
+
+interface SkillMaxima {
+  kd: number
+  kda: number
+  avgRevives: number
+  avgVehicle: number
+}
 
 interface PlayerRadarChartProps {
   player: Player
   playerStats: PlayerEventStat[]
-  maxValues: {
-    kills: number
-    deaths: number
-    downs: number
-    revives: number
-    vehicle: number
-    events: number
-    kd: number
-    kda: number
-    win_rate: number
-  }
-  avgValues: {
-    kills: number
-    deaths: number
-    downs: number
-    revives: number
-    vehicle: number
-    events: number
-    kd: number
-    kda: number
-    win_rate: number
-  }
-  maxRoleKD: Record<string, number>
+  events?: GameEvent[]
+  roleDomain?: string[]
+  roleMetricMaxima?: Record<string, number>
+  roleMetric?: RoleLeaderboardMetric
+  skillMaxima: SkillMaxima
+  activityAverage: number
+  activityMax: number
   title: string
   type: "roles" | "skills"
   layout?: "compact" | "expanded"
 }
 
+const ROLE_METRIC_LABELS: Record<RoleLeaderboardMetric, string> = {
+  kd: "K/D",
+  kda: "KDA",
+  kills: "Убийства",
+  deaths: "Смерти",
+  downs: "Ноки",
+  revives: "Поднятия",
+  avgRevives: "Поднятия / игра",
+  heals: "Хил",
+  vehicle: "Техника",
+  elo: "ELO",
+  tbf: "ТБФ",
+  rating: "ОР",
+  avgVehicle: "Техника / игра",
+}
+
+function scaleToMax(value: number, max: number): number {
+  if (max <= 0) return 0
+  return Math.min((value / max) * 100, 100)
+}
+
+function scaleActivity(value: number, average: number, max: number): number {
+  if (max <= 0) return 0
+
+  if (value <= average) {
+    return average > 0 ? (value / average) * 50 : 0
+  }
+
+  const aboveAverageRange = max - average
+  if (aboveAverageRange <= 0) return 50
+
+  return 50 + ((value - average) / aboveAverageRange) * 50
+}
+
+function formatMetricValue(value: number, metric: RoleLeaderboardMetric): string {
+  if (metric === "kills" || metric === "deaths" || metric === "downs" || metric === "revives" || metric === "heals" || metric === "vehicle") {
+    return value.toFixed(0)
+  }
+
+  if (metric === "elo" || metric === "tbf" || metric === "rating") {
+    return value.toFixed(1)
+  }
+
+  return value.toFixed(2)
+}
+
+function buildRoleData(
+  player: Player,
+  playerStats: PlayerEventStat[],
+  roleMetric: RoleLeaderboardMetric,
+  roleDomain: string[],
+  events: GameEvent[],
+  roleMetricMaxima: Record<string, number>,
+): Array<PlayerRoleMetricEntry & { stat: string; value: number; fullMark: number }> {
+  return getPlayerRoleMetricBreakdown(
+    player.player_id,
+    playerStats,
+    roleMetric,
+    roleDomain,
+    events,
+    player.totals.rating,
+  )
+    .map((entry) => ({
+      ...entry,
+      stat: entry.role,
+      value: scaleToMax(entry.metricValue, roleMetricMaxima[entry.role] || 0),
+      fullMark: 100,
+    }))
+    .slice(0, 6)
+}
+
 export function PlayerRadarChart({
   player,
   playerStats,
-  maxValues,
-  avgValues,
-  maxRoleKD,
+  events = [],
+  roleDomain = [],
+  roleMetricMaxima = {},
+  roleMetric = "kd",
+  skillMaxima,
+  activityAverage,
+  activityMax,
   title,
   type,
   layout = "compact",
 }: PlayerRadarChartProps) {
   const isExpanded = layout === "expanded"
-  const getScaledValue = (value: number, avg: number, max: number) => {
-    if (max === 0) return 0
+  const playerEvents = Math.max(player.totals.events, 1)
+  const playerAvgRevives = player.totals.events > 0 ? player.totals.revives / playerEvents : 0
+  const playerAvgVehicle = player.totals.events > 0 ? player.totals.vehicle / playerEvents : 0
 
-    // If value is below average, scale from 0 to 50%
-    if (value <= avg) {
-      return avg > 0 ? (value / avg) * 50 : 0
-    }
-
-    // If value is above average, scale from 50% to 100%
-    const aboveAvgRange = max - avg
-    if (aboveAvgRange <= 0) return 50
-
-    return 50 + ((value - avg) / aboveAvgRange) * 50
-  }
-
-  const playerRoleStats = playerStats
-    .filter((s) => s.player_id === player.player_id)
-    .reduce(
-      (acc, stat) => {
-        if (!stat.role) return acc
-        if (!acc[stat.role]) {
-          acc[stat.role] = { kills: 0, deaths: 0, games: 0 }
-        }
-        acc[stat.role].kills += stat.kills
-        acc[stat.role].deaths += stat.deaths
-        acc[stat.role].games++
-        return acc
-      },
-      {} as Record<string, { kills: number; deaths: number; games: number }>,
-    )
-
-  const rolesData = Object.entries(playerRoleStats)
-    .filter(([, stats]) => stats.games >= 1)
-    .map(([role, stats]) => {
-      const kd = stats.deaths > 0 ? stats.kills / stats.deaths : stats.kills
-      const maxKD = maxRoleKD[role] || 1
-      return {
-        stat: role,
-        value: Math.min((kd / maxKD) * 100, 100),
-        rawValue: kd,
-        games: stats.games,
-        fullMark: 100,
-      }
-    })
-    .sort((a, b) => b.games - a.games)
-    .slice(0, 6)
+  const rolesData = buildRoleData(player, playerStats, roleMetric, roleDomain, events, roleMetricMaxima)
 
   const skillsData = [
     {
-      stat: "Убийства",
-      value: getScaledValue(player.totals.kills, avgValues.kills, maxValues.kills),
-      rawValue: player.totals.kills,
-      avg: avgValues.kills,
-      max: maxValues.kills,
+      stat: "KD",
+      value: scaleToMax(player.totals.kd, skillMaxima.kd),
+      rawValue: player.totals.kd,
+      max: skillMaxima.kd,
       fullMark: 100,
     },
     {
-      stat: "Ноки",
-      value: getScaledValue(player.totals.downs, avgValues.downs, maxValues.downs),
-      rawValue: player.totals.downs,
-      avg: avgValues.downs,
-      max: maxValues.downs,
+      stat: "KDA",
+      value: scaleToMax(player.totals.kda, skillMaxima.kda),
+      rawValue: player.totals.kda,
+      max: skillMaxima.kda,
       fullMark: 100,
     },
     {
-      stat: "Поднятия",
-      value: getScaledValue(player.totals.revives, avgValues.revives, maxValues.revives),
-      rawValue: player.totals.revives,
-      avg: avgValues.revives,
-      max: maxValues.revives,
+      stat: "Поднятия/игра",
+      value: scaleToMax(playerAvgRevives, skillMaxima.avgRevives),
+      rawValue: playerAvgRevives,
+      max: skillMaxima.avgRevives,
       fullMark: 100,
     },
     {
-      stat: "Техника",
-      value: getScaledValue(player.totals.vehicle, avgValues.vehicle, maxValues.vehicle),
-      rawValue: player.totals.vehicle,
-      avg: avgValues.vehicle,
-      max: maxValues.vehicle,
+      stat: "Техника/игра",
+      value: scaleToMax(playerAvgVehicle, skillMaxima.avgVehicle),
+      rawValue: playerAvgVehicle,
+      max: skillMaxima.avgVehicle,
       fullMark: 100,
     },
     {
       stat: "Активность",
-      value: getScaledValue(player.totals.events, avgValues.events, maxValues.events),
+      value: scaleActivity(player.totals.events, activityAverage, activityMax),
       rawValue: player.totals.events,
-      avg: avgValues.events,
-      max: maxValues.events,
+      max: activityMax,
       fullMark: 100,
     },
   ]
@@ -148,8 +169,36 @@ export function PlayerRadarChart({
         </CardHeader>
         <CardContent>
           <div className={`${isExpanded ? "h-[220px]" : "h-[180px]"} flex items-center justify-center text-sm text-muted-foreground`}>
-            Нет данных по ролям
+            Нет ролей с минимум 10 играми
           </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (type === "roles" && rolesData.length <= 2) {
+    return (
+      <Card className="h-full border-christmas-gold/20">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">
+            {title}
+            <span className="ml-2 text-[10px] normal-case tracking-normal text-muted-foreground">
+              {ROLE_METRIC_LABELS[roleMetric]}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {rolesData.map((entry) => (
+            <div key={entry.role} className="rounded-lg border border-border/50 bg-background/25 px-3 py-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-christmas-snow">{entry.role}</p>
+                <p className="text-sm font-semibold text-christmas-gold">{formatMetricValue(entry.metricValue, roleMetric)}</p>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {entry.games} игр • {ROLE_METRIC_LABELS[roleMetric]}
+              </p>
+            </div>
+          ))}
         </CardContent>
       </Card>
     )
@@ -158,8 +207,14 @@ export function PlayerRadarChart({
   return (
     <Card className="h-full border-christmas-gold/20">
       <CardHeader className="pb-2">
-        <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">{title}</CardTitle>
-        {type === "skills" && <p className="text-[10px] text-muted-foreground">50% = среднее, 100% = топ-1</p>}
+        <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">
+          {title}
+          {type === "roles" && (
+            <span className="ml-2 text-[10px] normal-case tracking-normal text-muted-foreground">
+              {ROLE_METRIC_LABELS[roleMetric]}
+            </span>
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className={isExpanded ? "h-[220px]" : "h-[180px]"}>
@@ -176,20 +231,29 @@ export function PlayerRadarChart({
                   color: "var(--foreground)",
                 }}
                 formatter={(
-                  value: number,
-                  name: string,
-                  props: { payload?: { rawValue?: number; games?: number; avg?: number; max?: number } },
+                  _value: number,
+                  _name: string,
+                  props: {
+                    payload?: {
+                      rawValue?: number
+                      games?: number
+                      max?: number
+                    }
+                  },
                 ) => {
                   const payload = props.payload
-                  if (type === "roles" && payload) {
-                    return [`K/D: ${payload.rawValue?.toFixed(2)} (${payload.games} записей)`, ""]
+                  if (!payload) {
+                    return ["", ""]
                   }
-                  if (payload) {
-                    const avgVal = payload.avg?.toFixed(0) || "0"
-                    const maxVal = payload.max?.toFixed(0) || "0"
-                    return [`${payload.rawValue} (ср: ${avgVal}, макс: ${maxVal})`, ""]
+
+                  if (type === "roles") {
+                    return [
+                      `${ROLE_METRIC_LABELS[roleMetric]}: ${formatMetricValue(payload.rawValue ?? 0, roleMetric)} (${payload.games ?? 0} игр)`,
+                      "",
+                    ]
                   }
-                  return [`${value.toFixed(0)}%`, ""]
+
+                  return [`${(payload.rawValue ?? 0).toFixed(payload.rawValue && payload.rawValue < 10 ? 2 : 0)} из ${(payload.max ?? 0).toFixed(2)}`, ""]
                 }}
               />
               <Radar

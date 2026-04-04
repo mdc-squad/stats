@@ -5,12 +5,14 @@ import { PlayerAvatar } from "@/components/player-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { PastGameSummary } from "@/lib/data-utils"
-import { getSquadToneClasses, SQUAD_MEMBERSHIP_MIN_GAMES } from "@/lib/squad-utils"
+import type { PastGameSummary, Player } from "@/lib/data-utils"
+import { getSquadLabels, getSquadToneClasses } from "@/lib/squad-utils"
 import { CircleHelp, Shield, Target, Trophy, Users, Zap } from "lucide-react"
 
 interface SquadOverviewProps {
   games: PastGameSummary[]
+  players: Player[]
+  squadDomain: string[]
 }
 
 function formatRecentDate(value: string): string {
@@ -76,8 +78,11 @@ function SquadAvgEloHelp() {
   )
 }
 
-export function SquadOverview({ games }: SquadOverviewProps) {
+export function SquadOverview({ games, players, squadDomain }: SquadOverviewProps) {
   const squads = useMemo(() => {
+    const explicitSquadsByPlayerId = new Map(
+      players.map((player) => [player.player_id, new Set(getSquadLabels(player.teams ?? [], squadDomain))]),
+    )
     const bySquad = new Map<
       string,
       {
@@ -206,19 +211,20 @@ export function SquadOverview({ games }: SquadOverviewProps) {
             kd: player.deaths > 0 ? player.kills / player.deaths : player.kills,
             avgElo: player.games > 0 ? player.elo / player.games : 0,
           }))
-          .filter((player) => player.games > SQUAD_MEMBERSHIP_MIN_GAMES)
+          .filter((player) => explicitSquadsByPlayerId.get(player.player_id)?.has(squad.label) === true)
           .sort((left, right) => {
             if (right.games !== left.games) return right.games - left.games
             if (right.avgElo !== left.avgElo) return right.avgElo - left.avgElo
             return left.nickname.localeCompare(right.nickname, "ru")
           }),
       }))
+      .filter((squad) => squad.playersRanked.length > 0)
       .sort((left, right) => {
         if (right.games !== left.games) return right.games - left.games
         if (right.avgElo !== left.avgElo) return right.avgElo - left.avgElo
         return left.label.localeCompare(right.label, "ru")
       })
-  }, [games])
+  }, [games, players, squadDomain])
 
   if (squads.length === 0) {
     return (
@@ -246,7 +252,7 @@ export function SquadOverview({ games }: SquadOverviewProps) {
               Общие цифры по отрядам, динамика последних игр и лидеры внутри каждого цветового состава.
             </p>
             <p className="text-[11px] text-muted-foreground">
-              Игрок считается закреплённым за цветом, если сыграл в нём более {SQUAD_MEMBERSHIP_MIN_GAMES} игр.
+              Закрепление игроков берётся из `teams` API.
             </p>
           </div>
           <Badge variant="outline" className="border-christmas-gold/30 text-christmas-gold">
@@ -362,7 +368,7 @@ export function SquadOverview({ games }: SquadOverviewProps) {
                   <p className="text-sm font-medium text-christmas-snow">Игроки отряда</p>
                   {squad.playersRanked.length === 0 ? (
                     <div className="rounded-lg border border-border/50 bg-background/35 px-3 py-2 text-[11px] text-muted-foreground">
-                      Пока нет игроков, которые сыграли за этот цвет более {SQUAD_MEMBERSHIP_MIN_GAMES} игр.
+                      Пока нет игроков, закреплённых за этим цветом.
                     </div>
                   ) : (
                     <div className="space-y-2">
