@@ -1,9 +1,10 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip, PolarRadiusAxis } from "recharts"
 import type { GameEvent, Player, PlayerEventStat, PlayerRoleMetricEntry, RoleLeaderboardMetric } from "@/lib/data-utils"
-import { getPlayerRoleMetricBreakdown } from "@/lib/data-utils"
+import { getPlayerAverageValue, getPlayerRoleMetricBreakdown } from "@/lib/data-utils"
 
 interface SkillMaxima {
   kd: number
@@ -19,12 +20,14 @@ interface PlayerRadarChartProps {
   roleDomain?: string[]
   roleMetricMaxima?: Record<string, number>
   roleMetric?: RoleLeaderboardMetric
+  roleMetricOptions?: Array<{ value: RoleLeaderboardMetric; label: string }>
   skillMaxima: SkillMaxima
   activityAverage: number
   activityMax: number
   title: string
   type: "roles" | "skills"
   layout?: "compact" | "expanded"
+  onRoleMetricChange?: (metric: RoleLeaderboardMetric) => void
 }
 
 const ROLE_METRIC_LABELS: Record<RoleLeaderboardMetric, string> = {
@@ -105,17 +108,18 @@ export function PlayerRadarChart({
   roleDomain = [],
   roleMetricMaxima = {},
   roleMetric = "kd",
+  roleMetricOptions = [],
   skillMaxima,
   activityAverage,
   activityMax,
   title,
   type,
   layout = "compact",
+  onRoleMetricChange,
 }: PlayerRadarChartProps) {
   const isExpanded = layout === "expanded"
-  const playerEvents = Math.max(player.totals.events, 1)
-  const playerAvgRevives = player.totals.events > 0 ? player.totals.revives / playerEvents : 0
-  const playerAvgVehicle = player.totals.events > 0 ? player.totals.vehicle / playerEvents : 0
+  const playerAvgRevives = getPlayerAverageValue(player, "revives")
+  const playerAvgVehicle = getPlayerAverageValue(player, "vehicle")
 
   const rolesData = buildRoleData(player, playerStats, roleMetric, roleDomain, events, roleMetricMaxima)
 
@@ -135,14 +139,14 @@ export function PlayerRadarChart({
       fullMark: 100,
     },
     {
-      stat: "Поднятия/игра",
+      stat: "Поднятия",
       value: scaleToMax(playerAvgRevives, skillMaxima.avgRevives),
       rawValue: playerAvgRevives,
       max: skillMaxima.avgRevives,
       fullMark: 100,
     },
     {
-      stat: "Техника/игра",
+      stat: "Техника",
       value: scaleToMax(playerAvgVehicle, skillMaxima.avgVehicle),
       rawValue: playerAvgVehicle,
       max: skillMaxima.avgVehicle,
@@ -163,12 +167,31 @@ export function PlayerRadarChart({
 
   if (type === "roles" && rolesData.length === 0) {
     return (
-      <Card className="h-full border-christmas-gold/20">
+      <Card className="h-full border-christmas-gold/20" data-testid={`player-radar-${type}`}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">{title}</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">{title}</CardTitle>
+            {type === "roles" && roleMetricOptions.length > 0 && onRoleMetricChange && (
+              <Select value={roleMetric} onValueChange={(value) => onRoleMetricChange(value as RoleLeaderboardMetric)}>
+                <SelectTrigger
+                  className="h-8 w-[180px] border-christmas-gold/20 bg-background/50 text-xs text-christmas-snow"
+                  data-testid="player-role-metric-selector"
+                >
+                  <SelectValue placeholder="Показатель" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleMetricOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
-          <div className={`${isExpanded ? "h-[220px]" : "h-[180px]"} flex items-center justify-center text-sm text-muted-foreground`}>
+          <div className={`${isExpanded ? "h-[280px]" : "h-[240px]"} flex items-center justify-center text-sm text-muted-foreground`}>
             Нет ролей с минимум 10 играми
           </div>
         </CardContent>
@@ -178,14 +201,33 @@ export function PlayerRadarChart({
 
   if (type === "roles" && rolesData.length <= 2) {
     return (
-      <Card className="h-full border-christmas-gold/20">
+      <Card className="h-full border-christmas-gold/20" data-testid={`player-radar-${type}`}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">
-            {title}
-            <span className="ml-2 text-[10px] normal-case tracking-normal text-muted-foreground">
-              {ROLE_METRIC_LABELS[roleMetric]}
-            </span>
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">
+              {title}
+              <span className="ml-2 text-[10px] normal-case tracking-normal text-muted-foreground">
+                {ROLE_METRIC_LABELS[roleMetric]}
+              </span>
+            </CardTitle>
+            {roleMetricOptions.length > 0 && onRoleMetricChange && (
+              <Select value={roleMetric} onValueChange={(value) => onRoleMetricChange(value as RoleLeaderboardMetric)}>
+                <SelectTrigger
+                  className="h-8 w-[180px] border-christmas-gold/20 bg-background/50 text-xs text-christmas-snow"
+                  data-testid="player-role-metric-selector"
+                >
+                  <SelectValue placeholder="Показатель" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleMetricOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-2">
           {rolesData.map((entry) => (
@@ -205,21 +247,40 @@ export function PlayerRadarChart({
   }
 
   return (
-    <Card className="h-full border-christmas-gold/20">
+    <Card className="h-full border-christmas-gold/20" data-testid={`player-radar-${type}`}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">
-          {title}
-          {type === "roles" && (
-            <span className="ml-2 text-[10px] normal-case tracking-normal text-muted-foreground">
-              {ROLE_METRIC_LABELS[roleMetric]}
-            </span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">
+            {title}
+            {type === "roles" && (
+              <span className="ml-2 text-[10px] normal-case tracking-normal text-muted-foreground">
+                {ROLE_METRIC_LABELS[roleMetric]}
+              </span>
+            )}
+          </CardTitle>
+          {type === "roles" && roleMetricOptions.length > 0 && onRoleMetricChange && (
+            <Select value={roleMetric} onValueChange={(value) => onRoleMetricChange(value as RoleLeaderboardMetric)}>
+              <SelectTrigger
+                className="h-8 w-[180px] border-christmas-gold/20 bg-background/50 text-xs text-christmas-snow"
+                data-testid="player-role-metric-selector"
+              >
+                <SelectValue placeholder="Показатель" />
+              </SelectTrigger>
+              <SelectContent>
+                {roleMetricOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
-        </CardTitle>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className={isExpanded ? "h-[220px]" : "h-[180px]"}>
+        <div className={isExpanded ? "h-[280px]" : "h-[240px]"}>
           <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={data} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
+            <RadarChart data={data} margin={{ top: 8, right: 18, bottom: 8, left: 18 }}>
               <PolarGrid stroke="var(--border)" />
               <PolarAngleAxis dataKey="stat" tick={{ fill: "var(--muted-foreground)", fontSize: 10 }} />
               <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
@@ -248,7 +309,7 @@ export function PlayerRadarChart({
 
                   if (type === "roles") {
                     return [
-                      `${ROLE_METRIC_LABELS[roleMetric]}: ${formatMetricValue(payload.rawValue ?? 0, roleMetric)} (${payload.games ?? 0} игр)`,
+                      `${ROLE_METRIC_LABELS[roleMetric]}: ${formatMetricValue((payload as { metricValue?: number }).metricValue ?? payload.rawValue ?? 0, roleMetric)} (${payload.games ?? 0} игр)`,
                       "",
                     ]
                   }

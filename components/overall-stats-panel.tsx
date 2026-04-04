@@ -31,16 +31,16 @@ export function OverallStatsPanel({ stats, periodLabel = "за всё время
       color: "text-christmas-gold",
     },
     {
-      label: "Хила",
-      value: stats.totalHeals.toLocaleString(),
-      icon: getMetricIcon("heals"),
-      color: "text-rose-300",
-    },
-    {
       label: "Поднятий",
       value: stats.totalRevives.toLocaleString(),
       icon: getMetricIcon("revives"),
       color: "text-sky-300",
+    },
+    {
+      label: "Хила",
+      value: stats.totalHeals.toLocaleString(),
+      icon: getMetricIcon("heals"),
+      color: "text-rose-300",
     },
     {
       label: "Ноков",

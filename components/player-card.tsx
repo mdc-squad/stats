@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef } from "react"
+import { useMemo, useRef, useState } from "react"
 import { AchievementBadges } from "@/components/achievement-badges"
 import { PlayerProgressChart } from "@/components/charts/player-progress-chart"
 import { PlayerMatchHistory } from "@/components/player-match-history"
@@ -19,11 +19,11 @@ import type {
   PlayerProgressPoint,
   RoleLeaderboardMetric,
 } from "@/lib/data-utils"
-import { isRoleWithoutKit } from "@/lib/data-utils"
+import { getPlayerAverageValue, isRoleWithoutKit } from "@/lib/data-utils"
 import { getMetricIcon } from "@/lib/app-icons"
 import { getSquadLabels, getSquadToneClasses } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
-import { CalendarDays, Download, Medal, Sparkles, Timer } from "lucide-react"
+import { Award, CalendarDays, Download, Flag, MapPinned, Medal, Shield, Sparkles, Timer } from "lucide-react"
 import { toPng } from "html-to-image"
 
 interface PlayerCardProps {
@@ -35,6 +35,7 @@ interface PlayerCardProps {
   matchHistory?: PlayerGameHistoryEntry[]
   progress?: PlayerProgressPoint[]
   roleMetric?: RoleLeaderboardMetric
+  roleMetricOptions?: Array<{ value: RoleLeaderboardMetric; label: string }>
   roleMetricMaxima?: Record<string, number>
   roleDomain?: string[]
   squadDomain?: string[]
@@ -47,6 +48,7 @@ interface PlayerCardProps {
   }
   activityAverage: number
   activityMax: number
+  onRoleMetricChange?: (metric: RoleLeaderboardMetric) => void
   onOpenGame?: (eventId: string, playerId: string) => void
   layout?: "compact" | "expanded"
 }
@@ -136,6 +138,7 @@ export function PlayerCard({
   matchHistory = [],
   progress = [],
   roleMetric = "kd",
+  roleMetricOptions = [],
   roleMetricMaxima = {},
   roleDomain = [],
   squadDomain = [],
@@ -143,10 +146,12 @@ export function PlayerCard({
   skillMaxima,
   activityAverage,
   activityMax,
+  onRoleMetricChange,
   onOpenGame,
   layout = "compact",
 }: PlayerCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
+  const [isExporting, setIsExporting] = useState(false)
   const isExpanded = layout === "expanded"
 
   const squadSummary = useMemo(() => {
@@ -158,18 +163,18 @@ export function PlayerCard({
     }
 
     matchHistory.forEach((entry) => {
-      const label = entry.squad_label?.trim() || "Без отряда"
-      if (!explicitSquadLabels.has(label)) {
-        return
-      }
-      bySquad.set(label, (bySquad.get(label) ?? 0) + 1)
+      Array.from(new Set(entry.squad_labels.map((label) => label?.trim()).filter(Boolean))).forEach((label) => {
+        if (!explicitSquadLabels.has(label)) {
+          return
+        }
+        bySquad.set(label, (bySquad.get(label) ?? 0) + 1)
+      })
     })
 
     return Array.from(bySquad.entries())
       .map(([label, games]) => ({ label, games }))
       .filter((entry) => entry.games > 0)
       .sort((left, right) => right.games - left.games)
-      .slice(0, 3)
   }, [matchHistory, player.teams, squadDomain])
 
   const topRoles = useMemo(() => {
@@ -214,9 +219,9 @@ export function PlayerCard({
     }
 
     return {
-      heals: player.totals.heals / player.totals.events,
-      revives: player.totals.revives / player.totals.events,
-      vehicle: player.totals.vehicle / player.totals.events,
+      heals: getPlayerAverageValue(player, "heals"),
+      revives: getPlayerAverageValue(player, "revives"),
+      vehicle: getPlayerAverageValue(player, "vehicle"),
     }
   }, [player])
 
@@ -226,9 +231,16 @@ export function PlayerCard({
   )
 
   const handleExport = async () => {
-    if (!cardRef.current) return
+    if (!cardRef.current || isExporting) return
 
+    setIsExporting(true)
     try {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve())
+        })
+      })
+
       if (typeof document !== "undefined" && "fonts" in document) {
         await document.fonts.ready
       }
@@ -269,60 +281,71 @@ export function PlayerCard({
       link.click()
     } catch (err) {
       console.error("Export failed:", err)
+    } finally {
+      setIsExporting(false)
     }
   }
 
   const summaryTiles = [
     {
       label: "Всего событий",
+      key: "events",
       value: player.totals.events.toLocaleString("ru-RU"),
       icon: getMetricIcon("events"),
       color: "text-christmas-gold",
     },
     {
-      label: "Хила",
-      value: player.totals.heals.toLocaleString("ru-RU"),
-      icon: getMetricIcon("heals"),
-      color: "text-rose-300",
-    },
-    {
       label: "Поднятий",
+      key: "revives",
       value: player.totals.revives.toLocaleString("ru-RU"),
       icon: getMetricIcon("revives"),
       color: "text-sky-300",
     },
     {
+      label: "Хила",
+      key: "heals",
+      value: player.totals.heals.toLocaleString("ru-RU"),
+      icon: getMetricIcon("heals"),
+      color: "text-rose-300",
+    },
+    {
       label: "Ноков",
+      key: "downs",
       value: player.totals.downs.toLocaleString("ru-RU"),
       icon: getMetricIcon("downs"),
       color: "text-orange-400",
     },
     {
       label: "Убийств",
+      key: "kills",
       value: player.totals.kills.toLocaleString("ru-RU"),
       icon: getMetricIcon("kills"),
       color: "text-christmas-green",
     },
     {
       label: "Смертей",
+      key: "deaths",
       value: player.totals.deaths.toLocaleString("ru-RU"),
       icon: getMetricIcon("deaths"),
       color: "text-christmas-red",
     },
     {
       label: "Техника",
+      key: "vehicle",
       value: player.totals.vehicle.toLocaleString("ru-RU"),
       icon: getMetricIcon("vehicle"),
       color: "text-blue-400",
     },
     {
       label: "K/D",
+      key: "kd",
       value: player.totals.kd.toFixed(2),
       icon: getMetricIcon("kd"),
       color: "text-christmas-gold",
     },
     {
       label: "KDA",
+      key: "kda",
       value: player.totals.kda.toFixed(2),
       icon: getMetricIcon("kda"),
       color: "text-purple-400",
@@ -332,24 +355,28 @@ export function PlayerCard({
   const ratingTiles = [
     {
       label: "ОР",
+      key: "rating",
       value: player.totals.rating.toFixed(1),
       icon: getMetricIcon("rating"),
       accentClass: "border-christmas-gold/30 bg-christmas-gold/10 text-christmas-gold",
     },
     {
       label: "ELO",
+      key: "elo",
       value: player.totals.elo.toFixed(1),
       icon: getMetricIcon("elo"),
       accentClass: "border-sky-400/30 bg-sky-400/10 text-sky-300",
     },
     {
       label: "ТБФ",
+      key: "tbf",
       value: player.totals.tbf.toFixed(1),
       icon: getMetricIcon("tbf"),
       accentClass: "border-christmas-red/30 bg-christmas-red/10 text-christmas-red",
     },
     {
       label: "MVP",
+      key: "mvp",
       value: mvpCount.toLocaleString("ru-RU"),
       icon: Medal,
       accentClass: "border-christmas-green/30 bg-christmas-green/10 text-christmas-green",
@@ -358,19 +385,22 @@ export function PlayerCard({
 
   const averageTiles = [
     {
-      label: "Хил / игра",
-      value: averagePerGame.heals.toFixed(1),
-      icon: getMetricIcon("heals"),
-      color: "text-rose-300",
-    },
-    {
       label: "Поднятия / игра",
+      key: "revives",
       value: averagePerGame.revives.toFixed(2),
       icon: getMetricIcon("avgRevives"),
       color: "text-sky-300",
     },
     {
+      label: "Хил / игра",
+      key: "heals",
+      value: averagePerGame.heals.toFixed(1),
+      icon: getMetricIcon("heals"),
+      color: "text-rose-300",
+    },
+    {
       label: "Техника / игра",
+      key: "vehicle",
       value: averagePerGame.vehicle.toFixed(2),
       icon: getMetricIcon("avgVehicle"),
       color: "text-blue-400",
@@ -382,6 +412,8 @@ export function PlayerCard({
       <Card
         ref={cardRef}
         id={`player-card-${player.player_id}`}
+        data-testid="player-card"
+        data-exporting={isExporting ? "true" : "false"}
         className="w-full overflow-hidden border-christmas-gold/20"
       >
         <div className="absolute inset-0 bg-gradient-to-br from-christmas-red/10 via-transparent to-christmas-green/10" />
@@ -420,6 +452,7 @@ export function PlayerCard({
                     </span>
                   )}
                   <h3
+                    data-testid="player-card-nickname"
                     className={cn(
                       "break-words font-bold leading-tight text-christmas-snow",
                       isExpanded ? "text-2xl lg:text-3xl" : "text-xl",
@@ -442,11 +475,15 @@ export function PlayerCard({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {ratingTiles.map((tile) => {
                 const Icon = tile.icon
                 return (
-                  <div key={tile.label} className={cn("rounded-xl border px-3 py-3", tile.accentClass)}>
+                  <div
+                    key={tile.label}
+                    className={cn("rounded-xl border px-3 py-3", tile.accentClass)}
+                    data-testid={`player-card-rating-${tile.key}`}
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-[10px] uppercase tracking-[0.16em]">{tile.label}</p>
                       <Icon className="h-4 w-4" />
@@ -464,6 +501,7 @@ export function PlayerCard({
               return (
                 <div
                   key={tile.label}
+                  data-testid={`player-card-summary-${tile.key}`}
                   className="flex min-h-[104px] flex-col items-center justify-center rounded-xl border border-border/50 bg-background/45 px-3 py-3 text-center"
                 >
                   <div className={cn("mb-2 flex justify-center opacity-80", tile.color)}>
@@ -480,8 +518,12 @@ export function PlayerCard({
             {averageTiles.map((tile) => {
               const Icon = tile.icon
               return (
-                <div key={tile.label} className="rounded-xl border border-border/50 bg-background/35 px-4 py-3">
-                  <div className={cn("mb-2 flex items-center gap-2", tile.color)}>
+                <div
+                  key={tile.label}
+                  data-testid={`player-card-average-${tile.key}`}
+                  className="rounded-xl border border-border/50 bg-background/35 px-4 py-3 text-center"
+                >
+                  <div className={cn("mb-2 flex items-center justify-center gap-2", tile.color)}>
                     <Icon className="h-4 w-4" />
                     <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{tile.label}</p>
                   </div>
@@ -494,13 +536,16 @@ export function PlayerCard({
           <div className="grid gap-3 xl:grid-cols-2">
             <div className="space-y-3">
               {achievements.length > 0 && (
-                <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
-                  <p className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">Достижения</p>
+                <div className="rounded-xl border border-christmas-gold/20 bg-gradient-to-br from-christmas-gold/10 via-background/35 to-background/20 px-4 py-3">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Award className="h-4 w-4 text-christmas-gold" />
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Достижения</p>
+                  </div>
                   <AchievementBadges
                     achievements={achievements}
                     variant="outline"
-                    badgeClassName="border-christmas-gold/30 text-[10px] text-christmas-snow"
-                    containerClassName="gap-1.5"
+                    badgeClassName="border-christmas-gold/35 bg-background/35 text-[10px] text-christmas-snow"
+                    containerClassName="gap-2"
                     showIcons
                   />
                 </div>
@@ -509,10 +554,13 @@ export function PlayerCard({
               {topRoles.length > 0 && (
                 <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
                   <p className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">Популярные роли</p>
-                  <div className="space-y-2">
+                  <div className="grid gap-2 sm:grid-cols-3">
                     {topRoles.map((entry) => (
-                      <div key={entry.label} className="flex items-center justify-between gap-3">
-                        <span className="inline-flex items-center gap-2 text-sm text-christmas-snow">
+                      <div
+                        key={entry.label}
+                        className="flex min-h-[86px] flex-col justify-between rounded-lg border border-border/40 bg-background/35 px-3 py-2.5"
+                      >
+                        <span className="inline-flex items-center gap-2 text-sm font-medium text-christmas-snow">
                           <RoleIcon role={entry.label} className="h-4 w-4" />
                           {entry.label}
                         </span>
@@ -526,14 +574,17 @@ export function PlayerCard({
               {specializationSummary.length > 0 && (
                 <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
                   <p className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">Специализации</p>
-                  <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                     {specializationSummary.map((entry) => (
-                      <div key={entry.label} className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-background/30 px-3 py-2">
+                      <div
+                        key={entry.label}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-background/30 px-3 py-2"
+                      >
                         <span className="inline-flex items-center gap-2 text-sm text-christmas-snow">
                           <SpecializationIcon specialization={entry.label} className="h-4 w-4" />
                           {entry.label}
                         </span>
-                        <span className="text-xs text-muted-foreground">{entry.count}</span>
+                        <span className="text-xs text-muted-foreground">{entry.count} игр</span>
                       </div>
                     ))}
                   </div>
@@ -545,12 +596,19 @@ export function PlayerCard({
               {(topFactions.length > 0 || topMaps.length > 0) && (
                 <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
                   <div className="grid gap-3 md:grid-cols-2">
-                    <div>
-                      <p className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">Фракции</p>
+                    <div className="rounded-lg border border-border/40 bg-background/30 px-3 py-3">
+                      <div className="mb-2 flex items-center gap-2">
+                        <Flag className="h-4 w-4 text-christmas-green" />
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Фракции</p>
+                      </div>
                       <div className="flex flex-wrap gap-1.5">
                         {topFactions.length > 0 ? (
                           topFactions.map((entry) => (
-                            <Badge key={entry.label} variant="outline" className="border-border/60 text-christmas-snow">
+                            <Badge
+                              key={entry.label}
+                              variant="outline"
+                              className="border-christmas-green/25 bg-background/35 text-christmas-snow"
+                            >
                               {entry.label} • {entry.count}
                             </Badge>
                           ))
@@ -559,12 +617,19 @@ export function PlayerCard({
                         )}
                       </div>
                     </div>
-                    <div>
-                      <p className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">Карты</p>
+                    <div className="rounded-lg border border-border/40 bg-background/30 px-3 py-3">
+                      <div className="mb-2 flex items-center gap-2">
+                        <MapPinned className="h-4 w-4 text-sky-300" />
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Карты</p>
+                      </div>
                       <div className="flex flex-wrap gap-1.5">
                         {topMaps.length > 0 ? (
                           topMaps.map((entry) => (
-                            <Badge key={entry.label} variant="outline" className="border-border/60 text-christmas-snow">
+                            <Badge
+                              key={entry.label}
+                              variant="outline"
+                              className="border-sky-400/25 bg-background/35 text-christmas-snow"
+                            >
                               {entry.label} • {entry.count}
                             </Badge>
                           ))
@@ -579,14 +644,25 @@ export function PlayerCard({
 
               {squadSummary.length > 0 && (
                 <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
-                  <p className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">Популярный цвет отряда</p>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-christmas-gold" />
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Цвета отрядов</p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-3">
                     {squadSummary.map((squad) => {
                       const tone = getSquadToneClasses(squad.label)
                       return (
-                        <Badge key={squad.label} variant="outline" className={tone.badge}>
-                          {squad.label} • {squad.games}
-                        </Badge>
+                        <div
+                          key={squad.label}
+                          data-testid="player-card-squad-tile"
+                          className={cn(
+                            "flex min-h-[86px] flex-col justify-between rounded-lg border px-3 py-2.5",
+                            tone.badge,
+                          )}
+                        >
+                          <span className="text-sm font-medium">{squad.label}</span>
+                          <span className="text-xs">{squad.games} игр</span>
+                        </div>
                       )
                     })}
                   </div>
@@ -602,6 +678,7 @@ export function PlayerCard({
               events={events}
               roleDomain={roleDomain}
               roleMetric={roleMetric}
+              roleMetricOptions={roleMetricOptions}
               roleMetricMaxima={roleMetricMaxima}
               skillMaxima={skillMaxima}
               activityAverage={activityAverage}
@@ -609,6 +686,7 @@ export function PlayerCard({
               title="Роли"
               type="roles"
               layout={isExpanded ? "expanded" : "compact"}
+              onRoleMetricChange={onRoleMetricChange}
             />
             <PlayerRadarChart
               player={player}
@@ -633,12 +711,16 @@ export function PlayerCard({
             currentTbf={player.totals.tbf}
           />
 
-          <PlayerMatchHistory
-            playerId={player.player_id}
-            games={matchHistory}
-            onOpenGame={onOpenGame}
-            layout={isExpanded ? "expanded" : "compact"}
-          />
+          {!isExporting && (
+            <div data-testid="player-card-history-section">
+              <PlayerMatchHistory
+                playerId={player.player_id}
+                games={matchHistory}
+                onOpenGame={onOpenGame}
+                layout={isExpanded ? "expanded" : "compact"}
+              />
+            </div>
+          )}
 
           <div className="flex items-center justify-center gap-2 border-t border-christmas-gold/20 pt-3 text-center">
             <Sparkles className="h-3 w-3 text-christmas-red" />

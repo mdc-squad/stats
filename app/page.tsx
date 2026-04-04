@@ -1239,14 +1239,8 @@ export default function YearReviewPage() {
     return {
       kd: Math.max(...qualifiedPlayers.map((player) => player.totals.kd), 1),
       kda: Math.max(...qualifiedPlayers.map((player) => player.totals.kda), 1),
-      avgRevives: Math.max(
-        ...qualifiedPlayers.map((player) => (player.totals.events > 0 ? player.totals.revives / player.totals.events : 0)),
-        1,
-      ),
-      avgVehicle: Math.max(
-        ...qualifiedPlayers.map((player) => (player.totals.events > 0 ? player.totals.vehicle / player.totals.events : 0)),
-        1,
-      ),
+      avgRevives: Math.max(...qualifiedPlayers.map((player) => player.totals.avgRevives), 1),
+      avgVehicle: Math.max(...qualifiedPlayers.map((player) => player.totals.avgVehicle), 1),
     }
   }, [data])
 
@@ -1862,31 +1856,13 @@ export default function YearReviewPage() {
               <CardHeader>
                 <CardTitle className="text-base text-christmas-snow">Выберите игроков для просмотра статистики</CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+              <CardContent>
                 <PlayerSelector
                   players={activePlayers}
                   selected={selectedPlayersForChart}
                   onSelectionChange={setSelectedPlayersForChart}
                   placeholder="Найти игрока для статистики..."
                 />
-                <div className="space-y-2">
-                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Диаграмма ролей</p>
-                  <Select
-                    value={selectedRoleMetric}
-                    onValueChange={(value) => setSelectedRoleMetric(value as RoleLeaderboardMetric)}
-                  >
-                    <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
-                      <SelectValue placeholder="Показатель" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLE_METRIC_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               </CardContent>
             </Card>
 
@@ -1903,6 +1879,7 @@ export default function YearReviewPage() {
                       matchHistory={selectedPlayerHistories.get(player.player_id) ?? []}
                       progress={progress}
                       roleMetric={selectedRoleMetric}
+                      roleMetricOptions={ROLE_METRIC_OPTIONS}
                       roleMetricMaxima={roleMetricMaxima}
                       roleDomain={(competitiveData ?? data).dictionaries?.roles ?? []}
                       squadDomain={(competitiveData ?? data).dictionaries?.squads ?? []}
@@ -1910,6 +1887,7 @@ export default function YearReviewPage() {
                       skillMaxima={skillMaxima}
                       activityAverage={avgValues.events}
                       activityMax={maxValues.events}
+                      onRoleMetricChange={(value) => setSelectedRoleMetric(value)}
                       onOpenGame={handleOpenGame}
                       layout="expanded"
                     />

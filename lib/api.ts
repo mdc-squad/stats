@@ -95,6 +95,31 @@ function toNullableNumber(value: unknown): number | null {
   return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : null
 }
 
+function roundNearInteger(value: number): number {
+  const rounded = Math.round(value)
+  return Math.abs(value - rounded) < 1e-6 ? rounded : value
+}
+
+function toAverageNumber(value: unknown): number | null {
+  const parsed = typeof value === "string" ? Number(value) : value
+  return typeof parsed === "number" && Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+}
+
+function deriveEffectiveEvents(
+  metrics: Array<{ total: number; average: number | null }>,
+  fallbackEvents: number,
+): number {
+  const candidates = metrics
+    .filter((entry): entry is { total: number; average: number } => entry.total > 0 && entry.average !== null && entry.average > 0)
+    .map(({ total, average }) => roundNearInteger(total / average))
+
+  if (candidates.length === 0) {
+    return fallbackEvents
+  }
+
+  return candidates.reduce((sum, value) => sum + value, 0) / candidates.length
+}
+
 function normalizePlayerTeams(value: unknown): Array<string | number> {
   const parsed = parseMaybeJson(value)
 
@@ -764,6 +789,18 @@ function normalizePlayer(raw: UnknownRecord): Player {
     totalsRecord?.rating ?? totalsRecord?.op ?? totalsRecord?.OP ?? raw.rating ?? raw.op ?? raw.OP,
     0,
   )
+  const avgRevives = toAverageNumber(raw.deff_revives ?? totalsRecord?.avgRevives)
+  const avgVehicle = toAverageNumber(raw.deff_vehicle ?? totalsRecord?.avgVehicle)
+  const avgHealsFromApi = toAverageNumber(raw.deff_heals ?? totalsRecord?.avgHeals)
+  const effectiveEvents = deriveEffectiveEvents(
+    [
+      { total: revives, average: avgRevives },
+      { total: vehicle, average: avgVehicle },
+      { total: heals, average: avgHealsFromApi },
+    ],
+    events,
+  )
+  const averageDenominator = effectiveEvents > 0 ? effectiveEvents : events
   const isMdcMember = isRecognizedMdcRosterTag(tag)
 
   return {
@@ -794,6 +831,10 @@ function normalizePlayer(raw: UnknownRecord): Player {
       elo,
       tbf,
       rating,
+      effectiveEvents,
+      avgHeals: avgHealsFromApi ?? (averageDenominator > 0 ? heals / averageDenominator : 0),
+      avgRevives: avgRevives ?? (averageDenominator > 0 ? revives / averageDenominator : 0),
+      avgVehicle: avgVehicle ?? (averageDenominator > 0 ? vehicle / averageDenominator : 0),
     },
     favorites: {
       role_1: toNullableString(favoritesRecord?.role_1 ?? raw.MainRole),
@@ -859,6 +900,7 @@ function normalizePlayerEventStat(raw: UnknownRecord, playerLookup: Map<string, 
     player_id: resolvedPlayerId,
     nickname,
     tag,
+    enter: toString(raw.enter, ""),
     squad_no: normalizeSquadIdentifier(raw.squad_no),
     role: toString(raw.role, ""),
     specialization: toString(raw.specialization, ""),

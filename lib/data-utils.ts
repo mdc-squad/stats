@@ -44,6 +44,7 @@ export interface PlayerEventStat {
   player_id: string
   nickname: string
   tag: string
+  enter?: string
   squad_no: SquadIdentifier
   role: string
   specialization: string
@@ -88,6 +89,10 @@ export interface Player {
     elo: number
     tbf: number
     rating: number
+    effectiveEvents: number
+    avgHeals: number
+    avgRevives: number
+    avgVehicle: number
   }
   favorites: {
     role_1: string | null
@@ -235,6 +240,52 @@ function toFiniteNumber(value: unknown): number {
   }
 
   return 0
+}
+
+function normalizeEntryState(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase()
+}
+
+export function isReserveEntryState(value: string | null | undefined): boolean {
+  const normalized = normalizeEntryState(value)
+  return normalized.includes("резерв") || normalized.includes("reserve")
+}
+
+function isReservePlayerEventEntry(stat: Pick<PlayerEventStat, "enter">): boolean {
+  return isReserveEntryState(stat.enter)
+}
+
+export function getPlayerAverageDenominator(player: Pick<Player, "totals">): number {
+  const effectiveEvents = toFiniteNumber(player.totals.effectiveEvents)
+  if (effectiveEvents > 0) {
+    return effectiveEvents
+  }
+
+  return Math.max(toFiniteNumber(player.totals.events), 0)
+}
+
+export function getPlayerAverageValue(
+  player: Pick<Player, "totals">,
+  metric: "heals" | "revives" | "vehicle",
+): number {
+  if (metric === "heals" && Number.isFinite(player.totals.avgHeals)) {
+    return player.totals.avgHeals
+  }
+
+  if (metric === "revives" && Number.isFinite(player.totals.avgRevives)) {
+    return player.totals.avgRevives
+  }
+
+  if (metric === "vehicle" && Number.isFinite(player.totals.avgVehicle)) {
+    return player.totals.avgVehicle
+  }
+
+  const denominator = getPlayerAverageDenominator(player)
+  if (denominator <= 0) {
+    return 0
+  }
+
+  return toFiniteNumber(player.totals[metric]) / denominator
 }
 
 function normalizeEventId(value: string | null | undefined): string {
@@ -713,6 +764,9 @@ export function filterDataByDateRange(data: MDCData, range: DataDateRange = {}):
   const events = Array.isArray(data.events) ? data.events : []
   const playerStats = Array.isArray(data.player_event_stats) ? data.player_event_stats : []
   const hasRange = Boolean(range.from || range.to)
+  if (!hasRange) {
+    return data
+  }
   const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
 
   const isInRange = (date: Date | null): boolean => {
@@ -893,6 +947,10 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
   >()
 
   playerStats.forEach((stat) => {
+    if (isReservePlayerEventEntry(stat)) {
+      return
+    }
+
     if (!stat?.player_id) {
       return
     }
@@ -1041,6 +1099,10 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
           elo,
           tbf,
           rating,
+          effectiveEvents: eventCount,
+          avgHeals: eventCount > 0 ? aggregate.heals / eventCount : 0,
+          avgRevives: eventCount > 0 ? aggregate.revives / eventCount : 0,
+          avgVehicle: eventCount > 0 ? aggregate.vehicle / eventCount : 0,
         },
         favorites: {
           role_1: topRoles[0] ?? basePlayer?.favorites.role_1 ?? null,
@@ -1083,6 +1145,10 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
           elo: 0,
           tbf: 0,
           rating: player.totals.rating ?? 0,
+          effectiveEvents: 0,
+          avgHeals: 0,
+          avgRevives: 0,
+          avgVehicle: 0,
         },
       }))
 
@@ -2044,6 +2110,10 @@ function aggregatePlayerEventStats(playerStats: PlayerEventStat[]): AggregatedPl
   >()
 
   playerStats.forEach((stat) => {
+    if (isReservePlayerEventEntry(stat)) {
+      return
+    }
+
     const normalizedEventId = getEventLinkKey(stat.event_id)
     if (!normalizedEventId || !stat.player_id) return
 
@@ -2516,7 +2586,7 @@ export function getTopByAvgVehicle(players: Player[], minEvents = 3, limit = 10)
     .filter((p) => p.totals.events >= minEvents && p.totals.vehicle > 0)
     .map((p) => ({
       ...p,
-      avgVehicle: p.totals.vehicle / p.totals.events,
+      avgVehicle: getPlayerAverageValue(p, "vehicle"),
     }))
     .sort((a, b) => b.avgVehicle - a.avgVehicle)
     .slice(0, limit)
@@ -2527,7 +2597,7 @@ export function getTopByAvgRevives(players: Player[], minEvents = 3, limit = 10)
     .filter((p) => p.totals.events >= minEvents && p.totals.revives > 0)
     .map((p) => ({
       ...p,
-      avgRevives: p.totals.revives / p.totals.events,
+      avgRevives: getPlayerAverageValue(p, "revives"),
     }))
     .sort((a, b) => b.avgRevives - a.avgRevives)
     .slice(0, limit)
@@ -2538,7 +2608,7 @@ export function getTopByAvgHeals(players: Player[], minEvents = 3, limit = 10): 
     .filter((p) => p.totals.events >= minEvents && p.totals.heals > 0)
     .map((p) => ({
       ...p,
-      avgHeals: p.totals.heals / p.totals.events,
+      avgHeals: getPlayerAverageValue(p, "heals"),
     }))
     .sort((a, b) => b.avgHeals - a.avgHeals)
     .slice(0, limit)
