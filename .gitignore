@@ -31,3 +31,8 @@ next-env.d.ts
 # playwright
 /playwright-report/
 /test-results/
+
+# local codex workflow
+.codex-task-checklist.md
+.local-data/
+*.root-old/

@@ -68,7 +68,7 @@ export function DailyActivityChart({ wins, losses, periodLabel = "за всё в
 
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="rounded-full border border-christmas-gold/20 bg-background/75 px-5 py-3 text-center shadow-lg backdrop-blur-sm">
-              <p className="text-3xl font-bold text-christmas-snow">{totalMatches}</p>
+              <p className="text-3xl font-bold text-christmas-snow" data-testid="overall-results-total">{totalMatches}</p>
               <p className="text-[11px] text-christmas-gold">игр</p>
             </div>
           </div>
@@ -81,6 +81,7 @@ export function DailyActivityChart({ wins, losses, periodLabel = "за всё в
             return (
               <div
                 key={slice.name}
+                data-testid={slice.name === "Победы" ? "overall-results-wins" : "overall-results-losses"}
                 className="rounded-xl border border-border/50 bg-background/30 p-3"
               >
                 <div className="flex flex-col gap-2">

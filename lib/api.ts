@@ -95,6 +95,25 @@ function toNullableNumber(value: unknown): number | null {
   return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : null
 }
 
+function isPlaceholderSpecializationValue(value: string): boolean {
+  const normalized = value.trim().toLowerCase()
+  return normalized.length === 0 || normalized === "cellimage"
+}
+
+function resolveSpecializationValue(raw: UnknownRecord): string {
+  const direct = toString(raw.specialization ?? raw.specialization_name ?? raw.specializationName, "").trim()
+  if (!isPlaceholderSpecializationValue(direct)) {
+    return direct
+  }
+
+  const textFallback = toString(raw.role_icon ?? raw.roleIcon, "").trim()
+  if (textFallback) {
+    return textFallback
+  }
+
+  return toString(raw.specialization_icon ?? raw.specializationIcon, "").trim()
+}
+
 function roundNearInteger(value: number): number {
   const rounded = Math.round(value)
   return Math.abs(value - rounded) < 1e-6 ? rounded : value
@@ -721,17 +740,6 @@ function toIsWin(raw: UnknownRecord): boolean | null {
     return false
   }
 
-  const score = toNullableNumber(raw.score)
-  if (score !== null && score !== 0) {
-    return score > 0
-  }
-
-  const tickets1 = toNullableNumber(raw.tickets_1)
-  const tickets2 = toNullableNumber(raw.tickets_2)
-  if (tickets1 !== null && tickets2 !== null && tickets1 !== tickets2) {
-    return tickets1 > tickets2
-  }
-
   return null
 }
 
@@ -903,7 +911,7 @@ function normalizePlayerEventStat(raw: UnknownRecord, playerLookup: Map<string, 
     enter: toString(raw.enter, ""),
     squad_no: normalizeSquadIdentifier(raw.squad_no),
     role: toString(raw.role, ""),
-    specialization: toString(raw.specialization, ""),
+    specialization: resolveSpecializationValue(raw),
     revives: toNumber(raw.revives, 0),
     heals: toNumber(raw.heals, 0),
     downs,

@@ -34,13 +34,22 @@ const SPECIALIZATION_ICONS: Record<keyof typeof SPECIALIZATION_LABELS, LucideIco
 }
 
 export function normalizeSpecializationKey(value: string | null | undefined): keyof typeof SPECIALIZATION_LABELS | "" {
+  const trimmed = (value ?? "").trim()
+  if (!trimmed) return ""
+  if (trimmed === "🗡️") return "pusher"
+  if (trimmed === "🛡️") return "anchor"
+  if (trimmed === "💥") return "drg"
+  if (trimmed === "💣") return "mortar"
+  if (trimmed === "🚙") return "tech"
+  if (trimmed === "❌" || trimmed === "🎥") return ""
+
   const normalized = (value ?? "")
     .trim()
     .toLowerCase()
     .replace(/ё/g, "е")
     .replace(/[^a-z0-9а-я]/gi, "")
 
-  if (!normalized) return ""
+  if (!normalized || normalized === "cellimage" || normalized === "нет" || normalized === "cast") return ""
   if (normalized === "pusher" || normalized === "пушер") return "pusher"
   if (normalized === "anchor" || normalized === "якорь") return "anchor"
   if (normalized === "drg" || normalized === "дрг") return "drg"

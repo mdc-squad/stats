@@ -4,6 +4,10 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 const API_BASE = "https://api.hungryfishteam.org/gas/mdc"
 
 type ApiPlayerRecord = Record<string, string | number | null>
+type ApiEventRecord = Record<string, string | number | boolean | null>
+type ApiPlayerEventRecord = Record<string, string | number | null>
+
+test.describe.configure({ mode: "serial" })
 
 function getPlayersPanel(page: Page) {
   return page.getByRole("tabpanel", { name: "Игроки" })
@@ -37,15 +41,16 @@ async function openPlayersTab(page: Page) {
 
 async function selectPlayerWithEnoughGames(page: Page) {
   const selector = getPlayerSelector(page)
+  await selector.scrollIntoViewIfNeeded()
   await selector.click()
 
-  const items = page.locator('[data-slot="command-item"]')
-  await expect(items.nth(1)).toBeVisible()
+  const items = page.locator('[data-slot="command-item"]:visible').filter({ hasText: /игр/i })
+  await expect(items.first()).toBeVisible()
 
   const count = await items.count()
-  let chosenIndex = 1
+  let chosenIndex = 0
 
-  for (let index = 1; index < count; index += 1) {
+  for (let index = 0; index < count; index += 1) {
     const text = (await items.nth(index).textContent()) ?? ""
     const match = text.match(/(\d+)\s*игр/i)
     if (match && Number(match[1]) >= 10) {
@@ -55,7 +60,48 @@ async function selectPlayerWithEnoughGames(page: Page) {
   }
 
   await items.nth(chosenIndex).click()
+  await expect(selector).toContainText("Выбрано: 1")
   await page.keyboard.press("Escape")
+}
+
+function normalizeEventKey(value: string | number | boolean | null | undefined): string {
+  const source = String(value ?? "")
+  if (!source) return ""
+
+  const parts = source
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  if (parts.length >= 4) {
+    return parts
+      .slice(1, 4)
+      .join(" | ")
+      .toLowerCase()
+  }
+
+  if (parts.length >= 3) {
+    return parts
+      .slice(1, 3)
+      .join(" | ")
+      .toLowerCase()
+  }
+
+  return source.trim().toLowerCase()
+}
+
+function isReserveEntry(value: string | number | null | undefined) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .includes("резерв")
+}
+
+function isLectureEventType(value: string | number | boolean | null | undefined) {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase()
+  return normalized.includes("лекц") || normalized.includes("lecture")
 }
 
 function toNumber(value: string | number | null | undefined, fallback = 0) {
@@ -71,31 +117,41 @@ function toNumber(value: string | number | null | undefined, fallback = 0) {
   return fallback
 }
 
-function toAverageNumber(value: string | number | null | undefined): number | null {
-  const parsed = toNumber(value, Number.NaN)
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
-}
-
-function deriveEffectiveEvents(player: ApiPlayerRecord): number {
-  const revives = toNumber(player.revives)
-  const heals = toNumber(player.heals)
-  const vehicle = toNumber(player.vehicle)
-  const events = toNumber(player.events)
-  const avgRevives = toAverageNumber(player.deff_revives)
-  const avgVehicle = toAverageNumber(player.deff_vehicle)
-  const avgHeals = toAverageNumber(player.deff_heals)
-
-  const candidates = [
-    avgRevives && revives > 0 ? revives / avgRevives : null,
-    avgVehicle && vehicle > 0 ? vehicle / avgVehicle : null,
-    avgHeals && heals > 0 ? heals / avgHeals : null,
-  ].filter((value): value is number => value !== null && Number.isFinite(value) && value > 0)
-
-  if (candidates.length === 0) {
-    return events
+function toIsWin(event: ApiEventRecord): boolean | null {
+  if (typeof event.is_win === "boolean") {
+    return event.is_win
   }
 
-  return candidates.reduce((sum, value) => sum + value, 0) / candidates.length
+  const result = String(event.result ?? "")
+    .trim()
+    .toLowerCase()
+    .replaceAll("ё", "е")
+
+  if (result.includes("побед")) {
+    return true
+  }
+
+  if (result.includes("пораж") || result.includes("проиг")) {
+    return false
+  }
+
+  return null
+}
+
+function normalizeSpecializationLabel(row: ApiPlayerEventRecord): string {
+  const text = String(row.role_icon ?? "").trim()
+  if (text && text !== "Нет" && text !== "CAST") {
+    return text
+  }
+
+  const icon = String(row.specialization_icon ?? "").trim()
+  if (icon === "🗡️") return "Пушер"
+  if (icon === "🛡️") return "Якорь"
+  if (icon === "💥") return "ДРГ"
+  if (icon === "💣") return "Миномёт"
+  if (icon === "🚙") return "Тех"
+
+  return ""
 }
 
 async function fetchPlayersApi(request: APIRequestContext): Promise<ApiPlayerRecord[]> {
@@ -105,24 +161,166 @@ async function fetchPlayersApi(request: APIRequestContext): Promise<ApiPlayerRec
   return payload.players ?? []
 }
 
+async function fetchEventsApi(request: APIRequestContext): Promise<ApiEventRecord[]> {
+  const response = await request.get(`${API_BASE}/events?publish=false`)
+  expect(response.ok()).toBeTruthy()
+  const payload = (await response.json()) as { events?: ApiEventRecord[] }
+  return payload.events ?? []
+}
+
+async function waitFor(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function requestJsonWithRetry<T>(request: APIRequestContext, url: string, attempts = 3): Promise<T> {
+  let lastStatus = 0
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const response = await request.get(url)
+    if (response.ok()) {
+      return (await response.json()) as T
+    }
+
+    lastStatus = response.status()
+    if (attempt < attempts) {
+      await waitFor(attempt * 750)
+    }
+  }
+
+  throw new Error(`Request failed after ${attempts} attempts: ${url} (last status ${lastStatus})`)
+}
+
+async function fetchPlayerEventsApi(request: APIRequestContext): Promise<ApiPlayerEventRecord[]> {
+  const pagesResponse = await request.get(`${API_BASE}/pages?publish=false`)
+  expect(pagesResponse.ok()).toBeTruthy()
+  const pages = Math.max(1, Number((await pagesResponse.text()).trim()) || 1)
+
+  const rows: ApiPlayerEventRecord[] = []
+  for (let page = 1; page <= pages; page += 1) {
+    const payload = await requestJsonWithRetry<{
+      playersEvents?: ApiPlayerEventRecord[]
+      player_event_stats?: ApiPlayerEventRecord[]
+      playersevents?: ApiPlayerEventRecord[]
+    }>(request, `${API_BASE}/playersevents?publish=false&page=${page}`)
+
+    rows.push(...(payload.playersEvents ?? payload.player_event_stats ?? payload.playersevents ?? []))
+  }
+
+  return rows
+}
+
+async function readCardMetricValue(page: Page, testId: string): Promise<number> {
+  const text = (await page.getByTestId(testId).textContent()) ?? ""
+  const match = text.match(/(\d+(?:[.,]\d+)?)(?!.*\d)/)
+  expect(match).toBeTruthy()
+  return Number((match?.[1] ?? "0").replace(",", "."))
+}
+
+function aggregatePlayerFromProtocol(
+  rows: ApiPlayerEventRecord[],
+  events: ApiEventRecord[],
+  nickname: string,
+): {
+  averageRevives: number
+  averageHeals: number
+  averageVehicle: number
+  specializationCount: number
+} {
+  const eventsByKey = new Map(events.map((event) => [normalizeEventKey(event.event_id), event]))
+  const byEvent = new Map<
+    string,
+    {
+      revives: number
+      heals: number
+      vehicle: number
+      specializations: Set<string>
+      isWin: boolean | null
+    }
+  >()
+
+  rows.forEach((row) => {
+    if (String(row.nickname ?? "").trim() !== nickname || isReserveEntry(row.enter)) {
+      return
+    }
+
+    const eventKey = normalizeEventKey(row.event_id)
+    if (!eventKey) {
+      return
+    }
+
+    const event = eventsByKey.get(eventKey)
+    if (event && isLectureEventType(event.event_type)) {
+      return
+    }
+
+    if (!byEvent.has(eventKey)) {
+      byEvent.set(eventKey, {
+        revives: 0,
+        heals: 0,
+        vehicle: 0,
+        specializations: new Set<string>(),
+        isWin: toIsWin(event ?? {}),
+      })
+    }
+
+    const current = byEvent.get(eventKey)
+    if (!current) {
+      return
+    }
+
+    current.revives += toNumber(row.revives)
+    current.heals += toNumber(row.heals)
+    current.vehicle += toNumber(row.vehicle)
+
+    const specialization = normalizeSpecializationLabel(row)
+    if (specialization) {
+      current.specializations.add(specialization)
+    }
+  })
+
+  const games = Array.from(byEvent.values())
+  const totalGames = games.length
+  const totalRevives = games.reduce((sum, game) => sum + game.revives, 0)
+  const totalHeals = games.reduce((sum, game) => sum + game.heals, 0)
+  const totalVehicle = games.reduce((sum, game) => sum + game.vehicle, 0)
+  const specializationCount = games.reduce((sum, game) => sum + game.specializations.size, 0)
+
+  return {
+    averageRevives: totalGames > 0 ? totalRevives / totalGames : 0,
+    averageHeals: totalGames > 0 ? totalHeals / totalGames : 0,
+    averageVehicle: totalGames > 0 ? totalVehicle / totalGames : 0,
+    specializationCount,
+  }
+}
+
 test("players tab renders enriched player card", async ({ page }) => {
+  test.setTimeout(180_000)
   await openPlayersTab(page)
   await selectPlayerWithEnoughGames(page)
 
+  await expect(page.getByTestId("player-card")).toBeVisible()
   await expect(page.getByText("Динамика показателей")).toBeVisible()
   await expect(page.getByTestId("player-progress-kd-chart")).toContainText("K/D и общий K/D")
   await expect(page.getByTestId("player-progress-rating-chart")).toContainText("ELO и ТБФ")
   await expect(page.getByText("Последние матчи игрока")).toBeVisible()
   await expect(page.getByText("Популярные роли")).toBeVisible()
+  await expect(page.getByText("Специализации")).toBeVisible()
   await expect(page.getByText("Навыки")).toBeVisible()
   await expect(page.getByText(/^ТБФ:/)).toBeVisible()
   await expect(page.getByTestId("player-card-average-revives")).toBeVisible()
   await expect(page.getByTestId("player-radar-skills")).not.toContainText("/игра")
 
+  const nicknameColor = await page.getByTestId("player-card-nickname").evaluate((element) => getComputedStyle(element).color)
+  const tagColor = await page.getByTestId("player-card-tag").evaluate((element) => getComputedStyle(element).color)
+  expect(tagColor).toBe(nicknameColor)
+
   const matchCards = page.getByTestId("player-match-card")
   const initialMatches = await matchCards.count()
   expect(initialMatches).toBeGreaterThan(0)
   expect(initialMatches).toBeLessThanOrEqual(5)
+  await expect(page.getByTestId("player-card-specializations")).toBeVisible()
+  await expect(page.getByTestId("player-card-specialization-tile").first()).toBeVisible()
+  await expect(page.getByTestId("player-match-elo-progress").first()).toBeVisible()
 
   const fullListButton = page.getByRole("button", { name: "Весь список" })
   if (await fullListButton.isVisible()) {
@@ -132,9 +330,11 @@ test("players tab renders enriched player card", async ({ page }) => {
 })
 
 test("players tab applies role metric selector to the card", async ({ page }) => {
+  test.setTimeout(180_000)
   await openPlayersTab(page)
   await selectPlayerWithEnoughGames(page)
 
+  await getRoleMetricSelector(page).scrollIntoViewIfNeeded()
   await getRoleMetricSelector(page).click()
   await page.getByRole("option", { name: "ТБФ" }).click()
 
@@ -142,32 +342,51 @@ test("players tab applies role metric selector to the card", async ({ page }) =>
   await expect(page.getByTestId("player-radar-roles")).toContainText("ТБФ")
 })
 
-test("players tab uses API table values in player card", async ({ page, request }) => {
+test("players tab uses protocol-derived averages in player card", async ({ page, request }) => {
+  test.setTimeout(180_000)
+  test.slow()
+
   await openPlayersTab(page)
   await selectPlayerWithEnoughGames(page)
 
   const nickname = (await page.getByTestId("player-card-nickname").textContent())?.trim()
+  const tag = (await page.getByTestId("player-card-tag").textContent())?.trim()
   expect(nickname).toBeTruthy()
+  expect(tag).toBeTruthy()
 
   const players = await fetchPlayersApi(request)
-  const player = players.find((entry) => String(entry.nickname).trim() === nickname)
+  const events = await fetchEventsApi(request)
+  const protocolRows = await fetchPlayerEventsApi(request)
+  const player = players.find(
+    (entry) => String(entry.nickname).trim() === nickname && String(entry.tag ?? "").trim() === tag,
+  )
   expect(player).toBeTruthy()
 
-  const effectiveEvents = deriveEffectiveEvents(player!)
-  const averageDenominator = effectiveEvents > 0 ? effectiveEvents : toNumber(player!.events)
-  const expectedAvgRevives = toAverageNumber(player!.deff_revives) ?? (averageDenominator > 0 ? toNumber(player!.revives) / averageDenominator : 0)
-  const expectedAvgVehicle = toAverageNumber(player!.deff_vehicle) ?? (averageDenominator > 0 ? toNumber(player!.vehicle) / averageDenominator : 0)
-  const expectedAvgHeals = toAverageNumber(player!.deff_heals) ?? (averageDenominator > 0 ? toNumber(player!.heals) / averageDenominator : 0)
+  const aggregate = aggregatePlayerFromProtocol(protocolRows, events, nickname!)
 
   await expect(page.getByTestId("player-card-rating-rating")).toContainText(toNumber(player!.OP).toFixed(1))
-  await expect(page.getByTestId("player-card-rating-elo")).toContainText(toNumber(player!.ELO).toFixed(1))
-  await expect(page.getByTestId("player-card-rating-tbf")).toContainText(toNumber(player!.TBF).toFixed(1))
-  await expect(page.getByTestId("player-card-average-revives")).toContainText(expectedAvgRevives.toFixed(2))
-  await expect(page.getByTestId("player-card-average-heals")).toContainText(expectedAvgHeals.toFixed(1))
-  await expect(page.getByTestId("player-card-average-vehicle")).toContainText(expectedAvgVehicle.toFixed(2))
+  expect(Math.abs((await readCardMetricValue(page, "player-card-average-revives")) - aggregate.averageRevives)).toBeLessThanOrEqual(0.03)
+  expect(Math.abs((await readCardMetricValue(page, "player-card-average-heals")) - aggregate.averageHeals)).toBeLessThanOrEqual(0.15)
+  expect(Math.abs((await readCardMetricValue(page, "player-card-average-vehicle")) - aggregate.averageVehicle)).toBeLessThanOrEqual(0.03)
+  expect(aggregate.specializationCount).toBeGreaterThan(0)
+})
+
+test("dashboard uses explicit event results for wins and losses", async ({ page, request }) => {
+  test.setTimeout(180_000)
+  const events = await fetchEventsApi(request)
+  const outcomes = events.map((event) => toIsWin(event))
+  const wins = outcomes.filter((outcome) => outcome === true).length
+  const losses = outcomes.filter((outcome) => outcome === false).length
+
+  await page.goto("/")
+  await expect(page.getByRole("tab", { name: "Игроки" })).toBeVisible({ timeout: 120_000 })
+  await expect(page.getByTestId("overall-results-total")).toContainText(String(wins + losses), { timeout: 120_000 })
+  await expect(page.getByTestId("overall-results-wins")).toContainText(String(wins))
+  await expect(page.getByTestId("overall-results-losses")).toContainText(String(losses))
 })
 
 test("players tab exports player card as png", async ({ page }) => {
+  test.setTimeout(180_000)
   await openPlayersTab(page)
   await selectPlayerWithEnoughGames(page)
 

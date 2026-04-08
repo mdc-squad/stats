@@ -21,7 +21,7 @@ import type {
 } from "@/lib/data-utils"
 import { getPlayerAverageValue, isRoleWithoutKit } from "@/lib/data-utils"
 import { getMetricIcon } from "@/lib/app-icons"
-import { getSquadLabels, getSquadToneClasses } from "@/lib/squad-utils"
+import { getSquadToneClasses } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
 import { Award, CalendarDays, Download, Flag, MapPinned, Medal, Shield, Sparkles, Timer } from "lucide-react"
 import { toPng } from "html-to-image"
@@ -108,7 +108,7 @@ function formatTenure(value: string, joinedAt: string): string {
   return parts.join(" ")
 }
 
-function countTopEntries(values: string[], limit: number): Array<{ label: string; count: number }> {
+function countTopEntries(values: string[], limit?: number): Array<{ label: string; count: number }> {
   const counter = new Map<string, number>()
 
   values
@@ -126,7 +126,7 @@ function countTopEntries(values: string[], limit: number): Array<{ label: string
       }
       return left.label.localeCompare(right.label, "ru")
     })
-    .slice(0, limit)
+    .slice(0, limit ?? Number.POSITIVE_INFINITY)
 }
 
 export function PlayerCard({
@@ -141,7 +141,6 @@ export function PlayerCard({
   roleMetricOptions = [],
   roleMetricMaxima = {},
   roleDomain = [],
-  squadDomain = [],
   events = [],
   skillMaxima,
   activityAverage,
@@ -154,19 +153,21 @@ export function PlayerCard({
   const [isExporting, setIsExporting] = useState(false)
   const isExpanded = layout === "expanded"
 
+  const resolvedMatchSummary = useMemo(() => {
+    const resolvedMatches = matchHistory.filter((entry) => entry.is_win !== null)
+
+    return {
+      wins: resolvedMatches.filter((entry) => entry.is_win === true).length,
+      losses: resolvedMatches.filter((entry) => entry.is_win === false).length,
+      resolvedGames: resolvedMatches.length,
+    }
+  }, [matchHistory])
+
   const squadSummary = useMemo(() => {
     const bySquad = new Map<string, number>()
-    const explicitSquadLabels = new Set(getSquadLabels(player.teams ?? [], squadDomain))
-
-    if (explicitSquadLabels.size === 0) {
-      return []
-    }
 
     matchHistory.forEach((entry) => {
       Array.from(new Set(entry.squad_labels.map((label) => label?.trim()).filter(Boolean))).forEach((label) => {
-        if (!explicitSquadLabels.has(label)) {
-          return
-        }
         bySquad.set(label, (bySquad.get(label) ?? 0) + 1)
       })
     })
@@ -174,8 +175,13 @@ export function PlayerCard({
     return Array.from(bySquad.entries())
       .map(([label, games]) => ({ label, games }))
       .filter((entry) => entry.games > 0)
-      .sort((left, right) => right.games - left.games)
-  }, [matchHistory, player.teams, squadDomain])
+      .sort((left, right) => {
+        if (right.games !== left.games) {
+          return right.games - left.games
+        }
+        return left.label.localeCompare(right.label, "ru")
+      })
+  }, [matchHistory])
 
   const topRoles = useMemo(() => {
     const perMatchRoles = matchHistory.flatMap((entry) =>
@@ -420,7 +426,7 @@ export function PlayerCard({
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-christmas-red via-christmas-gold to-christmas-green" />
 
         <CardContent className={cn("relative", isExpanded ? "space-y-5 p-5 lg:p-6" : "space-y-4 p-4")}>
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,360px)] xl:items-start">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(460px,560px)] xl:items-start">
             <div className="flex min-w-0 items-center gap-4">
               <PlayerAvatar
                 steamId={player.steam_id}
@@ -436,15 +442,17 @@ export function PlayerCard({
                     </Badge>
                   )}
                   <Badge variant="outline" className="border-border/60 text-muted-foreground">
-                    {player.totals.wins.toLocaleString("ru-RU")}W / {player.totals.losses.toLocaleString("ru-RU")}L
+                    {(resolvedMatchSummary.resolvedGames > 0 ? resolvedMatchSummary.wins : player.totals.wins).toLocaleString("ru-RU")}W /{" "}
+                    {(resolvedMatchSummary.resolvedGames > 0 ? resolvedMatchSummary.losses : player.totals.losses).toLocaleString("ru-RU")}L
                   </Badge>
                 </div>
 
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 break-words">
                   {player.tag && (
                     <span
+                      data-testid="player-card-tag"
                       className={cn(
-                        "font-bold leading-tight text-christmas-gold",
+                        "font-bold leading-tight text-christmas-snow",
                         isExpanded ? "text-2xl lg:text-3xl" : "text-xl",
                       )}
                     >
@@ -475,20 +483,20 @@ export function PlayerCard({
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {ratingTiles.map((tile) => {
                 const Icon = tile.icon
                 return (
                   <div
                     key={tile.label}
-                    className={cn("rounded-xl border px-3 py-3", tile.accentClass)}
+                    className={cn("flex min-h-[104px] flex-col justify-between rounded-xl border px-4 py-3.5", tile.accentClass)}
                     data-testid={`player-card-rating-${tile.key}`}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-[10px] uppercase tracking-[0.16em]">{tile.label}</p>
-                      <Icon className="h-4 w-4" />
+                      <p className="text-[10px] uppercase tracking-[0.18em]">{tile.label}</p>
+                      <Icon className="h-4.5 w-4.5" />
                     </div>
-                    <p className="mt-1 text-xl font-bold text-christmas-snow">{tile.value}</p>
+                    <p className="mt-2 text-2xl font-bold text-christmas-snow lg:text-[2rem]">{tile.value}</p>
                   </div>
                 )
               })}
@@ -521,7 +529,7 @@ export function PlayerCard({
                 <div
                   key={tile.label}
                   data-testid={`player-card-average-${tile.key}`}
-                  className="rounded-xl border border-border/50 bg-background/35 px-4 py-3 text-center"
+                  className="flex h-full flex-col items-center justify-center rounded-xl border border-border/50 bg-background/35 px-4 py-4 text-center"
                 >
                   <div className={cn("mb-2 flex items-center justify-center gap-2", tile.color)}>
                     <Icon className="h-4 w-4" />
@@ -533,142 +541,148 @@ export function PlayerCard({
             })}
           </div>
 
-          <div className="grid gap-3 xl:grid-cols-2">
-            <div className="space-y-3">
-              {achievements.length > 0 && (
-                <div className="rounded-xl border border-christmas-gold/20 bg-gradient-to-br from-christmas-gold/10 via-background/35 to-background/20 px-4 py-3">
-                  <div className="mb-3 flex items-center gap-2">
-                    <Award className="h-4 w-4 text-christmas-gold" />
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Достижения</p>
-                  </div>
-                  <AchievementBadges
-                    achievements={achievements}
-                    variant="outline"
-                    badgeClassName="border-christmas-gold/35 bg-background/35 text-[10px] text-christmas-snow"
-                    containerClassName="gap-2"
-                    showIcons
-                  />
-                </div>
-              )}
-
-              {topRoles.length > 0 && (
-                <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
-                  <p className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">Популярные роли</p>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {topRoles.map((entry) => (
-                      <div
-                        key={entry.label}
-                        className="flex min-h-[86px] flex-col justify-between rounded-lg border border-border/40 bg-background/35 px-3 py-2.5"
-                      >
-                        <span className="inline-flex items-center gap-2 text-sm font-medium text-christmas-snow">
-                          <RoleIcon role={entry.label} className="h-4 w-4" />
-                          {entry.label}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{entry.count} игр</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {specializationSummary.length > 0 && (
-                <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
-                  <p className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">Специализации</p>
-                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                    {specializationSummary.map((entry) => (
-                      <div
-                        key={entry.label}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-background/30 px-3 py-2"
-                      >
-                        <span className="inline-flex items-center gap-2 text-sm text-christmas-snow">
-                          <SpecializationIcon specialization={entry.label} className="h-4 w-4" />
-                          {entry.label}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{entry.count} игр</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+          {achievements.length > 0 && (
+            <div
+              data-testid="player-card-achievements"
+              className="rounded-xl border border-christmas-gold/20 bg-gradient-to-br from-christmas-gold/10 via-background/35 to-background/20 px-4 py-4"
+            >
+              <div className="mb-3 flex items-center gap-2">
+                <Award className="h-4 w-4 text-christmas-gold" />
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Достижения</p>
+              </div>
+              <AchievementBadges
+                achievements={achievements}
+                variant="outline"
+                itemClassName="w-full"
+                badgeClassName="flex min-h-[82px] w-full items-center justify-center gap-2.5 rounded-xl border-christmas-gold/35 bg-background/35 px-4 py-4 text-sm font-medium text-christmas-snow"
+                containerClassName="grid auto-rows-fr gap-3 sm:grid-cols-2 xl:grid-cols-4"
+                showIcons
+              />
             </div>
+          )}
 
-            <div className="space-y-3">
-              {(topFactions.length > 0 || topMaps.length > 0) && (
-                <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-lg border border-border/40 bg-background/30 px-3 py-3">
-                      <div className="mb-2 flex items-center gap-2">
-                        <Flag className="h-4 w-4 text-christmas-green" />
-                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Фракции</p>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {topFactions.length > 0 ? (
-                          topFactions.map((entry) => (
-                            <Badge
-                              key={entry.label}
-                              variant="outline"
-                              className="border-christmas-green/25 bg-background/35 text-christmas-snow"
-                            >
-                              {entry.label} • {entry.count}
-                            </Badge>
-                          ))
-                        ) : (
-                          <span className="text-sm text-muted-foreground">Нет данных</span>
-                        )}
-                      </div>
+          <div className="grid items-stretch gap-3 xl:grid-cols-2">
+            {topRoles.length > 0 && (
+              <div className="h-full rounded-xl border border-border/50 bg-background/30 px-4 py-4">
+                <p className="mb-3 text-center text-[11px] uppercase tracking-wider text-muted-foreground">Популярные роли</p>
+                <div className="grid auto-rows-fr gap-2 sm:grid-cols-3">
+                  {topRoles.map((entry) => (
+                    <div
+                      key={entry.label}
+                      className="flex h-full min-h-[96px] flex-col items-center justify-center rounded-lg border border-border/40 bg-background/35 px-3 py-3 text-center"
+                    >
+                      <span className="inline-flex items-center gap-2 text-sm font-medium text-christmas-snow">
+                        <RoleIcon role={entry.label} className="h-4 w-4" />
+                        {entry.label}
+                      </span>
+                      <span className="mt-2 text-xs text-muted-foreground">{entry.count} игр</span>
                     </div>
-                    <div className="rounded-lg border border-border/40 bg-background/30 px-3 py-3">
-                      <div className="mb-2 flex items-center gap-2">
-                        <MapPinned className="h-4 w-4 text-sky-300" />
-                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Карты</p>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {topMaps.length > 0 ? (
-                          topMaps.map((entry) => (
-                            <Badge
-                              key={entry.label}
-                              variant="outline"
-                              className="border-sky-400/25 bg-background/35 text-christmas-snow"
-                            >
-                              {entry.label} • {entry.count}
-                            </Badge>
-                          ))
-                        ) : (
-                          <span className="text-sm text-muted-foreground">Нет данных</span>
-                        )}
-                      </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {specializationSummary.length > 0 && (
+              <div
+                data-testid="player-card-specializations"
+                className="h-full rounded-xl border border-border/50 bg-background/30 px-4 py-4"
+              >
+                <p className="mb-3 text-center text-[11px] uppercase tracking-wider text-muted-foreground">Специализации</p>
+                <div className="grid auto-rows-fr gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {specializationSummary.map((entry) => (
+                    <div
+                      key={entry.label}
+                      data-testid="player-card-specialization-tile"
+                      className="flex h-full min-h-[96px] flex-col items-center justify-center rounded-lg border border-border/40 bg-background/30 px-3 py-3 text-center"
+                    >
+                      <span className="inline-flex items-center gap-2 text-sm font-medium text-christmas-snow">
+                        <SpecializationIcon specialization={entry.label} className="h-4 w-4" />
+                        {entry.label}
+                      </span>
+                      <span className="mt-2 text-xs text-muted-foreground">{entry.count} игр</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid items-stretch gap-3 xl:grid-cols-2">
+            {(topFactions.length > 0 || topMaps.length > 0) && (
+              <div className="h-full rounded-xl border border-border/50 bg-background/30 px-4 py-4">
+                <div className="grid h-full gap-3 md:grid-cols-2">
+                  <div className="flex h-full min-h-[152px] flex-col items-center justify-center rounded-lg border border-border/40 bg-background/30 px-3 py-3 text-center">
+                    <div className="mb-3 flex items-center gap-2">
+                      <Flag className="h-4 w-4 text-christmas-green" />
+                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Фракции</p>
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-1.5">
+                      {topFactions.length > 0 ? (
+                        topFactions.map((entry) => (
+                          <Badge
+                            key={entry.label}
+                            variant="outline"
+                            className="border-christmas-green/25 bg-background/35 text-christmas-snow"
+                          >
+                            {entry.label} • {entry.count}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Нет данных</span>
+                      )}
                     </div>
                   </div>
+                  <div className="flex h-full min-h-[152px] flex-col items-center justify-center rounded-lg border border-border/40 bg-background/30 px-3 py-3 text-center">
+                    <div className="mb-3 flex items-center gap-2">
+                      <MapPinned className="h-4 w-4 text-sky-300" />
+                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Карты</p>
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-1.5">
+                      {topMaps.length > 0 ? (
+                        topMaps.map((entry) => (
+                          <Badge
+                            key={entry.label}
+                            variant="outline"
+                            className="border-sky-400/25 bg-background/35 text-christmas-snow"
+                          >
+                            {entry.label} • {entry.count}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Нет данных</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {squadSummary.length > 0 && (
-                <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
-                  <div className="mb-2 flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-christmas-gold" />
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Цвета отрядов</p>
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {squadSummary.map((squad) => {
-                      const tone = getSquadToneClasses(squad.label)
-                      return (
-                        <div
-                          key={squad.label}
-                          data-testid="player-card-squad-tile"
-                          className={cn(
-                            "flex min-h-[86px] flex-col justify-between rounded-lg border px-3 py-2.5",
-                            tone.badge,
-                          )}
-                        >
-                          <span className="text-sm font-medium">{squad.label}</span>
-                          <span className="text-xs">{squad.games} игр</span>
-                        </div>
-                      )
-                    })}
-                  </div>
+            {squadSummary.length > 0 && (
+              <div className="h-full rounded-xl border border-border/50 bg-background/30 px-4 py-4">
+                <div className="mb-3 flex items-center justify-center gap-2">
+                  <Shield className="h-4 w-4 text-christmas-gold" />
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Цвета отрядов</p>
                 </div>
-              )}
-            </div>
+                <div className="grid auto-rows-fr gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {squadSummary.map((squad) => {
+                    const tone = getSquadToneClasses(squad.label)
+                    return (
+                      <div
+                        key={squad.label}
+                        data-testid="player-card-squad-tile"
+                        className={cn(
+                          "flex h-full min-h-[96px] flex-col items-center justify-center rounded-lg border px-3 py-3 text-center",
+                          tone.badge,
+                        )}
+                      >
+                        <span className="text-sm font-medium">{squad.label}</span>
+                        <span className="mt-2 text-xs">{squad.games} игр</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid gap-3 2xl:grid-cols-2">

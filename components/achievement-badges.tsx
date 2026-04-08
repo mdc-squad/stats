@@ -11,6 +11,7 @@ interface AchievementBadgesProps {
   variant?: "default" | "secondary" | "destructive" | "outline"
   badgeClassName?: string
   containerClassName?: string
+  itemClassName?: string
   layout?: "row" | "column"
   collapseToSummary?: boolean
   summaryLabel?: string
@@ -24,6 +25,7 @@ export function AchievementBadges({
   variant = "secondary",
   badgeClassName,
   containerClassName,
+  itemClassName,
   layout = "row",
   collapseToSummary = false,
   summaryLabel = "Ачивки",
@@ -50,6 +52,7 @@ export function AchievementBadges({
               type="button"
               className={cn(
                 "inline-flex cursor-help border-0 bg-transparent p-0 text-left",
+                itemClassName,
                 display === "icons" &&
                   "h-7 w-7 items-center justify-center rounded-full border border-christmas-gold/35 bg-background/70 text-christmas-gold shadow-sm shadow-black/20 transition-colors hover:border-christmas-gold/60 hover:bg-background/85 hover:text-christmas-snow",
               )}

@@ -1,12 +1,12 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { ArrowUpRight } from "lucide-react"
+import { useState } from "react"
+import { ArrowUpRight, Medal } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { RoleIcon } from "@/components/role-icon"
-import { SpecializationIcon, getSpecializationLabel } from "@/components/specialization-icon"
+import { SpecializationIcon, getSpecializationLabel, normalizeSpecializationKey } from "@/components/specialization-icon"
 import type { PlayerGameHistoryEntry } from "@/lib/data-utils"
 import { getEventTypeMeta } from "@/lib/data-utils"
 import { getSquadToneClasses } from "@/lib/squad-utils"
@@ -81,20 +81,6 @@ export function PlayerMatchHistory({
   const [showAll, setShowAll] = useState(false)
   const isExpanded = layout === "expanded"
   const visibleGames = showAll ? games : games.slice(0, 5)
-  const metricMaxima = useMemo(
-    () => ({
-      revives: Math.max(...games.map((game) => game.revives), 1),
-      heals: Math.max(...games.map((game) => game.heals), 1),
-      downs: Math.max(...games.map((game) => game.downs), 1),
-      kills: Math.max(...games.map((game) => game.kills), 1),
-      deaths: Math.max(...games.map((game) => game.deaths), 1),
-      vehicle: Math.max(...games.map((game) => game.vehicle), 1),
-      kd: Math.max(...games.map((game) => game.kd), 1),
-      kda: Math.max(...games.map((game) => game.kda), 1),
-      elo: Math.max(...games.map((game) => game.elo), 1),
-    }),
-    [games],
-  )
 
   const content = (
     <div className={cn("space-y-2", isExpanded ? "p-3" : "p-2")}>
@@ -105,69 +91,76 @@ export function PlayerMatchHistory({
         const { date, time } = formatMatchDateParts(game.started_at)
         const matchup = game.faction_matchup || [game.faction_1, game.faction_2].filter(Boolean).join(" vs ")
         const primaryRole = game.roles[0] || game.role
-        const primarySpecialization = game.specializations[0] || game.specialization
+        const specializations = Array.from(
+          new Set(
+            game.specializations
+              .map((specialization) => getSpecializationLabel(specialization))
+              .filter((specialization) => normalizeSpecializationKey(specialization)),
+          ),
+        )
         const metrics = [
           {
             key: "revives",
-            label: "Поднятия",
+            label: "Подн.",
             value: game.revives.toLocaleString("ru-RU"),
-            progress: game.revives / metricMaxima.revives,
+            valueClassName: "text-sky-300",
           },
           {
             key: "heals",
             label: "Хил",
             value: game.heals.toLocaleString("ru-RU"),
-            progress: game.heals / metricMaxima.heals,
+            valueClassName: "text-rose-300",
           },
           {
             key: "downs",
             label: "Ноки",
             value: game.downs.toLocaleString("ru-RU"),
-            progress: game.downs / metricMaxima.downs,
+            valueClassName: "text-orange-300",
           },
           {
             key: "kills",
-            label: "Убийства",
+            label: "Уб.",
             value: game.kills.toLocaleString("ru-RU"),
-            progress: game.kills / metricMaxima.kills,
+            valueClassName: "text-christmas-green",
           },
           {
             key: "deaths",
-            label: "Смерти",
+            label: "См.",
             value: game.deaths.toLocaleString("ru-RU"),
-            progress: game.deaths / metricMaxima.deaths,
+            valueClassName: "text-christmas-red",
           },
           {
             key: "vehicle",
-            label: "Техника",
+            label: "Тех.",
             value: game.vehicle.toLocaleString("ru-RU"),
-            progress: game.vehicle / metricMaxima.vehicle,
+            valueClassName: "text-blue-300",
           },
           {
             key: "kd",
             label: "KD",
             value: game.kd.toFixed(2),
-            progress: game.kd / metricMaxima.kd,
+            valueClassName: "text-christmas-gold",
           },
           {
             key: "kda",
             label: "KDA",
             value: game.kda.toFixed(2),
-            progress: game.kda / metricMaxima.kda,
+            valueClassName: "text-violet-300",
           },
           {
             key: "elo",
             label: "ELO",
             value: game.elo.toFixed(1),
-            progress: game.elo / metricMaxima.elo,
+            valueClassName: "text-christmas-snow",
+            progress: Math.max(0, Math.min(100, game.eloShare)),
           },
           {
             key: "rank",
             label: "Место",
             value: `${game.rank}/${game.participants}`,
-            progress: game.participants > 1 ? 1 - (game.rank - 1) / (game.participants - 1) : 1,
+            valueClassName: "text-christmas-gold",
           },
-        ]
+        ] as const
 
         return (
           <div
@@ -189,6 +182,16 @@ export function PlayerMatchHistory({
               <Badge variant="outline" className={cn("h-auto px-2 py-0.5 text-[10px]", squadTone.badge)}>
                 {game.squad_label}
               </Badge>
+              {game.rank === 1 && (
+                <Badge
+                  variant="outline"
+                  data-testid="player-match-mvp"
+                  className="h-auto border-christmas-gold/35 bg-christmas-gold/10 px-2 py-0.5 text-[10px] text-christmas-gold"
+                >
+                  <Medal className="mr-1 h-3.5 w-3.5" />
+                  MVP
+                </Badge>
+              )}
               <span className="text-xs text-muted-foreground">
                 {date}
                 {time ? ` • ${time}` : ""}
@@ -203,11 +206,19 @@ export function PlayerMatchHistory({
                 <RoleIcon role={primaryRole} className="h-4 w-4" />
                 {game.role || "Роль не указана"}
               </span>
-              {primarySpecialization && (
-                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <SpecializationIcon specialization={primarySpecialization} className="h-4 w-4" />
-                  {getSpecializationLabel(primarySpecialization)}
-                </span>
+              {specializations.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {specializations.map((specialization) => (
+                    <Badge
+                      key={`${game.event_id}-${specialization}`}
+                      variant="outline"
+                      className="h-auto border-border/50 bg-background/35 px-2 py-0.5 text-[10px] text-christmas-snow"
+                    >
+                      <SpecializationIcon specialization={specialization} className="mr-1 h-3.5 w-3.5" />
+                      {specialization}
+                    </Badge>
+                  ))}
+                </div>
               )}
               {onOpenGame && (
                 <Button
@@ -223,23 +234,34 @@ export function PlayerMatchHistory({
               )}
             </div>
 
-            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-              {metrics.map((metric) => (
-                <div
-                  key={`${game.event_id}-${metric.key}`}
-                  data-testid="player-match-metric"
-                  className="relative overflow-hidden rounded-md border border-border/50 bg-background/55 px-3 py-2"
-                >
+            <div className="mt-3 overflow-x-auto">
+              <div className="grid min-w-[760px] grid-cols-10 gap-2">
+                {metrics.map((metric) => (
                   <div
-                    className="absolute inset-y-0 left-0 rounded-r-md bg-christmas-gold/12"
-                    style={{ width: `${Math.max(0, Math.min(metric.progress, 1)) * 100}%` }}
-                  />
-                  <div className="relative flex items-center justify-between gap-3">
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{metric.label}</span>
-                    <span className="text-sm font-semibold text-christmas-snow">{metric.value}</span>
+                    key={`${game.event_id}-${metric.key}`}
+                    data-testid="player-match-metric"
+                    className="rounded-md border border-border/50 bg-background/55 px-3 py-2 text-center"
+                  >
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{metric.label}</span>
+                      <span className={cn("text-sm font-semibold", metric.valueClassName)}>{metric.value}</span>
+                    </div>
+                    {metric.key === "elo" ? (
+                      <div className="mt-2 space-y-1" data-testid="player-match-elo-progress">
+                        <div className="h-1.5 overflow-hidden rounded-full bg-background/70">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-christmas-red via-christmas-gold to-christmas-green"
+                            style={{ width: `${metric.progress}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{Math.round(metric.progress)}% от лучшего ELO</p>
+                      </div>
+                    ) : (
+                      <div className="mt-2 h-[26px]" aria-hidden="true" />
+                    )}
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         )
