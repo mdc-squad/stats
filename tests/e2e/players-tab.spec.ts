@@ -301,6 +301,7 @@ test("players tab renders enriched player card", async ({ page }) => {
   await expect(page.getByTestId("player-card")).toBeVisible()
   await expect(page.getByText("Динамика показателей")).toBeVisible()
   await expect(page.getByTestId("player-progress-kd-chart")).toContainText("K/D и общий K/D")
+  await page.getByTestId("player-progress-toggle-rating").click()
   await expect(page.getByTestId("player-progress-rating-chart")).toContainText("ELO и ТБФ")
   await expect(page.getByText("Последние матчи игрока")).toBeVisible()
   await expect(page.getByText("Популярные роли")).toBeVisible()
@@ -319,7 +320,7 @@ test("players tab renders enriched player card", async ({ page }) => {
   expect(initialMatches).toBeGreaterThan(0)
   expect(initialMatches).toBeLessThanOrEqual(5)
   await expect(page.getByTestId("player-card-specializations")).toBeVisible()
-  await expect(page.getByTestId("player-card-specialization-tile").first()).toBeVisible()
+  await expect(page.getByTestId("player-card-specialization-item").first()).toBeVisible()
   await expect(page.getByTestId("player-match-elo-progress").first()).toBeVisible()
 
   const fullListButton = page.getByRole("button", { name: "Весь список" })
@@ -342,9 +343,8 @@ test("players tab applies role metric selector to the card", async ({ page }) =>
   await expect(page.getByTestId("player-radar-roles")).toContainText("ТБФ")
 })
 
-test("players tab uses protocol-derived averages in player card", async ({ page, request }) => {
+test("players tab uses players API table values in player card", async ({ page, request }) => {
   test.setTimeout(180_000)
-  test.slow()
 
   await openPlayersTab(page)
   await selectPlayerWithEnoughGames(page)
@@ -355,20 +355,22 @@ test("players tab uses protocol-derived averages in player card", async ({ page,
   expect(tag).toBeTruthy()
 
   const players = await fetchPlayersApi(request)
-  const events = await fetchEventsApi(request)
-  const protocolRows = await fetchPlayerEventsApi(request)
   const player = players.find(
     (entry) => String(entry.nickname).trim() === nickname && String(entry.tag ?? "").trim() === tag,
   )
   expect(player).toBeTruthy()
 
-  const aggregate = aggregatePlayerFromProtocol(protocolRows, events, nickname!)
+  const expectedAverageRevives = toNumber(player!.deff_revives, toNumber(player!.revives) / Math.max(1, toNumber(player!.events)))
+  const expectedAverageHeals = toNumber(player!.deff_heals, toNumber(player!.heals) / Math.max(1, toNumber(player!.events)))
+  const expectedAverageVehicle = toNumber(player!.deff_vehicle, toNumber(player!.vehicle) / Math.max(1, toNumber(player!.events)))
 
-  await expect(page.getByTestId("player-card-rating-rating")).toContainText(toNumber(player!.OP).toFixed(1))
-  expect(Math.abs((await readCardMetricValue(page, "player-card-average-revives")) - aggregate.averageRevives)).toBeLessThanOrEqual(0.03)
-  expect(Math.abs((await readCardMetricValue(page, "player-card-average-heals")) - aggregate.averageHeals)).toBeLessThanOrEqual(0.15)
-  expect(Math.abs((await readCardMetricValue(page, "player-card-average-vehicle")) - aggregate.averageVehicle)).toBeLessThanOrEqual(0.03)
-  expect(aggregate.specializationCount).toBeGreaterThan(0)
+  expect(Math.abs((await readCardMetricValue(page, "player-card-rating-rating")) - toNumber(player!.OP))).toBeLessThanOrEqual(0.05)
+  expect(Math.abs((await readCardMetricValue(page, "player-card-rating-elo")) - toNumber(player!.ELO))).toBeLessThanOrEqual(0.05)
+  expect(Math.abs((await readCardMetricValue(page, "player-card-rating-tbf")) - toNumber(player!.TBF))).toBeLessThanOrEqual(0.05)
+  expect(Math.abs((await readCardMetricValue(page, "player-card-summary-events")) - toNumber(player!.events))).toBeLessThanOrEqual(0.01)
+  expect(Math.abs((await readCardMetricValue(page, "player-card-average-revives")) - expectedAverageRevives)).toBeLessThanOrEqual(0.03)
+  expect(Math.abs((await readCardMetricValue(page, "player-card-average-heals")) - expectedAverageHeals)).toBeLessThanOrEqual(0.15)
+  expect(Math.abs((await readCardMetricValue(page, "player-card-average-vehicle")) - expectedAverageVehicle)).toBeLessThanOrEqual(0.03)
 })
 
 test("dashboard uses explicit event results for wins and losses", async ({ page, request }) => {

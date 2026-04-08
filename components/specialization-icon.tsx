@@ -1,7 +1,5 @@
 "use client"
 
-import type { LucideIcon } from "lucide-react"
-import { Anchor, Bomb, Crosshair, ShieldAlert, Wrench, CircleHelp } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface SpecializationIconProps {
@@ -25,12 +23,12 @@ export const SPECIALIZATION_ORDER = [
   SPECIALIZATION_LABELS.tech,
 ] as const
 
-const SPECIALIZATION_ICONS: Record<keyof typeof SPECIALIZATION_LABELS, LucideIcon> = {
-  pusher: ShieldAlert,
-  anchor: Anchor,
-  drg: Crosshair,
-  mortar: Bomb,
-  tech: Wrench,
+const SPECIALIZATION_EMOJIS: Record<keyof typeof SPECIALIZATION_LABELS, string> = {
+  pusher: "🗡️",
+  anchor: "🛡️",
+  drg: "💥",
+  mortar: "💣",
+  tech: "🚙",
 }
 
 export function normalizeSpecializationKey(value: string | null | undefined): keyof typeof SPECIALIZATION_LABELS | "" {
@@ -64,9 +62,18 @@ export function getSpecializationLabel(value: string | null | undefined): string
   return key ? SPECIALIZATION_LABELS[key] : (value?.trim() || "Не указана")
 }
 
-export function SpecializationIcon({ specialization, className }: SpecializationIconProps) {
-  const key = normalizeSpecializationKey(specialization)
-  const Icon = key ? SPECIALIZATION_ICONS[key] : CircleHelp
+export function getSpecializationEmoji(value: string | null | undefined): string {
+  const key = normalizeSpecializationKey(value)
+  return key ? SPECIALIZATION_EMOJIS[key] : "❔"
+}
 
-  return <Icon className={cn("h-4 w-4 shrink-0", className)} aria-hidden="true" />
+export function SpecializationIcon({ specialization, className }: SpecializationIconProps) {
+  return (
+    <span
+      className={cn("inline-flex shrink-0 items-center justify-center text-base leading-none", className)}
+      aria-hidden="true"
+    >
+      {getSpecializationEmoji(specialization)}
+    </span>
+  )
 }

@@ -1,5 +1,6 @@
 "use client"
 
+import type { CSSProperties } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAchievementDescription } from "@/lib/achievement-utils"
@@ -11,13 +12,16 @@ interface AchievementBadgesProps {
   variant?: "default" | "secondary" | "destructive" | "outline"
   badgeClassName?: string
   containerClassName?: string
+  containerStyle?: CSSProperties
   itemClassName?: string
   layout?: "row" | "column"
   collapseToSummary?: boolean
   summaryLabel?: string
   panelClassName?: string
-  display?: "badges" | "icons"
+  display?: "badges" | "icons" | "feature-grid"
   showIcons?: boolean
+  iconClassName?: string
+  labelClassName?: string
 }
 
 export function AchievementBadges({
@@ -25,6 +29,7 @@ export function AchievementBadges({
   variant = "secondary",
   badgeClassName,
   containerClassName,
+  containerStyle,
   itemClassName,
   layout = "row",
   collapseToSummary = false,
@@ -32,6 +37,8 @@ export function AchievementBadges({
   panelClassName,
   display = "badges",
   showIcons = false,
+  iconClassName,
+  labelClassName,
 }: AchievementBadgesProps) {
   if (achievements.length === 0) {
     return null
@@ -40,10 +47,11 @@ export function AchievementBadges({
   const badges = (
     <div
       className={cn(
-        "flex gap-1",
-        layout === "column" ? "flex-col items-start" : "flex-wrap",
+        display === "feature-grid" ? "grid w-full items-stretch gap-2" : "flex gap-1",
+        display !== "feature-grid" && (layout === "column" ? "flex-col items-start" : "flex-wrap"),
         !collapseToSummary && containerClassName,
       )}
+      style={!collapseToSummary ? containerStyle : undefined}
     >
       {achievements.map((achievement) => (
         <Tooltip key={achievement}>
@@ -55,12 +63,25 @@ export function AchievementBadges({
                 itemClassName,
                 display === "icons" &&
                   "h-7 w-7 items-center justify-center rounded-full border border-christmas-gold/35 bg-background/70 text-christmas-gold shadow-sm shadow-black/20 transition-colors hover:border-christmas-gold/60 hover:bg-background/85 hover:text-christmas-snow",
+                display === "feature-grid" && "flex h-full min-w-0 items-stretch justify-stretch",
               )}
             >
               {display === "icons" ? (
                 (() => {
                   const Icon = getAchievementIcon(achievement)
                   return <Icon className="h-3.5 w-3.5" />
+                })()
+              ) : display === "feature-grid" ? (
+                (() => {
+                  const Icon = getAchievementIcon(achievement)
+                  return (
+                    <div className={cn("flex h-full w-full flex-col items-center justify-center gap-2 text-center", badgeClassName)}>
+                      <Icon className={cn("h-9 w-9 shrink-0 text-christmas-gold", iconClassName)} />
+                      <span className={cn("text-sm font-medium leading-tight text-christmas-snow", labelClassName)}>
+                        {achievement}
+                      </span>
+                    </div>
+                  )
                 })()
               ) : (
                 <Badge variant={variant} className={cn("gap-1.5", badgeClassName)}>

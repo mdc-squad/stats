@@ -166,98 +166,104 @@ export function PlayerMatchHistory({
           <div
             key={`${game.event_id}-${game.player_id}`}
             data-testid="player-match-card"
-            className="rounded-lg border border-border/50 bg-background/40 px-3 py-3"
+            className="rounded-lg border border-border/50 bg-background/35 px-3 py-2.5"
           >
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <Badge variant="outline" className={cn("h-auto px-2 py-0.5 text-[10px]", resultMeta.className)}>
-                {resultMeta.label}
-              </Badge>
-              <Badge
-                variant="outline"
-                className="h-auto border-christmas-gold/30 px-2 py-0.5 text-[10px] text-christmas-gold"
-              >
-                <span className="mr-1">{eventTypeMeta.icon}</span>
-                {eventTypeMeta.label}
-              </Badge>
-              <Badge variant="outline" className={cn("h-auto px-2 py-0.5 text-[10px]", squadTone.badge)}>
-                {game.squad_label}
-              </Badge>
-              {game.rank === 1 && (
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+                <Badge variant="outline" className={cn("h-auto px-2 py-0.5 text-[10px]", resultMeta.className)}>
+                  {resultMeta.label}
+                </Badge>
                 <Badge
                   variant="outline"
-                  data-testid="player-match-mvp"
-                  className="h-auto border-christmas-gold/35 bg-christmas-gold/10 px-2 py-0.5 text-[10px] text-christmas-gold"
+                  className="h-auto border-christmas-gold/30 px-2 py-0.5 text-[10px] text-christmas-gold"
                 >
-                  <Medal className="mr-1 h-3.5 w-3.5" />
-                  MVP
+                  <span className="mr-1">{eventTypeMeta.icon}</span>
+                  {eventTypeMeta.label}
                 </Badge>
-              )}
-              <span className="text-xs text-muted-foreground">
-                {date}
-                {time ? ` • ${time}` : ""}
-              </span>
-              <span className="text-sm font-semibold text-christmas-snow">
-                {game.map}
-                {game.mode ? ` • ${game.mode}` : ""}
-              </span>
-              {matchup && <span className="text-xs text-muted-foreground">{matchup}</span>}
-              {game.opponent && <span className="text-xs text-muted-foreground">Соперник: {game.opponent}</span>}
-              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <RoleIcon role={primaryRole} className="h-4 w-4" />
-                {game.role || "Роль не указана"}
-              </span>
-              {specializations.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {specializations.map((specialization) => (
+                <Badge variant="outline" className={cn("h-auto px-2 py-0.5 text-[10px]", squadTone.badge)}>
+                  {game.squad_label}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {date}
+                  {time ? ` • ${time}` : ""}
+                </span>
+                <span className="text-sm font-semibold text-christmas-snow">
+                  {game.map}
+                  {game.mode ? ` • ${game.mode}` : ""}
+                </span>
+                {matchup && <span className="text-xs text-muted-foreground">{matchup}</span>}
+                {game.opponent && <span className="text-xs text-muted-foreground">Соперник: {game.opponent}</span>}
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <RoleIcon role={primaryRole} className="h-4 w-4" />
+                  {game.role || "Роль не указана"}
+                </span>
+                {specializations.length > 0 && (
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    {specializations.map((specialization) => (
+                      <span
+                        key={`${game.event_id}-${specialization}`}
+                        className="inline-flex items-center gap-1 text-xs text-christmas-snow"
+                      >
+                        <SpecializationIcon specialization={specialization} className="text-sm" />
+                        {specialization}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {(game.rank === 1 || onOpenGame) && (
+                <div className="ml-auto flex shrink-0 items-center gap-2">
+                  {game.rank === 1 && (
                     <Badge
-                      key={`${game.event_id}-${specialization}`}
                       variant="outline"
-                      className="h-auto border-border/50 bg-background/35 px-2 py-0.5 text-[10px] text-christmas-snow"
+                      data-testid="player-match-mvp"
+                      className="h-8 border-christmas-gold/35 bg-christmas-gold/10 px-2.5 text-xs text-christmas-gold"
                     >
-                      <SpecializationIcon specialization={specialization} className="mr-1 h-3.5 w-3.5" />
-                      {specialization}
+                      <Medal className="mr-1 h-4 w-4" />
+                      MVP
                     </Badge>
-                  ))}
+                  )}
+                  {onOpenGame && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 shrink-0 px-2 text-christmas-gold hover:bg-christmas-gold/10 hover:text-christmas-snow"
+                      onClick={() => onOpenGame(game.event_id, playerId)}
+                    >
+                      Матч
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
-              )}
-              {onOpenGame && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="ml-auto h-7 shrink-0 px-2 text-christmas-gold hover:bg-christmas-gold/10 hover:text-christmas-snow"
-                  onClick={() => onOpenGame(game.event_id, playerId)}
-                >
-                  Матч
-                  <ArrowUpRight className="h-3.5 w-3.5" />
-                </Button>
               )}
             </div>
 
-            <div className="mt-3 overflow-x-auto">
-              <div className="grid min-w-[760px] grid-cols-10 gap-2">
+            <div className="mt-2.5 overflow-x-auto">
+              <div className="grid min-w-[760px] grid-cols-10 gap-x-3 gap-y-2 border-t border-border/40 pt-2.5">
                 {metrics.map((metric) => (
                   <div
                     key={`${game.event_id}-${metric.key}`}
                     data-testid="player-match-metric"
-                    className="rounded-md border border-border/50 bg-background/55 px-3 py-2 text-center"
+                    className="min-w-0 text-center"
                   >
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{metric.label}</span>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{metric.label}</span>
                       <span className={cn("text-sm font-semibold", metric.valueClassName)}>{metric.value}</span>
                     </div>
                     {metric.key === "elo" ? (
-                      <div className="mt-2 space-y-1" data-testid="player-match-elo-progress">
+                      <div className="mt-1.5 space-y-1" data-testid="player-match-elo-progress">
                         <div className="h-1.5 overflow-hidden rounded-full bg-background/70">
                           <div
                             className="h-full rounded-full bg-gradient-to-r from-christmas-red via-christmas-gold to-christmas-green"
                             style={{ width: `${metric.progress}%` }}
                           />
                         </div>
-                        <p className="text-[10px] text-muted-foreground">{Math.round(metric.progress)}% от лучшего ELO</p>
+                        <p className="text-[10px] leading-none text-muted-foreground">{Math.round(metric.progress)}%</p>
                       </div>
                     ) : (
-                      <div className="mt-2 h-[26px]" aria-hidden="true" />
+                      <div className="mt-1.5 h-[18px]" aria-hidden="true" />
                     )}
                   </div>
                 ))}

@@ -191,7 +191,7 @@ export function PlayerRadarChart({
           </div>
         </CardHeader>
         <CardContent>
-          <div className={`${isExpanded ? "h-[360px] lg:h-[400px]" : "h-[320px]"} flex items-center justify-center text-sm text-muted-foreground`}>
+          <div className={`${isExpanded ? "h-[300px] lg:h-[320px]" : "h-[260px]"} flex items-center justify-center text-sm text-muted-foreground`}>
             Нет ролей с минимум 10 играми
           </div>
         </CardContent>
@@ -278,7 +278,7 @@ export function PlayerRadarChart({
         </div>
       </CardHeader>
       <CardContent>
-        <div className={isExpanded ? "h-[360px] lg:h-[400px]" : "h-[320px]"}>
+        <div className={isExpanded ? "h-[300px] lg:h-[320px]" : "h-[260px]"}>
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={data} margin={{ top: 0, right: 8, bottom: 0, left: 8 }}>
               <PolarGrid stroke="var(--border)" />

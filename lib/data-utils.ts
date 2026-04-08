@@ -695,23 +695,21 @@ export function filterDataByTags(data: MDCData, selectedTags: string[]): MDCData
 
 export function filterDataToClanPlayers(data: MDCData): MDCData {
   const players = Array.isArray(data.players) ? data.players : []
-  const events = Array.isArray(data.events) ? data.events : []
   const playerEventStats = Array.isArray(data.player_event_stats) ? data.player_event_stats : []
 
   const filteredPlayers = players.filter((player) => player?.is_mdc_member)
   const playerIds = new Set(filteredPlayers.map((player) => player.player_id))
   const filteredPlayerEventStats = playerEventStats.filter((stat) => stat && playerIds.has(stat.player_id))
-  const derivedPlayers = derivePlayersFromStats(filteredPlayers, filteredPlayerEventStats, events)
 
   return {
     ...data,
-    players: derivedPlayers,
+    players: filteredPlayers,
     player_event_stats: filteredPlayerEventStats,
     meta: {
       ...data.meta,
       counts: {
         ...data.meta.counts,
-        players: derivedPlayers.length,
+        players: filteredPlayers.length,
         player_event_stats: filteredPlayerEventStats.length,
       },
     },

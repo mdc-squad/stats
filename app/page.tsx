@@ -1137,13 +1137,11 @@ export default function YearReviewPage() {
     }>
 
     const players = Array.isArray(data.players) ? data.players : []
-    const competitivePlayers = Array.isArray(competitiveData?.players) ? competitiveData.players : []
     const playerById = new Map(players.map((player) => [player.player_id, player]))
-    const competitivePlayerById = new Map(competitivePlayers.map((player) => [player.player_id, player]))
     const entries: Array<{ player: Player; progress: ReturnType<typeof getPlayerProgress> }> = []
 
     selectedPlayersForChart.forEach((playerId) => {
-      const player = competitivePlayerById.get(playerId) ?? playerById.get(playerId)
+      const player = playerById.get(playerId)
       if (!player) return
 
       const progress = getPlayerProgress(playerId, data.player_event_stats, data.events)
@@ -1153,7 +1151,7 @@ export default function YearReviewPage() {
     })
 
     return entries
-  }, [competitiveData, data, selectedPlayersForChart])
+  }, [data, selectedPlayersForChart])
 
   const selectedPlayerHistories = useMemo(() => {
     const selectedIds = Array.from(new Set(selectedPlayersForChart))
