@@ -374,8 +374,8 @@ test("players tab renders enriched player card", async ({ page }) => {
   const skillsRadarViewportHeight = await page
     .getByTestId("player-radar-viewport-skills")
     .evaluate((element) => element.getBoundingClientRect().height)
-  expect(rolesRadarViewportHeight).toBeGreaterThan(300)
-  expect(skillsRadarViewportHeight).toBeGreaterThan(300)
+  expect(rolesRadarViewportHeight).toBeGreaterThan(340)
+  expect(skillsRadarViewportHeight).toBeGreaterThan(340)
 
   const nicknameColor = await page.getByTestId("player-card-nickname").evaluate((element) => getComputedStyle(element).color)
   const tagColor = await page.getByTestId("player-card-tag").evaluate((element) => getComputedStyle(element).color)
