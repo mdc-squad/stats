@@ -1559,24 +1559,32 @@ export default function YearReviewPage() {
 
         <OverallStatsPanel stats={overallStats} periodLabel={sliceSummaryLabel} />
 
-        {/* Event Types Summary */}
+        {/* Event Types Summary - Compact */}
         <section>
-          <h2 className="text-lg font-semibold mb-4 text-christmas-snow">Статистика по типам событий</h2>
+          <h2 className="text-lg font-semibold mb-4 text-christmas-snow">
+            Статистика по типам событий
+          </h2>
+        
           <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6">
             {eventTypeStats.map((et) => {
-              const isLecture = isLectureEventType(et.type)
-
+              const isLecture = isLectureEventType(et.type);
+              
               return (
                 <Card key={et.type} className="h-full border-christmas-gold/20">
-                  <CardContent className="flex h-full flex-col justify-center px-2 py-1.5 text-center">
-                    <p className="line-clamp-2 text-[13px] font-medium leading-[1.15] text-christmas-snow">{et.type}</p>
+                  <CardContent className="flex h-full min-h-[108px] flex-col justify-between px-3 py-2.5 text-center">
+                    <p className="mb-1.5 line-clamp-2 text-[13px] font-medium leading-snug text-christmas-snow">
+                      {et.type}
+                    </p>
                     <p className="text-[1.7rem] font-bold leading-none text-christmas-snow">{et.count}</p>
-                    <p className={`text-[11px] leading-none text-muted-foreground ${isLecture ? "opacity-0" : ""}`} aria-hidden={isLecture}>
+                    <p
+                      className={`mt-1 text-[11px] text-muted-foreground ${isLecture ? "opacity-0" : ""}`}
+                      aria-hidden={isLecture}
+                    >
                       {et.resolved > 0 ? `WR ${((et.wins / et.resolved) * 100).toFixed(0)}%` : "без результата"}
                     </p>
                   </CardContent>
                 </Card>
-              )
+              );
             })}
           </div>
         </section>
