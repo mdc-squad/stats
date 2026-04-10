@@ -430,15 +430,15 @@ export function PlayerCard({
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-christmas-red via-christmas-gold to-christmas-green" />
 
         <CardContent className={cn("relative", isExpanded ? "space-y-5 p-5 lg:p-6" : "space-y-4 p-4")}>
-          <div className="grid gap-3 xl:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] xl:items-center">
-            <div className="flex min-w-0 items-center gap-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:gap-4">
+            <div className="flex min-w-0 items-center gap-4 xl:min-w-max xl:flex-[0_0_auto]">
               <PlayerAvatar
                 steamId={player.steam_id}
                 nickname={player.nickname}
                 size="lg"
                 className={isExpanded ? "!h-20 !w-20" : ""}
               />
-              <div className="min-w-0 space-y-2">
+              <div className="min-w-0 space-y-2 xl:min-w-max">
                 <div className="flex flex-wrap items-center gap-2">
                   {typeof rank === "number" && (
                     <Badge variant="outline" className="border-christmas-gold/35 text-christmas-gold">
@@ -465,7 +465,7 @@ export function PlayerCard({
                   <h3
                     data-testid="player-card-nickname"
                     className={cn(
-                      "min-w-0 truncate font-bold leading-tight text-christmas-snow",
+                      "min-w-0 whitespace-nowrap font-bold leading-tight text-christmas-snow",
                       isExpanded ? "text-2xl lg:text-3xl" : "text-xl",
                     )}
                   >
@@ -486,20 +486,20 @@ export function PlayerCard({
               </div>
             </div>
 
-            <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
+            <div data-testid="player-card-ratings" className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-4">
               {ratingTiles.map((tile) => {
                 const Icon = tile.icon
                 return (
                   <div
                     key={tile.label}
-                    className={cn("flex min-h-[90px] flex-col items-center justify-center rounded-xl border px-4 py-3 text-center", tile.accentClass)}
+                    className={cn("flex min-h-[82px] min-w-0 flex-col items-center justify-center rounded-xl border px-2.5 py-2.5 text-center", tile.accentClass)}
                     data-testid={`player-card-rating-${tile.key}`}
                   >
-                    <div className="flex items-center justify-center gap-2">
-                      <p className="text-[10px] uppercase tracking-[0.18em]">{tile.label}</p>
+                    <div className="flex min-w-0 items-center justify-center gap-1.5">
+                      <p className="text-[9px] uppercase tracking-[0.16em] sm:text-[10px]">{tile.label}</p>
                       <Icon className="h-4 w-4" />
                     </div>
-                    <p className="mt-2 text-2xl font-bold leading-none text-christmas-snow lg:text-[2rem]">{tile.value}</p>
+                    <p className="mt-1.5 text-[clamp(1.1rem,2vw,1.9rem)] font-bold leading-none text-christmas-snow">{tile.value}</p>
                   </div>
                 )
               })}
