@@ -45,8 +45,9 @@ import {
   getPastGames,
   getPlayerGameHistory,
   getPlayerProgress,
+  getUniqueTags,
   getUniqueRoles,
-  filterDataToClanPlayers,
+  filterDataByTags,
   filterDataByDateRange,
   filterDataByEventSlice,
   filterDataToCompetitiveEvents,
@@ -204,6 +205,7 @@ const MIN_COMPETITIVE_EVENTS_FOR_TOPS = 11
 const MIN_PLAYER_CARD_SAMPLE_SIZE = 10
 const LEADERBOARD_PREVIEW_LIMIT = 10
 const VEHICLE_LEADERBOARD_PREVIEW_LIMIT = 5
+const DEFAULT_TAG_FILTER_TOKENS = ["mdc", "grave"]
 
 function buildDateRangeForPeriod(period: StatsPeriod): { from?: Date; to?: Date } {
   if (period === "all" || period === "custom") {
@@ -260,6 +262,20 @@ function formatDateFilterLabel(value: string): string {
 function isLectureEventType(value: string): boolean {
   const normalized = value.toLowerCase()
   return normalized.includes("лекц") || normalized.includes("lecture")
+}
+
+function matchesDefaultTagFilter(value: string): boolean {
+  const normalized = value.trim().toLowerCase()
+  return DEFAULT_TAG_FILTER_TOKENS.some((token) => normalized.includes(token))
+}
+
+function haveSameStringSet(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) {
+    return false
+  }
+
+  const rightSet = new Set(right)
+  return left.every((value) => rightSet.has(value))
 }
 
 function normalizeTextKey(value: string): string {
@@ -465,6 +481,7 @@ export default function YearReviewPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<StatsPeriod>("all")
   const [customDateFrom, setCustomDateFrom] = useState("")
   const [customDateTo, setCustomDateTo] = useState("")
+  const [selectedTags, setSelectedTags] = useState<string[] | null>(null)
   const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([])
   const [selectedMaps, setSelectedMaps] = useState<string[]>([])
   const [selectedOpponents, setSelectedOpponents] = useState<string[]>([])
@@ -719,7 +736,8 @@ export default function YearReviewPage() {
 
   const clanData = useMemo(() => {
     if (!rawData) return null
-    return filterDataToClanPlayers(rawData)
+    const rosterTags = getUniqueTags(rawData.players, rawData.dictionaries?.tags ?? []).filter(matchesDefaultTagFilter)
+    return filterDataByTags(rawData, rosterTags)
   }, [rawData])
 
   const selectedPeriodOption = useMemo(
@@ -757,56 +775,93 @@ export default function YearReviewPage() {
   )
 
   const dateFilteredData = useMemo(() => {
-    if (!clanData) return null
-    return filterDataByDateRange(clanData, periodRange)
-  }, [clanData, periodRange])
+    if (!rawData) return null
+    return filterDataByDateRange(rawData, periodRange)
+  }, [periodRange, rawData])
+
+  const tagOptions = useMemo<MultiValueFilterOption[]>(
+    () =>
+      getUniqueTags(dateFilteredData?.players ?? [], dateFilteredData?.dictionaries?.tags ?? []).map((value) => ({
+        value,
+        label: value,
+      })),
+    [dateFilteredData],
+  )
+
+  const defaultSelectedTags = useMemo(
+    () => tagOptions.map((option) => option.value).filter(matchesDefaultTagFilter),
+    [tagOptions],
+  )
+
+  const effectiveSelectedTags = selectedTags ?? defaultSelectedTags
+
+  useEffect(() => {
+    if (selectedTags === null) {
+      return
+    }
+
+    const availableTags = new Set(tagOptions.map((option) => option.value))
+    setSelectedTags((current) => {
+      if (current === null) {
+        return null
+      }
+
+      const next = current.filter((tag) => availableTags.has(tag))
+      return next.length === current.length ? current : next
+    })
+  }, [selectedTags, tagOptions])
+
+  const tagFilteredData = useMemo(() => {
+    if (!dateFilteredData) return null
+    return filterDataByTags(dateFilteredData, effectiveSelectedTags)
+  }, [dateFilteredData, effectiveSelectedTags])
 
   const eventTypeOptions = useMemo<MultiValueFilterOption[]>(
     () =>
-      Array.from(new Set((dateFilteredData?.events ?? []).map((event) => event.event_type?.trim() ?? "").filter(Boolean)))
+      Array.from(new Set((tagFilteredData?.events ?? []).map((event) => event.event_type?.trim() ?? "").filter(Boolean)))
         .sort((left, right) => left.localeCompare(right, "ru"))
         .map((value) => ({ value, label: value })),
-    [dateFilteredData],
+    [tagFilteredData],
   )
 
   const mapOptions = useMemo<MultiValueFilterOption[]>(
     () =>
-      Array.from(new Set((dateFilteredData?.events ?? []).map((event) => event.map?.trim() ?? "").filter(Boolean)))
+      Array.from(new Set((tagFilteredData?.events ?? []).map((event) => event.map?.trim() ?? "").filter(Boolean)))
         .sort((left, right) => left.localeCompare(right, "ru"))
         .map((value) => ({ value, label: value })),
-    [dateFilteredData],
+    [tagFilteredData],
   )
 
   const opponentOptions = useMemo<MultiValueFilterOption[]>(
     () =>
-      Array.from(new Set((dateFilteredData?.events ?? []).map((event) => event.opponent?.trim() ?? "").filter(Boolean)))
+      Array.from(new Set((tagFilteredData?.events ?? []).map((event) => event.opponent?.trim() ?? "").filter(Boolean)))
         .sort((left, right) => left.localeCompare(right, "ru"))
         .map((value) => ({ value, label: value })),
-    [dateFilteredData],
+    [tagFilteredData],
   )
 
   const factionOptions = useMemo<MultiValueFilterOption[]>(
     () =>
-      Array.from(new Set((dateFilteredData?.events ?? []).map((event) => event.faction_1?.trim() ?? "").filter(Boolean)))
+      Array.from(new Set((tagFilteredData?.events ?? []).map((event) => event.faction_1?.trim() ?? "").filter(Boolean)))
         .sort((left, right) => left.localeCompare(right, "ru"))
         .map((value) => ({ value, label: value })),
-    [dateFilteredData],
+    [tagFilteredData],
   )
 
   const data = useMemo(() => {
-    if (!dateFilteredData) return null
-    return filterDataByEventSlice(dateFilteredData, {
+    if (!tagFilteredData) return null
+    return filterDataByEventSlice(tagFilteredData, {
       eventTypes: selectedEventTypes,
       maps: selectedMaps,
       opponents: selectedOpponents,
       factions: selectedFactions,
     })
   }, [
-    dateFilteredData,
     selectedEventTypes,
     selectedFactions,
     selectedMaps,
     selectedOpponents,
+    tagFilteredData,
   ])
 
   const competitiveData = useMemo(() => {
@@ -814,9 +869,14 @@ export default function YearReviewPage() {
     return filterDataToCompetitiveEvents(data)
   }, [data])
   const playerCardData = useMemo(() => competitiveData ?? data, [competitiveData, data])
+  const isDefaultTagSelection = useMemo(
+    () => haveSameStringSet(effectiveSelectedTags, defaultSelectedTags),
+    [defaultSelectedTags, effectiveSelectedTags],
+  )
 
   const hasExtendedSliceFilters = Boolean(
-    selectedEventTypes.length ||
+    !isDefaultTagSelection ||
+      selectedEventTypes.length ||
       selectedMaps.length ||
       selectedOpponents.length ||
       selectedFactions.length ||
@@ -828,6 +888,9 @@ export default function YearReviewPage() {
   const sliceSummaryLabel = useMemo(() => {
     const segments = [periodSummaryLabel]
 
+    if (!isDefaultTagSelection) {
+      segments.push(effectiveSelectedTags.length > 0 ? `теги: ${effectiveSelectedTags.length}` : "теги: все")
+    }
     if (selectedEventTypes.length > 0) {
       segments.push(`типы: ${selectedEventTypes.length}`)
     }
@@ -843,6 +906,8 @@ export default function YearReviewPage() {
 
     return segments.join(" • ")
   }, [
+    effectiveSelectedTags.length,
+    isDefaultTagSelection,
     periodSummaryLabel,
     selectedEventTypes.length,
     selectedFactions.length,
@@ -854,6 +919,7 @@ export default function YearReviewPage() {
     setSelectedPeriod("all")
     setCustomDateFrom("")
     setCustomDateTo("")
+    setSelectedTags(null)
     setSelectedEventTypes([])
     setSelectedMaps([])
     setSelectedOpponents([])
@@ -906,16 +972,9 @@ export default function YearReviewPage() {
     () => (data ? getWeeklyParticipation(data.events, data.player_event_stats) : []),
     [data],
   )
-  const eligibleClanPlayers = useMemo(
-    () => (data ? data.players.filter((player) => player.is_mdc_member) : []),
-    [data],
-  )
-  const clanRosterCount = useMemo(
-    () => (clanData ? clanData.players.length : eligibleClanPlayers.length),
-    [clanData, eligibleClanPlayers.length],
-  )
+  const clanRosterCount = useMemo(() => (clanData ? clanData.players.length : 0), [clanData])
   const competitiveClanPlayers = useMemo(
-    () => (competitiveData ? competitiveData.players.filter((player) => player.is_mdc_member) : []),
+    () => (competitiveData ? competitiveData.players : []),
     [competitiveData],
   )
   const competitiveClanPlayerIds = useMemo(
@@ -1435,7 +1494,7 @@ export default function YearReviewPage() {
                 Сбросить фильтры
               </Button>
             </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
               <div className="space-y-2">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
                 <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as StatsPeriod)}>
@@ -1450,6 +1509,17 @@ export default function YearReviewPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2" data-testid="global-tag-filter">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Тег</p>
+                <MultiValueFilter
+                  options={tagOptions}
+                  selected={effectiveSelectedTags}
+                  onSelectionChange={setSelectedTags}
+                  placeholder="Все теги"
+                  searchPlaceholder="Поиск по тегам..."
+                  allLabel="Выбрать все теги"
+                />
               </div>
               <div className="space-y-2">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Тип</p>

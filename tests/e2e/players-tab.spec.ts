@@ -13,6 +13,10 @@ function getPlayersPanel(page: Page) {
   return page.getByRole("tabpanel", { name: "Игроки" })
 }
 
+function getGlobalTagFilter(page: Page) {
+  return page.getByTestId("global-tag-filter")
+}
+
 function getPlayerSelector(page: Page) {
   return getPlayersPanel(page).getByRole("combobox").first()
 }
@@ -317,6 +321,29 @@ function aggregatePlayerFromProtocol(
     specializationCount,
   }
 }
+
+test("global tag filter defaults to mdc and grave matches", async ({ page }) => {
+  test.setTimeout(180_000)
+
+  await page.goto("/")
+  await expect(page.getByRole("tab", { name: "Игроки" })).toBeVisible({ timeout: 120_000 })
+
+  const tagFilter = getGlobalTagFilter(page)
+  const combobox = tagFilter.getByRole("combobox")
+  await expect(combobox).toContainText("Выбрано:", { timeout: 120_000 })
+
+  await combobox.click()
+  const optionTexts = (await page.locator('[data-slot="command-item"]:visible').allTextContents())
+    .map((text) => text.trim())
+    .filter(Boolean)
+    .filter((text) => text !== "Выбрать все теги")
+
+  const matchedTags = optionTexts.filter((text) => /mdc|grave/i.test(text))
+  expect(matchedTags.length).toBeGreaterThan(0)
+
+  const selectedCountMatch = ((await combobox.textContent()) ?? "").match(/(\d+)/)
+  expect(Number(selectedCountMatch?.[1] ?? 0)).toBe(matchedTags.length)
+})
 
 test("players tab renders enriched player card", async ({ page }) => {
   test.setTimeout(180_000)
