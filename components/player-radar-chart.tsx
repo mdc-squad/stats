@@ -167,14 +167,17 @@ export function PlayerRadarChart({
 
   if (type === "roles" && rolesData.length === 0) {
     return (
-      <Card className="flex h-full min-h-0 flex-col border-christmas-gold/20" data-testid={`player-radar-${type}`}>
-        <CardHeader className="space-y-1 px-3 pt-3 pb-1">
+      <Card
+        className="flex h-full min-h-0 flex-col gap-0 overflow-hidden border-christmas-gold/20 py-0"
+        data-testid={`player-radar-${type}`}
+      >
+        <CardHeader className="gap-1 px-3 pt-2.5 pb-0">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">{title}</CardTitle>
             {type === "roles" && roleMetricOptions.length > 0 && onRoleMetricChange && (
               <Select value={roleMetric} onValueChange={(value) => onRoleMetricChange(value as RoleLeaderboardMetric)}>
                 <SelectTrigger
-                  className="h-8 w-[180px] border-christmas-gold/20 bg-background/50 text-xs text-christmas-snow"
+                  className="h-7 w-[164px] border-christmas-gold/20 bg-background/50 text-[11px] text-christmas-snow"
                   data-testid="player-role-metric-selector"
                 >
                   <SelectValue placeholder="Показатель" />
@@ -190,8 +193,8 @@ export function PlayerRadarChart({
             )}
           </div>
         </CardHeader>
-        <CardContent className="flex flex-1 px-3 pb-3 pt-0">
-          <div className={`${isExpanded ? "h-[300px] lg:h-[320px]" : "h-[260px]"} flex items-center justify-center text-sm text-muted-foreground`}>
+        <CardContent className="flex flex-1 px-2 pb-2 pt-0">
+          <div className={`${isExpanded ? "h-[320px] lg:h-[360px]" : "h-[280px]"} flex items-center justify-center text-sm text-muted-foreground`}>
             Нет ролей с минимум 10 играми
           </div>
         </CardContent>
@@ -201,8 +204,11 @@ export function PlayerRadarChart({
 
   if (type === "roles" && rolesData.length <= 2) {
     return (
-      <Card className="flex h-full min-h-0 flex-col border-christmas-gold/20" data-testid={`player-radar-${type}`}>
-        <CardHeader className="space-y-1 px-3 pt-3 pb-1">
+      <Card
+        className="flex h-full min-h-0 flex-col gap-0 overflow-hidden border-christmas-gold/20 py-0"
+        data-testid={`player-radar-${type}`}
+      >
+        <CardHeader className="gap-1 px-3 pt-2.5 pb-0">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">
               {title}
@@ -213,7 +219,7 @@ export function PlayerRadarChart({
             {roleMetricOptions.length > 0 && onRoleMetricChange && (
               <Select value={roleMetric} onValueChange={(value) => onRoleMetricChange(value as RoleLeaderboardMetric)}>
                 <SelectTrigger
-                  className="h-8 w-[180px] border-christmas-gold/20 bg-background/50 text-xs text-christmas-snow"
+                  className="h-7 w-[164px] border-christmas-gold/20 bg-background/50 text-[11px] text-christmas-snow"
                   data-testid="player-role-metric-selector"
                 >
                   <SelectValue placeholder="Показатель" />
@@ -229,7 +235,7 @@ export function PlayerRadarChart({
             )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-2 px-3 pb-3 pt-0">
+        <CardContent className="space-y-1.5 px-2.5 pb-2 pt-0">
           {rolesData.map((entry) => (
             <div key={entry.role} className="rounded-lg border border-border/50 bg-background/25 px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
@@ -247,8 +253,11 @@ export function PlayerRadarChart({
   }
 
   return (
-    <Card className="flex h-full min-h-0 flex-col border-christmas-gold/20" data-testid={`player-radar-${type}`}>
-      <CardHeader className="space-y-1 px-3 pt-3 pb-1">
+    <Card
+      className="flex h-full min-h-0 flex-col gap-0 overflow-hidden border-christmas-gold/20 py-0"
+      data-testid={`player-radar-${type}`}
+    >
+      <CardHeader className="gap-1 px-3 pt-2.5 pb-0">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">
             {title}
@@ -261,7 +270,7 @@ export function PlayerRadarChart({
           {type === "roles" && roleMetricOptions.length > 0 && onRoleMetricChange && (
             <Select value={roleMetric} onValueChange={(value) => onRoleMetricChange(value as RoleLeaderboardMetric)}>
               <SelectTrigger
-                className="h-8 w-[180px] border-christmas-gold/20 bg-background/50 text-xs text-christmas-snow"
+                className="h-7 w-[164px] border-christmas-gold/20 bg-background/50 text-[11px] text-christmas-snow"
                 data-testid="player-role-metric-selector"
               >
                 <SelectValue placeholder="Показатель" />
@@ -277,18 +286,18 @@ export function PlayerRadarChart({
           )}
         </div>
       </CardHeader>
-      <CardContent className="flex flex-1 min-h-0 px-1.5 pb-1.5 pt-0 sm:px-2 sm:pb-2">
+      <CardContent className="flex flex-1 min-h-0 px-0.5 pb-0.5 pt-0 sm:px-1 sm:pb-1">
         <div
-          className={isExpanded ? "min-h-[320px] flex-1 lg:min-h-[360px]" : "min-h-[280px] flex-1"}
+          className={isExpanded ? "min-h-[360px] flex-1 lg:min-h-[420px]" : "min-h-[300px] flex-1"}
           data-testid={`player-radar-viewport-${type}`}
         >
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart
               data={data}
-              outerRadius={isExpanded ? "86%" : "83%"}
+              outerRadius={isExpanded ? "92%" : "88%"}
               cx="50%"
-              cy="52%"
-              margin={{ top: -22, right: -26, bottom: -16, left: -26 }}
+              cy="50%"
+              margin={{ top: -34, right: -38, bottom: -28, left: -38 }}
             >
               <PolarGrid stroke="var(--border)" />
               <PolarAngleAxis
