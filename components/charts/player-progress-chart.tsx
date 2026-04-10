@@ -25,7 +25,7 @@ export function PlayerProgressChart({ data, currentKD, currentElo, currentTbf, c
 
   return (
     <Card className={className} data-testid="player-progress-chart">
-      <CardHeader className="pb-2">
+      <CardHeader className="space-y-1 px-4 pt-4 pb-1.5">
         <CardTitle className="flex flex-wrap items-center gap-2 text-sm font-medium uppercase tracking-wider text-christmas-gold">
           <TrendingUp className="h-4 w-4" />
           Динамика показателей
@@ -36,7 +36,7 @@ export function PlayerProgressChart({ data, currentKD, currentElo, currentTbf, c
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-2.5 px-4 pb-4 pt-0">
         <div className="flex flex-wrap items-center gap-2" data-testid="player-progress-toggle">
           <button
             type="button"

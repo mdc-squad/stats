@@ -71,20 +71,41 @@ import {
   RotateCcw,
 } from "lucide-react"
 
-const API_CACHE_KEY = "mdc-api-cache-v7"
+const API_CACHE_NAMESPACE = "mdc-api-cache"
+const APP_BUILD_ID = process.env.NEXT_PUBLIC_APP_BUILD_ID?.trim() || "dev"
+const API_CACHE_KEY = `${API_CACHE_NAMESPACE}-${APP_BUILD_ID}`
 const API_CACHE_TTL_MS = 5 * 60 * 1000
 
 type CachedPayload = {
   savedAt: number
+  buildId?: string
   data: MDCData
+}
+
+function clearObsoleteCaches(currentKey: string): void {
+  try {
+    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+      const key = localStorage.key(index)
+      if (!key) continue
+
+      const isApiCacheKey = key === API_CACHE_NAMESPACE || key.startsWith(`${API_CACHE_NAMESPACE}-`)
+      if (isApiCacheKey && key !== currentKey) {
+        localStorage.removeItem(key)
+      }
+    }
+  } catch {
+    // Ignore cleanup errors
+  }
 }
 
 function readCachedData(): CachedPayload | null {
   try {
+    clearObsoleteCaches(API_CACHE_KEY)
     const raw = localStorage.getItem(API_CACHE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as CachedPayload
     if (!parsed || typeof parsed.savedAt !== "number" || !parsed.data) return null
+    if (parsed.buildId && parsed.buildId !== APP_BUILD_ID) return null
     if (!Array.isArray(parsed.data.events)) return null
     if (!Array.isArray(parsed.data.players)) return null
     if (!Array.isArray(parsed.data.player_event_stats)) return null
@@ -99,8 +120,10 @@ function writeCachedData(data: MDCData): void {
   try {
     const payload: CachedPayload = {
       savedAt: Date.now(),
+      buildId: APP_BUILD_ID,
       data,
     }
+    clearObsoleteCaches(API_CACHE_KEY)
     localStorage.setItem(API_CACHE_KEY, JSON.stringify(payload))
   } catch {
     // Ignore cache write errors (e.g. private mode quota restrictions)
@@ -110,6 +133,7 @@ function writeCachedData(data: MDCData): void {
 function clearCachedData(): void {
   try {
     localStorage.removeItem(API_CACHE_KEY)
+    clearObsoleteCaches(API_CACHE_KEY)
   } catch {
     // Ignore cache clear errors
   }
@@ -789,6 +813,7 @@ export default function YearReviewPage() {
     if (!data) return null
     return filterDataToCompetitiveEvents(data)
   }, [data])
+  const playerCardData = useMemo(() => competitiveData ?? data, [competitiveData, data])
 
   const hasExtendedSliceFilters = Boolean(
     selectedEventTypes.length ||
@@ -842,8 +867,16 @@ export default function YearReviewPage() {
 
     const availablePlayerIds = new Set(data.players.map((player) => player.player_id))
     setSelectedPlayers((current) => current.filter((playerId) => availablePlayerIds.has(playerId)))
-    setSelectedPlayersForChart((current) => current.filter((playerId) => availablePlayerIds.has(playerId)))
   }, [data])
+
+  useEffect(() => {
+    if (!playerCardData) {
+      return
+    }
+
+    const availablePlayerIds = new Set(playerCardData.players.map((player) => player.player_id))
+    setSelectedPlayersForChart((current) => current.filter((playerId) => availablePlayerIds.has(playerId)))
+  }, [playerCardData])
 
   const uniqueRoles = useMemo(() => {
     if (!data) return []
@@ -953,6 +986,16 @@ export default function YearReviewPage() {
     const protocolEvents = rawData?.events ?? data.events
     return getPastGames(protocolEvents, data.player_event_stats, data.players, data.dictionaries?.squads ?? [])
   }, [data, rawData])
+  const playerCardPastGames = useMemo(() => {
+    if (!playerCardData) return []
+    const protocolEvents = rawData?.events ?? playerCardData.events
+    return getPastGames(
+      protocolEvents,
+      playerCardData.player_event_stats,
+      playerCardData.players,
+      playerCardData.dictionaries?.squads ?? [],
+    )
+  }, [playerCardData, rawData])
 
   const roleLeaderboards = useMemo(() => {
     if (!competitiveData) return []
@@ -1131,12 +1174,12 @@ export default function YearReviewPage() {
 
   // Player progress chart data
   const selectedProgressEntries = useMemo(() => {
-    if (!data || selectedPlayersForChart.length === 0) return [] as Array<{
+    if (!playerCardData || selectedPlayersForChart.length === 0) return [] as Array<{
       player: Player
       progress: ReturnType<typeof getPlayerProgress>
     }>
 
-    const players = Array.isArray(data.players) ? data.players : []
+    const players = Array.isArray(playerCardData.players) ? playerCardData.players : []
     const playerById = new Map(players.map((player) => [player.player_id, player]))
     const entries: Array<{ player: Player; progress: ReturnType<typeof getPlayerProgress> }> = []
 
@@ -1144,34 +1187,37 @@ export default function YearReviewPage() {
       const player = playerById.get(playerId)
       if (!player) return
 
-      const progress = getPlayerProgress(playerId, data.player_event_stats, data.events)
+      const progress = getPlayerProgress(playerId, playerCardData.player_event_stats, playerCardData.events)
       if (progress.length > 0) {
         entries.push({ player, progress })
       }
     })
 
     return entries
-  }, [data, selectedPlayersForChart])
+  }, [playerCardData, selectedPlayersForChart])
 
   const selectedPlayerHistories = useMemo(() => {
     const selectedIds = Array.from(new Set(selectedPlayersForChart))
     const historyByPlayerId = new Map<string, ReturnType<typeof getPlayerGameHistory>>()
 
     selectedIds.forEach((playerId) => {
-      historyByPlayerId.set(playerId, getPlayerGameHistory(playerId, pastGames, Math.max(pastGames.length, 1)))
+      historyByPlayerId.set(
+        playerId,
+        getPlayerGameHistory(playerId, playerCardPastGames, Math.max(playerCardPastGames.length, 1)),
+      )
     })
 
     return historyByPlayerId
-  }, [pastGames, selectedPlayersForChart])
+  }, [playerCardPastGames, selectedPlayersForChart])
 
   const activePlayers = useMemo(() => {
-    if (!data) return []
-    const players = Array.isArray(data.players) ? data.players : []
+    if (!playerCardData) return []
+    const players = Array.isArray(playerCardData.players) ? playerCardData.players : []
     return players.filter((p) => p && p.totals && p.totals.events >= 3)
-  }, [data])
+  }, [playerCardData])
 
   const avgValues = useMemo(() => {
-    if (!data) {
+    if (!playerCardData) {
       return {
         kills: 100,
         deaths: 80,
@@ -1184,11 +1230,11 @@ export default function YearReviewPage() {
         win_rate: 0.5,
       }
     }
-    return getAverageValues(data.players)
-  }, [data])
+    return getAverageValues(playerCardData.players)
+  }, [playerCardData])
 
   const maxValues = useMemo(() => {
-    if (!data)
+    if (!playerCardData)
       return {
         kills: 500,
         deaths: 300,
@@ -1201,7 +1247,7 @@ export default function YearReviewPage() {
         win_rate: 1,
       }
 
-    const allPlayers = Array.isArray(data.players) ? data.players : []
+    const allPlayers = Array.isArray(playerCardData.players) ? playerCardData.players : []
     const players = allPlayers.filter((p) => p && p.totals && p.totals.events >= 3)
     return {
       kills: Math.max(...players.map((p) => p.totals.kills), 1),
@@ -1214,10 +1260,10 @@ export default function YearReviewPage() {
       kda: Math.max(...players.map((p) => p.totals.kda), 1),
       win_rate: Math.max(...players.map((p) => p.totals.win_rate), 1),
     }
-  }, [data])
+  }, [playerCardData])
 
   const skillMaxima = useMemo(() => {
-    if (!data) {
+    if (!playerCardData) {
       return {
         kd: 1,
         kda: 1,
@@ -1226,7 +1272,7 @@ export default function YearReviewPage() {
       }
     }
 
-    const qualifiedPlayers = data.players.filter((player) => player.totals.events >= MIN_PLAYER_CARD_SAMPLE_SIZE)
+    const qualifiedPlayers = playerCardData.players.filter((player) => player.totals.events >= MIN_PLAYER_CARD_SAMPLE_SIZE)
     if (qualifiedPlayers.length === 0) {
       return {
         kd: 1,
@@ -1242,7 +1288,7 @@ export default function YearReviewPage() {
       avgRevives: Math.max(...qualifiedPlayers.map((player) => player.totals.avgRevives), 1),
       avgVehicle: Math.max(...qualifiedPlayers.map((player) => player.totals.avgVehicle), 1),
     }
-  }, [data])
+  }, [playerCardData])
 
   const getRoleIcon = (role: string) => {
     return <RoleIcon role={role} />
@@ -1522,9 +1568,9 @@ export default function YearReviewPage() {
 
               return (
                 <Card key={et.type} className="h-full border-christmas-gold/20">
-                  <CardContent className="flex h-full min-h-[132px] flex-col justify-between p-3 text-center">
-                    <p className="mb-2 line-clamp-2 text-sm font-medium text-christmas-snow">{et.type}</p>
-                    <p className="text-2xl font-bold text-christmas-snow">{et.count}</p>
+                  <CardContent className="flex h-full min-h-[108px] flex-col justify-between px-3 py-2.5 text-center">
+                    <p className="mb-1.5 line-clamp-2 text-[13px] font-medium leading-snug text-christmas-snow">{et.type}</p>
+                    <p className="text-[1.7rem] font-bold leading-none text-christmas-snow">{et.count}</p>
                     <p className={`mt-1 text-[11px] text-muted-foreground ${isLecture ? "opacity-0" : ""}`} aria-hidden={isLecture}>
                       {et.resolved > 0 ? `WR ${((et.wins / et.resolved) * 100).toFixed(0)}%` : "без результата"}
                     </p>
@@ -1875,15 +1921,15 @@ export default function YearReviewPage() {
                       rank={index + 1}
                       footerLabel={seasonalTheme.summaryLabel}
                       achievements={playerAchievements[player.player_id] ?? []}
-                      playerStats={(competitiveData ?? data).player_event_stats}
+                      playerStats={playerCardData?.player_event_stats ?? []}
                       matchHistory={selectedPlayerHistories.get(player.player_id) ?? []}
                       progress={progress}
                       roleMetric={selectedRoleMetric}
                       roleMetricOptions={ROLE_METRIC_OPTIONS}
                       roleMetricMaxima={roleMetricMaxima}
-                      roleDomain={(competitiveData ?? data).dictionaries?.roles ?? []}
-                      squadDomain={(competitiveData ?? data).dictionaries?.squads ?? []}
-                      events={(competitiveData ?? data).events}
+                      roleDomain={playerCardData?.dictionaries?.roles ?? []}
+                      squadDomain={playerCardData?.dictionaries?.squads ?? []}
+                      events={playerCardData?.events ?? []}
                       skillMaxima={skillMaxima}
                       activityAverage={avgValues.events}
                       activityMax={maxValues.events}

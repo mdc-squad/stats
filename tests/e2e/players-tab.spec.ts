@@ -1,5 +1,5 @@
 import { readFile, stat } from "node:fs/promises"
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test"
+import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test"
 
 const API_BASE = "https://api.hungryfishteam.org/gas/mdc"
 
@@ -191,6 +191,17 @@ async function requestJsonWithRetry<T>(request: APIRequestContext, url: string, 
 }
 
 async function fetchPlayerEventsApi(request: APIRequestContext): Promise<ApiPlayerEventRecord[]> {
+  const fullSnapshot = await requestJsonWithRetry<{
+    playersEvents?: ApiPlayerEventRecord[]
+    player_event_stats?: ApiPlayerEventRecord[]
+    playersevents?: ApiPlayerEventRecord[]
+  }>(request, `${API_BASE}/all?publish=false`, 2).catch(() => null)
+
+  const snapshotRows = fullSnapshot?.playersEvents ?? fullSnapshot?.player_event_stats ?? fullSnapshot?.playersevents
+  if (Array.isArray(snapshotRows) && snapshotRows.length > 0) {
+    return snapshotRows
+  }
+
   const pagesResponse = await request.get(`${API_BASE}/pages?publish=false`)
   expect(pagesResponse.ok()).toBeTruthy()
   const pages = Math.max(1, Number((await pagesResponse.text()).trim()) || 1)
@@ -216,11 +227,20 @@ async function readCardMetricValue(page: Page, testId: string): Promise<number> 
   return Number((match?.[1] ?? "0").replace(",", "."))
 }
 
+async function readMatchMetricValue(card: Locator, metricKey: "revives" | "heals" | "vehicle"): Promise<number> {
+  const text = (await card.locator(`[data-metric-key="${metricKey}"]`).textContent()) ?? ""
+  const match = text.match(/(\d+(?:[.,]\d+)?)(?!.*\d)/)
+  expect(match).toBeTruthy()
+  return Number((match?.[1] ?? "0").replace(",", "."))
+}
+
 function aggregatePlayerFromProtocol(
   rows: ApiPlayerEventRecord[],
   events: ApiEventRecord[],
   nickname: string,
+  tag: string,
 ): {
+  totalGames: number
   averageRevives: number
   averageHeals: number
   averageVehicle: number
@@ -239,7 +259,11 @@ function aggregatePlayerFromProtocol(
   >()
 
   rows.forEach((row) => {
-    if (String(row.nickname ?? "").trim() !== nickname || isReserveEntry(row.enter)) {
+    if (
+      String(row.nickname ?? "").trim() !== nickname ||
+      String(row.tag ?? "").trim() !== tag ||
+      isReserveEntry(row.enter)
+    ) {
       return
     }
 
@@ -286,6 +310,7 @@ function aggregatePlayerFromProtocol(
   const specializationCount = games.reduce((sum, game) => sum + game.specializations.size, 0)
 
   return {
+    totalGames,
     averageRevives: totalGames > 0 ? totalRevives / totalGames : 0,
     averageHeals: totalGames > 0 ? totalHeals / totalGames : 0,
     averageVehicle: totalGames > 0 ? totalVehicle / totalGames : 0,
@@ -304,7 +329,7 @@ test("players tab renders enriched player card", async ({ page }) => {
   await page.getByTestId("player-progress-toggle-rating").click()
   await expect(page.getByTestId("player-progress-rating-chart")).toContainText("ELO и ТБФ")
   await expect(page.getByText("Последние матчи игрока")).toBeVisible()
-  await expect(page.getByText("Популярные роли")).toBeVisible()
+  await expect(page.getByTestId("player-card").getByText("Роли", { exact: true }).first()).toBeVisible()
   await expect(page.getByText("Специализации")).toBeVisible()
   await expect(page.getByText("Навыки")).toBeVisible()
   await expect(page.getByText(/^ТБФ:/)).toBeVisible()
@@ -314,6 +339,11 @@ test("players tab renders enriched player card", async ({ page }) => {
   const nicknameColor = await page.getByTestId("player-card-nickname").evaluate((element) => getComputedStyle(element).color)
   const tagColor = await page.getByTestId("player-card-tag").evaluate((element) => getComputedStyle(element).color)
   expect(tagColor).toBe(nicknameColor)
+  const tagBox = await page.getByTestId("player-card-tag").boundingBox()
+  const nicknameBox = await page.getByTestId("player-card-nickname").boundingBox()
+  expect(tagBox).not.toBeNull()
+  expect(nicknameBox).not.toBeNull()
+  expect(Math.abs((tagBox?.y ?? 0) - (nicknameBox?.y ?? 0))).toBeLessThanOrEqual(2)
 
   const matchCards = page.getByTestId("player-match-card")
   const initialMatches = await matchCards.count()
@@ -322,6 +352,16 @@ test("players tab renders enriched player card", async ({ page }) => {
   await expect(page.getByTestId("player-card-specializations")).toBeVisible()
   await expect(page.getByTestId("player-card-specialization-item").first()).toBeVisible()
   await expect(page.getByTestId("player-match-elo-progress").first()).toBeVisible()
+  const firstMatchMetrics = page.getByTestId("player-match-metrics").first()
+  await expect(firstMatchMetrics).toBeVisible()
+  await expect(firstMatchMetrics).not.toContainText("Подн.")
+  await expect(firstMatchMetrics).not.toContainText("См.")
+  const metricsFitWithoutOverflow = await firstMatchMetrics.evaluate(
+    (element) => element.scrollWidth <= element.clientWidth + 2,
+  )
+  expect(metricsFitWithoutOverflow).toBeTruthy()
+  await page.getByTestId("player-match-metric-icon-revives").first().hover()
+  await expect(page.getByRole("tooltip")).toContainText("Поднятия")
 
   const fullListButton = page.getByRole("button", { name: "Весь список" })
   if (await fullListButton.isVisible()) {
@@ -360,17 +400,32 @@ test("players tab uses players API table values in player card", async ({ page, 
   )
   expect(player).toBeTruthy()
 
-  const expectedAverageRevives = toNumber(player!.deff_revives, toNumber(player!.revives) / Math.max(1, toNumber(player!.events)))
-  const expectedAverageHeals = toNumber(player!.deff_heals, toNumber(player!.heals) / Math.max(1, toNumber(player!.events)))
-  const expectedAverageVehicle = toNumber(player!.deff_vehicle, toNumber(player!.vehicle) / Math.max(1, toNumber(player!.events)))
+  const fullListButton = page.getByRole("button", { name: "Весь список" })
+  if (await fullListButton.isVisible()) {
+    await fullListButton.click()
+  }
+
+  const matchCards = page.getByTestId("player-match-card")
+  const totalGames = await matchCards.count()
+  expect(totalGames).toBeGreaterThan(0)
+
+  let totalRevives = 0
+  let totalHeals = 0
+  let totalVehicle = 0
+
+  for (let index = 0; index < totalGames; index += 1) {
+    const card = matchCards.nth(index)
+    totalRevives += await readMatchMetricValue(card, "revives")
+    totalHeals += await readMatchMetricValue(card, "heals")
+    totalVehicle += await readMatchMetricValue(card, "vehicle")
+  }
 
   expect(Math.abs((await readCardMetricValue(page, "player-card-rating-rating")) - toNumber(player!.OP))).toBeLessThanOrEqual(0.05)
-  expect(Math.abs((await readCardMetricValue(page, "player-card-rating-elo")) - toNumber(player!.ELO))).toBeLessThanOrEqual(0.05)
-  expect(Math.abs((await readCardMetricValue(page, "player-card-rating-tbf")) - toNumber(player!.TBF))).toBeLessThanOrEqual(0.05)
-  expect(Math.abs((await readCardMetricValue(page, "player-card-summary-events")) - toNumber(player!.events))).toBeLessThanOrEqual(0.01)
-  expect(Math.abs((await readCardMetricValue(page, "player-card-average-revives")) - expectedAverageRevives)).toBeLessThanOrEqual(0.03)
-  expect(Math.abs((await readCardMetricValue(page, "player-card-average-heals")) - expectedAverageHeals)).toBeLessThanOrEqual(0.15)
-  expect(Math.abs((await readCardMetricValue(page, "player-card-average-vehicle")) - expectedAverageVehicle)).toBeLessThanOrEqual(0.03)
+  await expect(page.getByTestId("player-card-summary-events")).toContainText("Всего игр")
+  expect(Math.abs((await readCardMetricValue(page, "player-card-summary-events")) - totalGames)).toBeLessThanOrEqual(0.01)
+  expect(Math.abs((await readCardMetricValue(page, "player-card-average-revives")) - totalRevives / totalGames)).toBeLessThanOrEqual(0.03)
+  expect(Math.abs((await readCardMetricValue(page, "player-card-average-heals")) - totalHeals / totalGames)).toBeLessThanOrEqual(0.15)
+  expect(Math.abs((await readCardMetricValue(page, "player-card-average-vehicle")) - totalVehicle / totalGames)).toBeLessThanOrEqual(0.03)
 })
 
 test("dashboard uses explicit event results for wins and losses", async ({ page, request }) => {

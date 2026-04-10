@@ -168,7 +168,7 @@ export function PlayerRadarChart({
   if (type === "roles" && rolesData.length === 0) {
     return (
       <Card className="h-full border-christmas-gold/20" data-testid={`player-radar-${type}`}>
-        <CardHeader className="pb-2">
+        <CardHeader className="space-y-1 px-4 pt-4 pb-1.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">{title}</CardTitle>
             {type === "roles" && roleMetricOptions.length > 0 && onRoleMetricChange && (
@@ -190,7 +190,7 @@ export function PlayerRadarChart({
             )}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4 pt-0">
           <div className={`${isExpanded ? "h-[300px] lg:h-[320px]" : "h-[260px]"} flex items-center justify-center text-sm text-muted-foreground`}>
             Нет ролей с минимум 10 играми
           </div>
@@ -202,7 +202,7 @@ export function PlayerRadarChart({
   if (type === "roles" && rolesData.length <= 2) {
     return (
       <Card className="h-full border-christmas-gold/20" data-testid={`player-radar-${type}`}>
-        <CardHeader className="pb-2">
+        <CardHeader className="space-y-1 px-4 pt-4 pb-1.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">
               {title}
@@ -229,7 +229,7 @@ export function PlayerRadarChart({
             )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-2 px-4 pb-4 pt-0">
           {rolesData.map((entry) => (
             <div key={entry.role} className="rounded-lg border border-border/50 bg-background/25 px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
@@ -248,7 +248,7 @@ export function PlayerRadarChart({
 
   return (
     <Card className="h-full border-christmas-gold/20" data-testid={`player-radar-${type}`}>
-      <CardHeader className="pb-2">
+      <CardHeader className="space-y-1 px-4 pt-4 pb-1.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">
             {title}
@@ -277,7 +277,7 @@ export function PlayerRadarChart({
           )}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-4 pb-4 pt-0">
         <div className={isExpanded ? "h-[300px] lg:h-[320px]" : "h-[260px]"}>
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={data} margin={{ top: 0, right: 8, bottom: 0, left: 8 }}>

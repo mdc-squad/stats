@@ -174,3 +174,12 @@
 .christmas-light {
   animation: twinkle 1s ease-in-out infinite;
 }
+
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}

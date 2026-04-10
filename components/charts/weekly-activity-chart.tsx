@@ -29,8 +29,8 @@ export function WeeklyActivityChart({ data }: WeeklyActivityChartProps) {
 
   if (chartData.length === 0) {
     return (
-      <Card className="flex h-full min-h-[420px] flex-col border-christmas-gold/20 bg-card/60">
-        <CardHeader className="pb-3">
+      <Card className="flex h-full min-h-[390px] flex-col border-christmas-gold/20 bg-card/60">
+        <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
             <Users className="w-4 h-4" />
             Участники по неделям
@@ -44,8 +44,8 @@ export function WeeklyActivityChart({ data }: WeeklyActivityChartProps) {
   }
 
   return (
-    <Card className="flex h-full min-h-[420px] flex-col border-christmas-gold/20 bg-card/60">
-      <CardHeader className="pb-3">
+    <Card className="flex h-full min-h-[390px] flex-col border-christmas-gold/20 bg-card/60">
+      <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
           <Users className="w-4 h-4" />
           Участники по неделям
