@@ -1638,10 +1638,10 @@ export default function YearReviewPage() {
 
               return (
                 <Card key={et.type} className="h-full border-christmas-gold/20">
-                  <CardContent className="flex h-full flex-col justify-center px-2 py-1.5 text-center">
-                    <p className="line-clamp-2 text-[13px] font-medium leading-[1.15] text-christmas-snow">{et.type}</p>
-                    <p className="text-[1.7rem] font-bold leading-none text-christmas-snow">{et.count}</p>
-                    <p className={`text-[11px] leading-none text-muted-foreground ${isLecture ? "opacity-0" : ""}`} aria-hidden={isLecture}>
+                  <CardContent className="flex h-full flex-col justify-center gap-0.5 px-1.5 py-1 text-center">
+                    <p className="line-clamp-2 text-[12px] font-medium leading-[1.08] text-christmas-snow">{et.type}</p>
+                    <p className="text-[1.55rem] font-bold leading-none text-christmas-snow">{et.count}</p>
+                    <p className={`text-[10px] leading-none text-muted-foreground ${isLecture ? "opacity-0" : ""}`} aria-hidden={isLecture}>
                       {et.resolved > 0 ? `WR ${((et.wins / et.resolved) * 100).toFixed(0)}%` : "без результата"}
                     </p>
                   </CardContent>
