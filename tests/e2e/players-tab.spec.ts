@@ -344,6 +344,12 @@ test("players tab renders enriched player card", async ({ page }) => {
   expect(tagBox).not.toBeNull()
   expect(nicknameBox).not.toBeNull()
   expect(Math.abs((tagBox?.y ?? 0) - (nicknameBox?.y ?? 0))).toBeLessThanOrEqual(2)
+  const nicknameTextOverflow = await page.getByTestId("player-card-nickname").evaluate((element) => getComputedStyle(element).textOverflow)
+  expect(nicknameTextOverflow).not.toBe("ellipsis")
+  const ratingTilesFitWithoutOverflow = await page.getByTestId("player-card-ratings").evaluate(
+    (element) => element.scrollWidth <= element.clientWidth + 2,
+  )
+  expect(ratingTilesFitWithoutOverflow).toBeTruthy()
 
   const matchCards = page.getByTestId("player-match-card")
   const initialMatches = await matchCards.count()
@@ -360,6 +366,10 @@ test("players tab renders enriched player card", async ({ page }) => {
     (element) => element.scrollWidth <= element.clientWidth + 2,
   )
   expect(metricsFitWithoutOverflow).toBeTruthy()
+  const firstRevivesMetricWidth = await firstMatchMetrics.locator('[data-metric-key="revives"]').first().evaluate(
+    (element) => element.getBoundingClientRect().width,
+  )
+  expect(firstRevivesMetricWidth).toBeGreaterThan(100)
   await page.getByTestId("player-match-metric-icon-revives").first().hover()
   await expect(page.getByRole("tooltip")).toContainText("Поднятия")
 
