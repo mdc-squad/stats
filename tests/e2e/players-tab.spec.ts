@@ -338,11 +338,17 @@ test("global tag filter defaults to mdc and grave matches", async ({ page }) => 
     .filter(Boolean)
     .filter((text) => text !== "Выбрать все теги")
 
-  const matchedTags = optionTexts.filter((text) => /mdc|grave/i.test(text))
-  expect(matchedTags.length).toBeGreaterThan(0)
+  const normalizedOptionTexts = optionTexts.map((text) => text.toLowerCase().replaceAll("ё", "е"))
+  const mdcLikeOptions = optionTexts.filter((text) => /mdc/i.test(text))
+  const graveLikeOptions = optionTexts.filter((text) => /grave/i.test(text))
+
+  expect(mdcLikeOptions).toHaveLength(1)
+  expect(graveLikeOptions.length).toBeGreaterThan(0)
+  expect(normalizedOptionTexts.some((text) => text.includes("ветеран"))).toBeFalsy()
+  expect(normalizedOptionTexts.some((text) => text.includes("неактив"))).toBeFalsy()
 
   const selectedCountMatch = ((await combobox.textContent()) ?? "").match(/(\d+)/)
-  expect(Number(selectedCountMatch?.[1] ?? 0)).toBe(matchedTags.length)
+  expect(Number(selectedCountMatch?.[1] ?? 0)).toBe(mdcLikeOptions.length + graveLikeOptions.length)
 })
 
 test("players tab renders enriched player card", async ({ page }) => {
