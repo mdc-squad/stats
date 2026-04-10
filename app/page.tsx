@@ -206,6 +206,13 @@ const MIN_PLAYER_CARD_SAMPLE_SIZE = 10
 const LEADERBOARD_PREVIEW_LIMIT = 10
 const VEHICLE_LEADERBOARD_PREVIEW_LIMIT = 5
 const DEFAULT_TAG_FILTER_TOKENS = ["mdc", "grave"]
+const HIDDEN_TAG_FILTER_TOKENS = ["ветеран", "неактив"]
+const MDC_TAG_FILTER_VALUE = "__tag_group__mdc"
+const MDC_TAG_FILTER_LABEL = "Mdc︱"
+
+type GlobalTagFilterOption = MultiValueFilterOption & {
+  rawTags: string[]
+}
 
 function buildDateRangeForPeriod(period: StatsPeriod): { from?: Date; to?: Date } {
   if (period === "all" || period === "custom") {
@@ -265,8 +272,17 @@ function isLectureEventType(value: string): boolean {
 }
 
 function matchesDefaultTagFilter(value: string): boolean {
-  const normalized = value.trim().toLowerCase()
+  const normalized = value.trim().toLowerCase().replaceAll("ё", "е")
   return DEFAULT_TAG_FILTER_TOKENS.some((token) => normalized.includes(token))
+}
+
+function isHiddenTagFilterValue(value: string): boolean {
+  const normalized = value.trim().toLowerCase().replaceAll("ё", "е")
+  return HIDDEN_TAG_FILTER_TOKENS.some((token) => normalized.includes(token))
+}
+
+function isMdcTagFilterValue(value: string): boolean {
+  return value.trim().toLowerCase().includes("mdc")
 }
 
 function haveSameStringSet(left: string[], right: string[]): boolean {
@@ -315,6 +331,33 @@ function mergeByKey<T>(older: T[], newer: T[], getKey: (value: T) => string): T[
     }
   })
   return Array.from(map.values())
+}
+
+function buildGlobalTagFilterOptions(players: Player[] | undefined, tagDomain: string[] | undefined): GlobalTagFilterOption[] {
+  const tags = getUniqueTags(players ?? [], tagDomain ?? []).filter((tag) => !isHiddenTagFilterValue(tag))
+  const mdcTags = tags.filter(isMdcTagFilterValue)
+  const nonMdcTags = tags.filter((tag) => !isMdcTagFilterValue(tag))
+
+  const options: GlobalTagFilterOption[] = []
+
+  if (mdcTags.length > 0) {
+    options.push({
+      value: MDC_TAG_FILTER_VALUE,
+      label: MDC_TAG_FILTER_LABEL,
+      rawTags: mdcTags,
+      meta: mdcTags.length > 1 ? `${mdcTags.length} вариаций` : undefined,
+    })
+  }
+
+  nonMdcTags.forEach((tag) => {
+    options.push({
+      value: tag,
+      label: tag,
+      rawTags: [tag],
+    })
+  })
+
+  return options
 }
 
 function mergeMDCData(older: MDCData, newer: MDCData): MDCData {
@@ -736,7 +779,9 @@ export default function YearReviewPage() {
 
   const clanData = useMemo(() => {
     if (!rawData) return null
-    const rosterTags = getUniqueTags(rawData.players, rawData.dictionaries?.tags ?? []).filter(matchesDefaultTagFilter)
+    const rosterTags = buildGlobalTagFilterOptions(rawData.players, rawData.dictionaries?.tags ?? [])
+      .filter((option) => option.rawTags.some(matchesDefaultTagFilter))
+      .flatMap((option) => option.rawTags)
     return filterDataByTags(rawData, rosterTags)
   }, [rawData])
 
@@ -779,17 +824,13 @@ export default function YearReviewPage() {
     return filterDataByDateRange(rawData, periodRange)
   }, [periodRange, rawData])
 
-  const tagOptions = useMemo<MultiValueFilterOption[]>(
-    () =>
-      getUniqueTags(dateFilteredData?.players ?? [], dateFilteredData?.dictionaries?.tags ?? []).map((value) => ({
-        value,
-        label: value,
-      })),
+  const tagOptions = useMemo<GlobalTagFilterOption[]>(
+    () => buildGlobalTagFilterOptions(dateFilteredData?.players, dateFilteredData?.dictionaries?.tags),
     [dateFilteredData],
   )
 
   const defaultSelectedTags = useMemo(
-    () => tagOptions.map((option) => option.value).filter(matchesDefaultTagFilter),
+    () => tagOptions.filter((option) => option.rawTags.some(matchesDefaultTagFilter)).map((option) => option.value),
     [tagOptions],
   )
 
@@ -811,10 +852,21 @@ export default function YearReviewPage() {
     })
   }, [selectedTags, tagOptions])
 
+  const selectedRawTags = useMemo(() => {
+    const optionByValue = new Map(tagOptions.map((option) => [option.value, option.rawTags]))
+    const sourceValues = effectiveSelectedTags.length > 0 ? effectiveSelectedTags : tagOptions.map((option) => option.value)
+
+    return Array.from(
+      new Set(
+        sourceValues.flatMap((value) => optionByValue.get(value) ?? []),
+      ),
+    )
+  }, [effectiveSelectedTags, tagOptions])
+
   const tagFilteredData = useMemo(() => {
     if (!dateFilteredData) return null
-    return filterDataByTags(dateFilteredData, effectiveSelectedTags)
-  }, [dateFilteredData, effectiveSelectedTags])
+    return filterDataByTags(dateFilteredData, selectedRawTags)
+  }, [dateFilteredData, selectedRawTags])
 
   const eventTypeOptions = useMemo<MultiValueFilterOption[]>(
     () =>
@@ -1641,15 +1693,10 @@ export default function YearReviewPage() {
               
               return (
                 <Card key={et.type} className="h-full border-christmas-gold/20">
-                  <CardContent className="flex h-full min-h-[108px] flex-col justify-between px-3 py-2.5 text-center">
-                    <p className="mb-1.5 line-clamp-2 text-[13px] font-medium leading-snug text-christmas-snow">
-                      {et.type}
-                    </p>
-                    <p className="text-[1.7rem] font-bold leading-none text-christmas-snow">{et.count}</p>
-                    <p
-                      className={`mt-1 text-[11px] text-muted-foreground ${isLecture ? "opacity-0" : ""}`}
-                      aria-hidden={isLecture}
-                    >
+                  <CardContent className="flex h-full flex-col justify-center gap-0.5 px-1.5 py-1 text-center">
+                    <p className="line-clamp-2 text-[12px] font-medium leading-[1.08] text-christmas-snow">{et.type}</p>
+                    <p className="text-[1.55rem] font-bold leading-none text-christmas-snow">{et.count}</p>
+                    <p className={`text-[10px] leading-none text-muted-foreground ${isLecture ? "opacity-0" : ""}`} aria-hidden={isLecture}>
                       {et.resolved > 0 ? `WR ${((et.wins / et.resolved) * 100).toFixed(0)}%` : "без результата"}
                     </p>
                   </CardContent>
