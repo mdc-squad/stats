@@ -167,8 +167,8 @@ export function PlayerRadarChart({
 
   if (type === "roles" && rolesData.length === 0) {
     return (
-      <Card className="h-full border-christmas-gold/20" data-testid={`player-radar-${type}`}>
-        <CardHeader className="space-y-1 px-4 pt-4 pb-1.5">
+      <Card className="flex h-full min-h-0 flex-col border-christmas-gold/20" data-testid={`player-radar-${type}`}>
+        <CardHeader className="space-y-1 px-3 pt-3 pb-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">{title}</CardTitle>
             {type === "roles" && roleMetricOptions.length > 0 && onRoleMetricChange && (
@@ -190,7 +190,7 @@ export function PlayerRadarChart({
             )}
           </div>
         </CardHeader>
-        <CardContent className="px-4 pb-4 pt-0">
+        <CardContent className="flex flex-1 px-3 pb-3 pt-0">
           <div className={`${isExpanded ? "h-[300px] lg:h-[320px]" : "h-[260px]"} flex items-center justify-center text-sm text-muted-foreground`}>
             Нет ролей с минимум 10 играми
           </div>
@@ -201,8 +201,8 @@ export function PlayerRadarChart({
 
   if (type === "roles" && rolesData.length <= 2) {
     return (
-      <Card className="h-full border-christmas-gold/20" data-testid={`player-radar-${type}`}>
-        <CardHeader className="space-y-1 px-4 pt-4 pb-1.5">
+      <Card className="flex h-full min-h-0 flex-col border-christmas-gold/20" data-testid={`player-radar-${type}`}>
+        <CardHeader className="space-y-1 px-3 pt-3 pb-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">
               {title}
@@ -229,7 +229,7 @@ export function PlayerRadarChart({
             )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-2 px-4 pb-4 pt-0">
+        <CardContent className="space-y-2 px-3 pb-3 pt-0">
           {rolesData.map((entry) => (
             <div key={entry.role} className="rounded-lg border border-border/50 bg-background/25 px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
@@ -247,8 +247,8 @@ export function PlayerRadarChart({
   }
 
   return (
-    <Card className="h-full border-christmas-gold/20" data-testid={`player-radar-${type}`}>
-      <CardHeader className="space-y-1 px-4 pt-4 pb-1.5">
+    <Card className="flex h-full min-h-0 flex-col border-christmas-gold/20" data-testid={`player-radar-${type}`}>
+      <CardHeader className="space-y-1 px-3 pt-3 pb-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="text-xs font-medium uppercase tracking-wider text-christmas-gold">
             {title}
@@ -277,12 +277,25 @@ export function PlayerRadarChart({
           )}
         </div>
       </CardHeader>
-      <CardContent className="px-4 pb-4 pt-0">
-        <div className={isExpanded ? "h-[300px] lg:h-[320px]" : "h-[260px]"}>
+      <CardContent className="flex flex-1 min-h-0 px-1.5 pb-1.5 pt-0 sm:px-2 sm:pb-2">
+        <div
+          className={isExpanded ? "min-h-[320px] flex-1 lg:min-h-[360px]" : "min-h-[280px] flex-1"}
+          data-testid={`player-radar-viewport-${type}`}
+        >
           <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={data} margin={{ top: 0, right: 8, bottom: 0, left: 8 }}>
+            <RadarChart
+              data={data}
+              outerRadius={isExpanded ? "86%" : "83%"}
+              cx="50%"
+              cy="52%"
+              margin={{ top: -22, right: -26, bottom: -16, left: -26 }}
+            >
               <PolarGrid stroke="var(--border)" />
-              <PolarAngleAxis dataKey="stat" tick={{ fill: "var(--muted-foreground)", fontSize: isExpanded ? 12 : 11 }} />
+              <PolarAngleAxis
+                dataKey="stat"
+                tick={{ fill: "var(--muted-foreground)", fontSize: isExpanded ? 12 : 11 }}
+                tickLine={false}
+              />
               <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
               <Tooltip
                 contentStyle={{

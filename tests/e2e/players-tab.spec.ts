@@ -368,6 +368,14 @@ test("players tab renders enriched player card", async ({ page }) => {
   await expect(page.getByText(/^ТБФ:/)).toBeVisible()
   await expect(page.getByTestId("player-card-average-revives")).toBeVisible()
   await expect(page.getByTestId("player-radar-skills")).not.toContainText("/игра")
+  const rolesRadarViewportHeight = await page
+    .getByTestId("player-radar-viewport-roles")
+    .evaluate((element) => element.getBoundingClientRect().height)
+  const skillsRadarViewportHeight = await page
+    .getByTestId("player-radar-viewport-skills")
+    .evaluate((element) => element.getBoundingClientRect().height)
+  expect(rolesRadarViewportHeight).toBeGreaterThan(300)
+  expect(skillsRadarViewportHeight).toBeGreaterThan(300)
 
   const nicknameColor = await page.getByTestId("player-card-nickname").evaluate((element) => getComputedStyle(element).color)
   const tagColor = await page.getByTestId("player-card-tag").evaluate((element) => getComputedStyle(element).color)
@@ -399,10 +407,11 @@ test("players tab renders enriched player card", async ({ page }) => {
     (element) => element.scrollWidth <= element.clientWidth + 2,
   )
   expect(metricsFitWithoutOverflow).toBeTruthy()
-  const firstRevivesMetricWidth = await firstMatchMetrics.locator('[data-metric-key="revives"]').first().evaluate(
-    (element) => element.getBoundingClientRect().width,
-  )
-  expect(firstRevivesMetricWidth).toBeGreaterThan(100)
+  const firstRevivesMetricFlexDirection = await firstMatchMetrics
+    .locator('[data-metric-key="revives"]')
+    .first()
+    .evaluate((element) => getComputedStyle(element).flexDirection)
+  expect(firstRevivesMetricFlexDirection).toBe("column")
   await page.getByTestId("player-match-metric-icon-revives").first().hover()
   await expect(page.getByRole("tooltip")).toContainText("Поднятия")
 
