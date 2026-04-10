@@ -294,10 +294,10 @@ export function PlayerRadarChart({
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart
               data={data}
-              outerRadius={isExpanded ? "92%" : "88%"}
+              outerRadius={isExpanded ? "87%" : "83%"}
               cx="50%"
               cy="50%"
-              margin={{ top: -34, right: -38, bottom: -28, left: -38 }}
+              margin={{ top: -10, right: -20, bottom: -6, left: -20 }}
             >
               <PolarGrid stroke="var(--border)" />
               <PolarAngleAxis

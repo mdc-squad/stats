@@ -268,7 +268,7 @@ export function PlayerMatchHistory({
                         className="flex min-w-[188px] basis-[188px] flex-[2_1_188px] items-center gap-2 rounded-lg border border-border/40 bg-background/30 px-2 py-1.5 sm:min-w-[224px] sm:basis-[224px]"
                       >
                         <div
-                          className="flex w-[42px] shrink-0 flex-col items-center justify-center gap-1"
+                          className="flex w-[72px] shrink-0 items-center justify-center gap-1.5"
                           data-testid="player-match-metric-stack-elo"
                         >
                           <Tooltip>
