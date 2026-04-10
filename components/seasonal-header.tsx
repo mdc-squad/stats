@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import type { SeasonalTheme, SeasonalThemeIcon } from "@/lib/seasonal-theme"
 import { withBasePath } from "@/lib/base-path"
+import { cn } from "@/lib/utils"
 
 interface SeasonalHeaderProps {
   playersCount: number
@@ -154,10 +155,50 @@ export function SeasonalHeader({ playersCount, theme }: SeasonalHeaderProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [timeline, setTimeline] = useState<ClanTimelineInfo | null>(null)
+  const [isCompactViewport, setIsCompactViewport] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
   useEffect(() => {
     setTimeline(getClanTimeline(new Date()))
   }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 640px)")
+    const updateViewportState = () => setIsCompactViewport(mediaQuery.matches)
+
+    updateViewportState()
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", updateViewportState)
+      return () => mediaQuery.removeEventListener("change", updateViewportState)
+    }
+
+    mediaQuery.addListener(updateViewportState)
+    return () => mediaQuery.removeListener(updateViewportState)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    if (!isCompactViewport) {
+      setIsCollapsed(false)
+      return
+    }
+
+    const updateCollapsedState = () => {
+      setIsCollapsed(window.scrollY > 24)
+    }
+
+    updateCollapsedState()
+    window.addEventListener("scroll", updateCollapsedState, { passive: true })
+    return () => window.removeEventListener("scroll", updateCollapsedState)
+  }, [isCompactViewport])
 
   useEffect(() => {
     return () => {
@@ -193,68 +234,108 @@ export function SeasonalHeader({ playersCount, theme }: SeasonalHeaderProps) {
   const clanAgeLabel = timeline ? `Нам ${timeline.ageLabel}` : "Возраст клана"
 
   return (
-    <header className="relative border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-40 overflow-hidden">
+    <header
+      data-testid="seasonal-header"
+      data-collapsed={isCollapsed ? "true" : "false"}
+      className={cn(
+        "sticky top-0 z-40 overflow-hidden border-b border-border backdrop-blur-sm transition-all duration-300",
+        isCollapsed ? "bg-card/95 shadow-lg shadow-black/15" : "bg-card/80",
+      )}
+    >
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-christmas-red via-christmas-green to-christmas-gold" />
 
-      <div className="container mx-auto px-4 py-5">
-        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6">
-          <div className="flex items-center gap-4 min-w-0">
+      <div className={cn("container mx-auto px-4 transition-all duration-300", isCollapsed ? "py-2" : "py-5")}>
+        <div
+          className={cn(
+            "flex flex-col gap-4 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6",
+            isCollapsed && "flex-row items-center justify-between gap-3",
+          )}
+        >
+          <div className={cn("flex min-w-0 items-center", isCollapsed ? "gap-3" : "gap-4")}>
             <div className="relative shrink-0">
-              <div className="h-20 w-20 overflow-hidden rounded-full bg-background/45 shadow-xl shadow-black/25 md:h-24 md:w-24">
+              <div
+                className={cn(
+                  "overflow-hidden rounded-full bg-background/45 shadow-xl shadow-black/25 transition-all duration-300",
+                  isCollapsed ? "h-12 w-12" : "h-20 w-20 md:h-24 md:w-24",
+                )}
+              >
                 <img
                   src={withBasePath("/mdc-clan-emblem.png")}
                   alt="Эмблема клана MDC"
                   className="h-full w-full rounded-full object-cover"
                 />
               </div>
-              <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-christmas-gold/25 bg-background/90 shadow-lg shadow-black/20 md:h-8 md:w-8">
+              <div
+                className={cn(
+                  "absolute -bottom-1 -right-1 flex items-center justify-center rounded-full border border-christmas-gold/25 bg-background/90 shadow-lg shadow-black/20 transition-all duration-300",
+                  isCollapsed ? "h-5 w-5" : "h-7 w-7 md:h-8 md:w-8",
+                )}
+              >
                 <ThemeIcon className="h-4 w-4 text-christmas-green" />
               </div>
             </div>
 
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold leading-tight text-christmas-snow md:text-3xl">Mors De Caelo</h1>
-              <p className="mt-1 text-sm font-medium text-christmas-gold md:text-base">{theme.subtitle}</p>
+              <h1
+                className={cn(
+                  "font-bold leading-tight text-christmas-snow transition-all duration-300",
+                  isCollapsed ? "text-lg" : "text-2xl md:text-3xl",
+                )}
+              >
+                Mors De Caelo
+              </h1>
+              {!isCollapsed && <p className="mt-1 text-sm font-medium text-christmas-gold md:text-base">{theme.subtitle}</p>}
             </div>
           </div>
 
-          <div className="flex min-w-0 flex-col items-center gap-1 text-center lg:px-2">
-            <button
-              type="button"
-              onClick={() => void toggleAnthem()}
-              aria-pressed={isPlaying}
-              aria-label={isPlaying ? "Остановить гимн клана" : "Включить гимн клана"}
-              className={`group inline-flex max-w-full items-center justify-center gap-2 rounded-2xl border border-transparent px-2 py-0.5 text-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-christmas-gold/60 ${
-                isPlaying
-                  ? "text-christmas-snow"
-                  : "text-christmas-snow/92 hover:text-christmas-snow"
-              }`}
-            >
-              <span
-                className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full transition-colors ${
-                  isPlaying ? "animate-pulse bg-christmas-green" : "bg-christmas-gold/80 group-hover:bg-christmas-gold"
-                }`}
-              />
-              <span className="text-[15px] font-semibold leading-snug tracking-[0.01em] md:text-base">{CLAN_MOTTO}</span>
-            </button>
+          {isCollapsed ? (
+            <div className="shrink-0 rounded-full border border-christmas-gold/20 bg-background/45 px-3 py-1.5 shadow-lg shadow-black/10">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-christmas-snow">
+                <Users className="h-3.5 w-3.5 text-christmas-gold" />
+                {playersCount}
+              </span>
+            </div>
+          ) : (
+            <>
+              <div className="flex min-w-0 flex-col items-center gap-1 text-center lg:px-2">
+                <button
+                  type="button"
+                  onClick={() => void toggleAnthem()}
+                  aria-pressed={isPlaying}
+                  aria-label={isPlaying ? "Остановить гимн клана" : "Включить гимн клана"}
+                  className={`group inline-flex max-w-full items-center justify-center gap-2 rounded-2xl border border-transparent px-2 py-0.5 text-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-christmas-gold/60 ${
+                    isPlaying
+                      ? "text-christmas-snow"
+                      : "text-christmas-snow/92 hover:text-christmas-snow"
+                  }`}
+                >
+                  <span
+                    className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full transition-colors ${
+                      isPlaying ? "animate-pulse bg-christmas-green" : "bg-christmas-gold/80 group-hover:bg-christmas-gold"
+                    }`}
+                  />
+                  <span className="text-[15px] font-semibold leading-snug tracking-[0.01em] md:text-base">{CLAN_MOTTO}</span>
+                </button>
 
-            <span className="text-[11px] text-muted-foreground">
-              {isPlaying ? "Гимн звучит" : "Нажатие включает гимн"}
-            </span>
-          </div>
-
-          <div className="flex flex-wrap items-stretch gap-2 lg:justify-end">
-            <HeaderStat icon={Users} label="Игроков" value={playersCount.toString()} />
-            <HeaderStat icon={CalendarDays} label="Основан" value={CLAN_FOUNDATION_LABEL} />
-            <HeaderStat icon={Sparkles} label="Возраст" value={clanAgeLabel} />
-
-            {timeline?.celebrationLabel ? (
-              <div className="inline-flex items-center gap-2 rounded-2xl border border-christmas-red/20 bg-christmas-red/10 px-3 py-2 text-xs font-medium text-christmas-snow shadow-lg shadow-black/10">
-                <Sparkles className="h-3.5 w-3.5 text-christmas-gold" />
-                <span>{timeline.celebrationLabel}</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {isPlaying ? "Гимн звучит" : "Нажатие включает гимн"}
+                </span>
               </div>
-            ) : null}
-          </div>
+
+              <div className="flex flex-wrap items-stretch gap-2 lg:justify-end">
+                <HeaderStat icon={Users} label="Игроков" value={playersCount.toString()} />
+                <HeaderStat icon={CalendarDays} label="Основан" value={CLAN_FOUNDATION_LABEL} />
+                <HeaderStat icon={Sparkles} label="Возраст" value={clanAgeLabel} />
+
+                {timeline?.celebrationLabel ? (
+                  <div className="inline-flex items-center gap-2 rounded-2xl border border-christmas-red/20 bg-christmas-red/10 px-3 py-2 text-xs font-medium text-christmas-snow shadow-lg shadow-black/10">
+                    <Sparkles className="h-3.5 w-3.5 text-christmas-gold" />
+                    <span>{timeline.celebrationLabel}</span>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          )}
         </div>
 
         <audio
