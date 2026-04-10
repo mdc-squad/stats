@@ -412,6 +412,11 @@ test("players tab renders enriched player card", async ({ page }) => {
     .first()
     .evaluate((element) => getComputedStyle(element).flexDirection)
   expect(firstRevivesMetricFlexDirection).toBe("column")
+  const firstEloMetricStackFlexDirection = await firstMatchMetrics
+    .getByTestId("player-match-metric-stack-elo")
+    .first()
+    .evaluate((element) => getComputedStyle(element).flexDirection)
+  expect(firstEloMetricStackFlexDirection).toBe("column")
   await page.getByTestId("player-match-metric-icon-revives").first().hover()
   await expect(page.getByRole("tooltip")).toContainText("Поднятия")
 
