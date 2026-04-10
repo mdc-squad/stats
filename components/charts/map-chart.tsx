@@ -36,8 +36,8 @@ export function MapChart({ data }: MapChartProps) {
 
   if (chartData.length === 0) {
     return (
-      <Card className="flex h-full min-h-[420px] flex-col border-christmas-gold/20 bg-card/60">
-        <CardHeader className="pb-3">
+      <Card className="flex h-full min-h-[390px] flex-col border-christmas-gold/20 bg-card/60">
+        <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
             <Map className="w-4 h-4" />
             Популярные карты
@@ -51,8 +51,8 @@ export function MapChart({ data }: MapChartProps) {
   }
 
   return (
-    <Card className="flex h-full min-h-[420px] flex-col border-christmas-gold/20 bg-card/60">
-      <CardHeader className="pb-3">
+    <Card className="flex h-full min-h-[390px] flex-col border-christmas-gold/20 bg-card/60">
+      <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium uppercase tracking-wider text-christmas-gold flex items-center gap-2">
           <Map className="w-4 h-4" />
           Популярные карты

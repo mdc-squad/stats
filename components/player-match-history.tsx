@@ -2,13 +2,14 @@
 
 import { useState } from "react"
 import { ArrowUpRight, Medal } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { RoleIcon } from "@/components/role-icon"
 import { SpecializationIcon, getSpecializationLabel, normalizeSpecializationKey } from "@/components/specialization-icon"
 import type { PlayerGameHistoryEntry } from "@/lib/data-utils"
 import { getEventTypeMeta } from "@/lib/data-utils"
+import { getMetricIcon } from "@/lib/app-icons"
 import { getSquadToneClasses } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
 
@@ -101,57 +102,66 @@ export function PlayerMatchHistory({
         const metrics = [
           {
             key: "revives",
-            label: "Подн.",
+            label: "Поднятия",
             value: game.revives.toLocaleString("ru-RU"),
             valueClassName: "text-sky-300",
+            icon: getMetricIcon("revives"),
           },
           {
             key: "heals",
             label: "Хил",
             value: game.heals.toLocaleString("ru-RU"),
             valueClassName: "text-rose-300",
+            icon: getMetricIcon("heals"),
           },
           {
             key: "downs",
             label: "Ноки",
             value: game.downs.toLocaleString("ru-RU"),
             valueClassName: "text-orange-300",
+            icon: getMetricIcon("downs"),
           },
           {
             key: "kills",
-            label: "Уб.",
+            label: "Убийства",
             value: game.kills.toLocaleString("ru-RU"),
             valueClassName: "text-christmas-green",
+            icon: getMetricIcon("kills"),
           },
           {
             key: "deaths",
-            label: "См.",
+            label: "Смерти",
             value: game.deaths.toLocaleString("ru-RU"),
             valueClassName: "text-christmas-red",
+            icon: getMetricIcon("deaths"),
           },
           {
             key: "vehicle",
-            label: "Тех.",
+            label: "Техника",
             value: game.vehicle.toLocaleString("ru-RU"),
             valueClassName: "text-blue-300",
+            icon: getMetricIcon("vehicle"),
           },
           {
             key: "kd",
-            label: "KD",
+            label: "K/D",
             value: game.kd.toFixed(2),
             valueClassName: "text-christmas-gold",
+            icon: getMetricIcon("kd"),
           },
           {
             key: "kda",
             label: "KDA",
             value: game.kda.toFixed(2),
             valueClassName: "text-violet-300",
+            icon: getMetricIcon("kda"),
           },
           {
             key: "elo",
             label: "ELO",
             value: game.elo.toFixed(1),
             valueClassName: "text-christmas-snow",
+            icon: getMetricIcon("elo"),
             progress: Math.max(0, Math.min(100, game.eloShare)),
           },
           {
@@ -159,6 +169,7 @@ export function PlayerMatchHistory({
             label: "Место",
             value: `${game.rank}/${game.participants}`,
             valueClassName: "text-christmas-gold",
+            icon: Medal,
           },
         ] as const
 
@@ -240,34 +251,74 @@ export function PlayerMatchHistory({
               )}
             </div>
 
-            <div className="mt-2.5 overflow-x-auto">
-              <div className="grid min-w-[760px] grid-cols-10 gap-x-3 gap-y-2 border-t border-border/40 pt-2.5">
+            <div
+              className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-border/40 pt-2"
+              data-testid="player-match-metrics"
+            >
                 {metrics.map((metric) => (
-                  <div
-                    key={`${game.event_id}-${metric.key}`}
-                    data-testid="player-match-metric"
-                    className="min-w-0 text-center"
-                  >
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{metric.label}</span>
-                      <span className={cn("text-sm font-semibold", metric.valueClassName)}>{metric.value}</span>
-                    </div>
-                    {metric.key === "elo" ? (
-                      <div className="mt-1.5 space-y-1" data-testid="player-match-elo-progress">
-                        <div className="h-1.5 overflow-hidden rounded-full bg-background/70">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-christmas-red via-christmas-gold to-christmas-green"
-                            style={{ width: `${metric.progress}%` }}
-                          />
+                  (() => {
+                    const Icon = metric.icon
+
+                    if (metric.key === "elo") {
+                      return (
+                        <div
+                          key={`${game.event_id}-${metric.key}`}
+                          data-testid="player-match-metric"
+                          data-metric-key={metric.key}
+                          className="inline-flex min-w-[172px] flex-1 items-center gap-2 rounded-lg border border-border/40 bg-background/30 px-2.5 py-1.5 sm:flex-none"
+                        >
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span
+                                data-testid={`player-match-metric-icon-${metric.key}`}
+                                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border/50 bg-background/70 text-christmas-gold"
+                              >
+                                <Icon className="h-3.5 w-3.5" />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="border border-border bg-card text-card-foreground">
+                              {metric.label}
+                            </TooltipContent>
+                          </Tooltip>
+                          <span className={cn("text-sm font-semibold", metric.valueClassName)}>{metric.value}</span>
+                          <div className="flex min-w-0 flex-1 items-center gap-2" data-testid="player-match-elo-progress">
+                            <div className="h-1.5 min-w-[56px] flex-1 overflow-hidden rounded-full bg-background/70">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-christmas-red via-christmas-gold to-christmas-green"
+                                style={{ width: `${metric.progress}%` }}
+                              />
+                            </div>
+                            <p className="text-[10px] leading-none text-muted-foreground">{Math.round(metric.progress)}%</p>
+                          </div>
                         </div>
-                        <p className="text-[10px] leading-none text-muted-foreground">{Math.round(metric.progress)}%</p>
+                      )
+                    }
+
+                    return (
+                      <div
+                        key={`${game.event_id}-${metric.key}`}
+                        data-testid="player-match-metric"
+                        data-metric-key={metric.key}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border/40 bg-background/30 px-2.5 py-1.5"
+                      >
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span
+                              data-testid={`player-match-metric-icon-${metric.key}`}
+                              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border/50 bg-background/70 text-christmas-gold"
+                            >
+                              <Icon className="h-3.5 w-3.5" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="border border-border bg-card text-card-foreground">
+                            {metric.label}
+                          </TooltipContent>
+                        </Tooltip>
+                        <span className={cn("text-sm font-semibold", metric.valueClassName)}>{metric.value}</span>
                       </div>
-                    ) : (
-                      <div className="mt-1.5 h-[18px]" aria-hidden="true" />
-                    )}
-                  </div>
+                    )
+                  })()
                 ))}
-              </div>
             </div>
           </div>
         )
@@ -304,14 +355,14 @@ export function PlayerMatchHistory({
           Для игрока пока нет истории матчей.
         </div>
       ) : showAll ? (
-        <ScrollArea
+        <div
           className={cn(
-            "rounded-lg border border-border/50 bg-background/20",
+            "scrollbar-hidden overflow-y-auto rounded-lg border border-border/50 bg-background/20",
             isExpanded ? "h-[360px] lg:h-[420px]" : "h-[320px]",
           )}
         >
           {content}
-        </ScrollArea>
+        </div>
       ) : (
         <div className="rounded-lg border border-border/50 bg-background/20">{content}</div>
       )}

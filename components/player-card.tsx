@@ -181,11 +181,11 @@ export function PlayerCard({
       })
   }, [matchHistory])
 
-  const topRoles = useMemo(() => {
+  const rolesSummary = useMemo(() => {
     const perMatchRoles = matchHistory.flatMap((entry) =>
       Array.from(new Set(entry.roles.filter((roleName) => roleName?.trim() && !isRoleWithoutKit(roleName)))),
     )
-    return countTopEntries(perMatchRoles, 6)
+    return countTopEntries(perMatchRoles)
   }, [matchHistory])
 
   const specializationSummary = useMemo(() => {
@@ -450,12 +450,12 @@ export function PlayerCard({
                   </Badge>
                 </div>
 
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 break-words">
+                <div className="flex min-w-0 items-baseline gap-2 whitespace-nowrap">
                   {player.tag && (
                     <span
                       data-testid="player-card-tag"
                       className={cn(
-                        "font-bold leading-tight text-christmas-snow",
+                        "shrink-0 font-bold leading-tight text-christmas-snow",
                         isExpanded ? "text-2xl lg:text-3xl" : "text-xl",
                       )}
                     >
@@ -465,7 +465,7 @@ export function PlayerCard({
                   <h3
                     data-testid="player-card-nickname"
                     className={cn(
-                      "break-words font-bold leading-tight text-christmas-snow",
+                      "min-w-0 truncate font-bold leading-tight text-christmas-snow",
                       isExpanded ? "text-2xl lg:text-3xl" : "text-xl",
                     )}
                   >
@@ -567,11 +567,11 @@ export function PlayerCard({
           )}
 
           <div className="grid items-stretch gap-3 xl:grid-cols-2">
-            {topRoles.length > 0 && (
+            {rolesSummary.length > 0 && (
               <div className="h-full rounded-xl border border-border/50 bg-background/30 px-4 py-3.5">
-                <p className="mb-3 text-center text-[11px] uppercase tracking-wider text-muted-foreground">Популярные роли</p>
+                <p className="mb-3 text-center text-[11px] uppercase tracking-wider text-muted-foreground">Роли</p>
                 <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3">
-                  {topRoles.map((entry) => (
+                  {rolesSummary.map((entry) => (
                     <div
                       key={entry.label}
                       className="flex min-w-[92px] flex-col items-center justify-center text-center"
