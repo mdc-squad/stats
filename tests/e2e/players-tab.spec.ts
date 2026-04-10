@@ -366,6 +366,10 @@ test("players tab renders enriched player card", async ({ page }) => {
     (element) => element.scrollWidth <= element.clientWidth + 2,
   )
   expect(metricsFitWithoutOverflow).toBeTruthy()
+  const firstRevivesMetricWidth = await firstMatchMetrics.locator('[data-metric-key="revives"]').first().evaluate(
+    (element) => element.getBoundingClientRect().width,
+  )
+  expect(firstRevivesMetricWidth).toBeGreaterThan(100)
   await page.getByTestId("player-match-metric-icon-revives").first().hover()
   await expect(page.getByRole("tooltip")).toContainText("Поднятия")
 

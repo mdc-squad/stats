@@ -252,7 +252,7 @@ export function PlayerMatchHistory({
             </div>
 
             <div
-              className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-border/40 pt-2"
+              className="mt-2 flex flex-wrap items-stretch gap-1.5 border-t border-border/40 pt-2"
               data-testid="player-match-metrics"
             >
                 {metrics.map((metric) => (
@@ -265,7 +265,7 @@ export function PlayerMatchHistory({
                           key={`${game.event_id}-${metric.key}`}
                           data-testid="player-match-metric"
                           data-metric-key={metric.key}
-                          className="inline-flex min-w-[172px] flex-1 items-center gap-2 rounded-lg border border-border/40 bg-background/30 px-2.5 py-1.5 sm:flex-none"
+                          className="flex min-w-[188px] basis-[188px] flex-[2_1_188px] items-center gap-2 rounded-lg border border-border/40 bg-background/30 px-2.5 py-1.5 sm:min-w-[224px] sm:basis-[224px]"
                         >
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -299,7 +299,7 @@ export function PlayerMatchHistory({
                         key={`${game.event_id}-${metric.key}`}
                         data-testid="player-match-metric"
                         data-metric-key={metric.key}
-                        className="inline-flex items-center gap-2 rounded-lg border border-border/40 bg-background/30 px-2.5 py-1.5"
+                        className="flex min-w-[96px] basis-[96px] flex-1 items-center justify-between gap-2 rounded-lg border border-border/40 bg-background/30 px-2.5 py-1.5 sm:min-w-[104px] sm:basis-[104px]"
                       >
                         <Tooltip>
                           <TooltipTrigger asChild>
