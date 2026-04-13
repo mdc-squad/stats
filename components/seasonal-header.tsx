@@ -39,6 +39,7 @@ interface ClanFoundationInfo {
 
 interface HeaderSlide {
   id: "mdc" | "grave" | "dcia"
+  overline?: string | null
   title: string
   subtitle: string
   tagline?: string | null
@@ -337,12 +338,13 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
         },
         {
           id: "dcia",
-          title: "Коалиция DCIA",
+          overline: "De Caelo ad Infernos",
+          title: "DCIA",
           subtitle: theme.subtitle,
-          tagline: "De Caelo ad Inferos",
+          tagline: null,
           emblemSrc: withBasePath("/dcia-emblem.png"),
           emblemAlt: "Эмблема коалиции DCIA",
-          heroLabel: "DCIA",
+          heroLabel: "Коалиция DCIA",
           playersLabel: "Коалиция",
           playersValue: String(coalitionPlayersCount),
           dateLabel: "Основан",
@@ -410,6 +412,11 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
   }, [isPlaying, slides.length])
 
   const currentSlide = slides[Math.min(activeSlideIndex, slides.length - 1)] ?? slides[0]
+  const showTagline =
+    !!currentSlide.tagline &&
+    currentSlide.tagline.trim().length > 0 &&
+    currentSlide.tagline.trim().toLowerCase() !== currentSlide.title.trim().toLowerCase()
+  const showOverline = !!currentSlide.overline && currentSlide.overline.trim().length > 0
 
   const stopAnthem = () => {
     const audio = audioRef.current
@@ -484,6 +491,11 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
             </div>
 
             <div className={cn("min-w-0", animatedContentClassName)}>
+              {!isCollapsed && showOverline ? (
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-christmas-snow">
+                  {currentSlide.overline}
+                </p>
+              ) : null}
               <h1
                 className={cn(
                   "font-bold leading-tight text-christmas-snow transition-all duration-300",
@@ -495,7 +507,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
               {!isCollapsed && (
                 <div className="mt-1 space-y-0.5">
                   <p className="text-sm font-medium text-christmas-gold md:text-base">{currentSlide.subtitle}</p>
-                  {currentSlide.tagline ? <p className="text-xs text-muted-foreground">{currentSlide.tagline}</p> : null}
+                  {showTagline ? <p className="text-xs text-muted-foreground">{currentSlide.tagline}</p> : null}
                 </div>
               )}
             </div>
