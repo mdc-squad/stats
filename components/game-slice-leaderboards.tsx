@@ -1,12 +1,13 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PlayerAvatar } from "@/components/player-avatar"
 import { getMetricIcon } from "@/lib/app-icons"
 import type { PastGameSummary } from "@/lib/data-utils"
-import { Crosshair, Map as MapIcon, Shield, Skull, Trophy } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { ChevronDown, Crosshair, Map as MapIcon, Shield, Skull, Trophy } from "lucide-react"
 
 interface GameSliceLeaderboardsProps {
   games: PastGameSummary[]
@@ -23,6 +24,15 @@ type LeaderboardItem = {
   helper: string
   steamId?: string
   nickname?: string
+}
+
+type LeaderboardCardConfig = {
+  key: string
+  title: string
+  subtitle: string
+  items: LeaderboardItem[]
+  emptyText: string
+  icon: typeof Trophy
 }
 
 function getTicketDiff(game: Pick<PastGameSummary, "tickets_1" | "tickets_2" | "score">): number | null {
@@ -53,60 +63,77 @@ function SliceLeaderboardCard({
   items,
   emptyText,
   icon: Icon,
+  isExpanded,
+  onToggle,
 }: {
   title: string
   subtitle: string
   items: LeaderboardItem[]
   emptyText: string
   icon: typeof Trophy
+  isExpanded: boolean
+  onToggle: () => void
 }) {
   return (
     <Card className="border-border/50 bg-card/60">
       <CardHeader className="pb-3">
-        <div className="space-y-1">
-          <CardTitle className="flex items-center gap-2 text-base text-christmas-snow">
-            <Icon className="w-4 h-4 text-christmas-gold" />
-            {title}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">{subtitle}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2 text-base text-christmas-snow">
+              <Icon className="w-4 h-4 text-christmas-gold" />
+              {title}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">{subtitle}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={isExpanded ? "Свернуть лидерборд" : "Развернуть лидерборд"}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/40 text-muted-foreground transition-colors hover:text-christmas-snow"
+          >
+            <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+          </button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {items.length === 0 ? (
-          <div className="rounded-lg border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
-            {emptyText}
-          </div>
-        ) : (
-          items.map((item, index) => (
-            <div
-              key={item.key}
-              className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/35 px-3 py-2"
-            >
-              <span className="w-6 text-center font-mono text-sm text-christmas-gold">{index + 1}</span>
-              {item.steamId ? (
-                <PlayerAvatar steamId={item.steamId} nickname={item.nickname || item.label} size="sm" />
-              ) : null}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-christmas-snow">{item.label}</p>
-                <p className="truncate text-[11px] text-muted-foreground">{item.subtitle}</p>
-              </div>
-              <div className="min-w-[132px] text-right">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{item.metricLabel}</p>
-                <p className="text-sm font-semibold text-christmas-snow">{item.metric}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {item.helperLabel}: {item.helper}
-                </p>
-              </div>
+      {isExpanded ? (
+        <CardContent className="space-y-2">
+          {items.length === 0 ? (
+            <div className="rounded-lg border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
+              {emptyText}
             </div>
-          ))
-        )}
-      </CardContent>
+          ) : (
+            items.map((item, index) => (
+              <div
+                key={item.key}
+                className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/35 px-3 py-2"
+              >
+                <span className="w-6 text-center font-mono text-sm text-christmas-gold">{index + 1}</span>
+                {item.steamId ? (
+                  <PlayerAvatar steamId={item.steamId} nickname={item.nickname || item.label} size="sm" />
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-christmas-snow">{item.label}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{item.subtitle}</p>
+                </div>
+                <div className="min-w-[132px] text-right">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{item.metricLabel}</p>
+                  <p className="text-sm font-semibold text-christmas-snow">{item.metric}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {item.helperLabel}: {item.helper}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      ) : null}
     </Card>
   )
 }
 
 export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLeaderboardsProps) {
   const RevivesIcon = getMetricIcon("revives")
+  const [expandedRows, setExpandedRows] = useState<number[]>([])
 
   const leaderboards = useMemo(() => {
     const selectedSet = new Set(selectedPlayerIds)
@@ -521,6 +548,72 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
     }
   }, [games, selectedPlayerIds])
 
+  const leaderboardCards: LeaderboardCardConfig[] = [
+    {
+      key: "bestOpponents",
+      title: "Лёгкие оппоненты",
+      subtitle: "Оппоненты, против которых лучшая средняя разница по тикетам и стабильно побеждаем.",
+      items: leaderboards.bestOpponents,
+      emptyText: "Недостаточно матчей с выраженно успешными оппонентами по текущему фильтру.",
+      icon: Trophy,
+    },
+    {
+      key: "hardOpponents",
+      title: "Сложные оппоненты",
+      subtitle: "Оппоненты, против которых худшая средняя разница по тикетам и часто проигрываем.",
+      items: leaderboards.hardOpponents,
+      emptyText: "По текущему фильтру нет выраженных проблемных оппонентов.",
+      icon: Skull,
+    },
+    {
+      key: "bestCombos",
+      title: "Связки Карта + Оппонент",
+      subtitle: "Лучшие результаты по картам против конкретного оппонента.",
+      items: leaderboards.bestCombos,
+      emptyText: "Не хватает повторяющихся сочетаний карта + оппонент.",
+      icon: MapIcon,
+    },
+    {
+      key: "medicOpponents",
+      title: "Лучшие медики",
+      subtitle: "Больше всего поднятий против конкретных кланов.",
+      items: leaderboards.medicOpponents,
+      emptyText: "Нет устойчивых подборок по поднятиям по текущему фильтру.",
+      icon: RevivesIcon,
+    },
+    {
+      key: "killerOpponents",
+      title: "Лучшие Убийцы",
+      subtitle: "Больше всего убийств против конкретного оппонента.",
+      items: leaderboards.killerOpponents,
+      emptyText: "Недостаточно данных для персональной выборки по убийствам.",
+      icon: Crosshair,
+    },
+    {
+      key: "strongMatchPlayers",
+      title: "Холодная голова",
+      subtitle: "Самый большой ELO против самых сильных соперников.",
+      items: leaderboards.strongMatchPlayers,
+      emptyText: "Не нашлось тяжёлых противостояний, на которых можно собрать отдельный рейтинг.",
+      icon: Shield,
+    },
+  ]
+
+  const leaderboardRows = leaderboardCards.reduce<LeaderboardCardConfig[][]>((rows, card, index) => {
+    if (index % 2 === 0) {
+      rows.push([card])
+    } else {
+      rows[rows.length - 1].push(card)
+    }
+    return rows
+  }, [])
+
+  const toggleRow = (rowIndex: number) => {
+    setExpandedRows((current) =>
+      current.includes(rowIndex) ? current.filter((value) => value !== rowIndex) : [...current, rowIndex],
+    )
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -530,49 +623,26 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
         </Badge>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
-        <SliceLeaderboardCard
-          title="Лёгкие оппоненты"
-          subtitle="Оппоненты, против которых лучшая средняя разница по тикетам и стабильно побеждаем."
-          items={leaderboards.bestOpponents}
-          emptyText="Недостаточно матчей с выраженно успешными оппонентами по текущему фильтру."
-          icon={Trophy}
-        />
-        <SliceLeaderboardCard
-          title="Сложные оппоненты"
-          subtitle="Оппоненты, против которых худшая средняя разница по тикетам и часто проигрываем."
-          items={leaderboards.hardOpponents}
-          emptyText="По текущему фильтру нет выраженных проблемных оппонентов."
-          icon={Skull}
-        />
-        <SliceLeaderboardCard
-          title="Связки Карта + Оппонент"
-          subtitle="Лучшие результаты по картам против конкретного оппонента."
-          items={leaderboards.bestCombos}
-          emptyText="Не хватает повторяющихся сочетаний карта + оппонент."
-          icon={MapIcon}
-        />
-        <SliceLeaderboardCard
-          title="Лучшие медики"
-          subtitle="Больше всего поднятий против конкретных кланов."
-          items={leaderboards.medicOpponents}
-          emptyText="Нет устойчивых подборок по поднятиям по текущему фильтру."
-          icon={RevivesIcon}
-        />
-        <SliceLeaderboardCard
-          title="Лучшие Убийцы"
-          subtitle="Больше всего убийств против конкретного оппонента."
-          items={leaderboards.killerOpponents}
-          emptyText="Недостаточно данных для персональной выборки по убийствам."
-          icon={Crosshair}
-        />
-        <SliceLeaderboardCard
-          title="Холодная голова"
-          subtitle="Самый большой ELO против самых сильных соперников."
-          items={leaderboards.strongMatchPlayers}
-          emptyText="Не нашлось тяжёлых противостояний, на которых можно собрать отдельный рейтинг."
-          icon={Shield}
-        />
+      <div className="space-y-4">
+        {leaderboardRows.map((row, rowIndex) => {
+          const isExpanded = expandedRows.includes(rowIndex)
+          return (
+            <div key={`leaderboard-row-${rowIndex}`} className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
+              {row.map((card) => (
+                <SliceLeaderboardCard
+                  key={card.key}
+                  title={card.title}
+                  subtitle={card.subtitle}
+                  items={card.items}
+                  emptyText={card.emptyText}
+                  icon={card.icon}
+                  isExpanded={isExpanded}
+                  onToggle={() => toggleRow(rowIndex)}
+                />
+              ))}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

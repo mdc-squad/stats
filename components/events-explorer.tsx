@@ -87,11 +87,11 @@ function formatMatchDateParts(value: string): { date: string; time: string } {
   }
 }
 
-function getResultMeta(entry: Pick<PastGameSummary, "is_win" | "result">): {
+function getResultMeta(entry: Pick<PastGameSummary, "is_win" | "result" | "started_at">): {
   label: string
   className: string
 } {
-  if (entry.is_win === null && !entry.result?.trim()) {
+  if (isPlannedGame(entry)) {
     return {
       label: "Запланированная игра",
       className: "border-sky-400/40 bg-sky-400/10 text-sky-200",
@@ -118,8 +118,17 @@ function getResultMeta(entry: Pick<PastGameSummary, "is_win" | "result">): {
   }
 }
 
-function isPlannedGame(entry: Pick<PastGameSummary, "is_win" | "result">): boolean {
-  return entry.is_win === null && !entry.result?.trim()
+function isPlannedGame(entry: Pick<PastGameSummary, "started_at">): boolean {
+  if (!entry.started_at) {
+    return false
+  }
+
+  const parsedDate = new Date(entry.started_at)
+  if (Number.isNaN(parsedDate.getTime())) {
+    return false
+  }
+
+  return Date.now() < parsedDate.getTime()
 }
 
 function getGameAnchorId(eventId: string): string {
