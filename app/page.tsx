@@ -546,6 +546,8 @@ export default function YearReviewPage() {
   const [selectedPlayersForChart, setSelectedPlayersForChart] = useState<string[]>([])
   const [gameFocusTarget, setGameFocusTarget] = useState<{ eventId: string; playerId: string } | null>(null)
   const [expandedLeaderboardRows, setExpandedLeaderboardRows] = useState<number[]>([])
+  const [expandedRoleRows, setExpandedRoleRows] = useState<number[]>([])
+  const [expandedRecordRows, setExpandedRecordRows] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -1735,8 +1737,55 @@ export default function YearReviewPage() {
     return rows
   }, [])
 
+  const roleRows = nonEmptyRoleLeaderboards.reduce<typeof nonEmptyRoleLeaderboards[]>((rows, entry, index) => {
+    if (index % 3 === 0) {
+      rows.push([entry])
+    } else {
+      rows[rows.length - 1].push(entry)
+    }
+    return rows
+  }, [])
+
+  type RecordCard = {
+    key: string
+    title: string
+    metric: keyof typeof recordMatchesByMetric
+    matches: typeof recordMatchesByMetric[keyof typeof recordMatchesByMetric]
+  }
+
+  const recordCards: RecordCard[] = [
+    { key: "kd", title: "Рекорды по K/D", metric: "kd", matches: recordMatchesByMetric.kd },
+    { key: "kda", title: "Рекорды по KDA", metric: "kda", matches: recordMatchesByMetric.kda },
+    { key: "elo", title: "Рекорды по ELO", metric: "elo", matches: recordMatchesByMetric.elo },
+    { key: "kills", title: "Рекорды по убийствам", metric: "kills", matches: recordMatchesByMetric.kills },
+    { key: "downs", title: "Рекорды по нокам", metric: "downs", matches: recordMatchesByMetric.downs },
+    { key: "deaths", title: "Рекорды по смертям", metric: "deaths", matches: recordMatchesByMetric.deaths },
+    { key: "revives", title: "Рекорды по поднятиям", metric: "revives", matches: recordMatchesByMetric.revives },
+    { key: "heals", title: "Рекорды по хилу", metric: "heals", matches: recordMatchesByMetric.heals },
+    { key: "vehicle", title: "Рекорды по технике", metric: "vehicle", matches: recordMatchesByMetric.vehicle },
+  ] as const
+
+  const recordRows = recordCards.reduce<RecordCard[][]>((rows, entry, index) => {
+    if (index % 3 === 0) {
+      rows.push([entry])
+    } else {
+      rows[rows.length - 1].push(entry)
+    }
+    return rows
+  }, [])
+
   const toggleLeaderboardRow = (rowIndex: number) => {
     setExpandedLeaderboardRows((current) =>
+      current.includes(rowIndex) ? current.filter((value) => value !== rowIndex) : [...current, rowIndex],
+    )
+  }
+
+  const toggleRoleRow = (rowIndex: number) => {
+    setExpandedRoleRows((current) => (current.includes(rowIndex) ? current.filter((value) => value !== rowIndex) : [...current, rowIndex]))
+  }
+
+  const toggleRecordRow = (rowIndex: number) => {
+    setExpandedRecordRows((current) =>
       current.includes(rowIndex) ? current.filter((value) => value !== rowIndex) : [...current, rowIndex],
     )
   }
@@ -2073,17 +2122,27 @@ export default function YearReviewPage() {
                 </div>
               </CardContent>
             </Card>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {nonEmptyRoleLeaderboards.map(({ role, players }) => (
-                <RoleLeaderboard
-                  key={role}
-                  players={players}
-                  role={role}
-                  metric={selectedRoleMetric}
-                  playerAchievements={playerAchievements}
-                  icon={getRoleIcon(role)}
-                />
-              ))}
+            <div className="space-y-4">
+              {roleRows.map((row, rowIndex) => {
+                const isExpanded = expandedRoleRows.includes(rowIndex)
+                const isCollapsed = !isExpanded
+                return (
+                  <div key={`role-row-${rowIndex}`} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {row.map(({ role, players }) => (
+                      <RoleLeaderboard
+                        key={role}
+                        players={isCollapsed ? [] : players}
+                        role={role}
+                        metric={selectedRoleMetric}
+                        playerAchievements={playerAchievements}
+                        icon={getRoleIcon(role)}
+                        isCollapsed={isCollapsed}
+                        onToggleCollapse={() => toggleRoleRow(rowIndex)}
+                      />
+                    ))}
+                  </div>
+                )
+              })}
             </div>
             {nonEmptyRoleLeaderboards.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
@@ -2096,61 +2155,26 @@ export default function YearReviewPage() {
             <p className="text-xs text-muted-foreground">
               Рекорды ниже показаны за одну отдельную игру. В каждой категории у игрока берётся только лучший матч.
             </p>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <BestMatches
-                title="Рекорды по K/D"
-                metric="kd"
-                matches={recordMatchesByMetric.kd}
-                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
-              />
-              <BestMatches
-                title="Рекорды по KDA"
-                metric="kda"
-                matches={recordMatchesByMetric.kda}
-                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
-              />
-              <BestMatches
-                title="Рекорды по ELO"
-                metric="elo"
-                matches={recordMatchesByMetric.elo}
-                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
-              />
-              <BestMatches
-                title="Рекорды по убийствам"
-                metric="kills"
-                matches={recordMatchesByMetric.kills}
-                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
-              />
-              <BestMatches
-                title="Рекорды по нокам"
-                metric="downs"
-                matches={recordMatchesByMetric.downs}
-                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
-              />
-              <BestMatches
-                title="Рекорды по смертям"
-                metric="deaths"
-                matches={recordMatchesByMetric.deaths}
-                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
-              />
-              <BestMatches
-                title="Рекорды по поднятиям"
-                metric="revives"
-                matches={recordMatchesByMetric.revives}
-                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
-              />
-              <BestMatches
-                title="Рекорды по хилу"
-                metric="heals"
-                matches={recordMatchesByMetric.heals}
-                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
-              />
-              <BestMatches
-                title="Рекорды по технике"
-                metric="vehicle"
-                matches={recordMatchesByMetric.vehicle}
-                players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
-              />
+            <div className="space-y-4">
+              {recordRows.map((row, rowIndex) => {
+                const isExpanded = expandedRecordRows.includes(rowIndex)
+                const isCollapsed = !isExpanded
+                return (
+                  <div key={`record-row-${rowIndex}`} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {row.map((entry) => (
+                      <BestMatches
+                        key={entry.key}
+                        title={entry.title}
+                        metric={entry.metric}
+                        matches={isCollapsed ? [] : entry.matches}
+                        players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
+                        isCollapsed={isCollapsed}
+                        onToggleCollapse={() => toggleRecordRow(rowIndex)}
+                      />
+                    ))}
+                  </div>
+                )
+              })}
             </div>
           </TabsContent>
 
