@@ -218,7 +218,7 @@ function MetricPill({ metric }: { metric: MetricDescriptor }) {
   const Icon = metric.icon
 
   return (
-    <div className={`flex min-w-[76px] items-center gap-2 rounded-lg border px-2 py-1.5 ${metric.className}`}>
+    <div className={`flex min-w-[76px] shrink-0 items-center gap-2 rounded-lg border px-2 py-1.5 ${metric.className}`}>
       <Tooltip>
         <TooltipTrigger asChild>
           <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/10 bg-background/25">
@@ -442,36 +442,44 @@ export function EventsExplorer({
     return labels.length > 0 ? labels.join(", ") : "Специализация не указана"
   }
 
-  const getSquadRowClassName = (squadLabel: string | null | undefined, isHighlighted: boolean) => {
+  const getSquadRowClassName = (isHighlighted: boolean) => {
+    if (!isHighlighted) {
+      return ""
+    }
+
+    return "border-l-2 border-christmas-gold/50 bg-christmas-gold/5 hover:bg-christmas-gold/15"
+  }
+
+  const getSquadLabelClassName = (squadLabel: string | null | undefined, isHighlighted: boolean) => {
     if (isHighlighted) {
-      return "border-christmas-gold/50 bg-christmas-gold/5 hover:bg-christmas-gold/15"
+      return "text-christmas-gold"
     }
 
     switch (getSquadToneKey(squadLabel)) {
       case "red":
-        return "border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/14"
+        return "text-rose-300"
       case "blue":
-        return "border-sky-500/20 bg-sky-500/10 hover:bg-sky-500/14"
+        return "text-sky-300"
       case "green":
-        return "border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/14"
+        return "text-emerald-300"
       case "yellow":
-        return "border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/14"
+        return "text-amber-300"
       case "orange":
-        return "border-orange-500/20 bg-orange-500/10 hover:bg-orange-500/14"
+        return "text-orange-300"
       case "purple":
-        return "border-violet-500/20 bg-violet-500/10 hover:bg-violet-500/14"
+        return "text-violet-300"
       case "pink":
-        return "border-pink-500/20 bg-pink-500/10 hover:bg-pink-500/14"
+        return "text-pink-300"
       case "cyan":
-        return "border-cyan-500/20 bg-cyan-500/10 hover:bg-cyan-500/14"
+        return "text-cyan-300"
       case "brown":
-        return "border-amber-700/20 bg-amber-900/15 hover:bg-amber-900/20"
+        return "text-amber-200"
       case "black":
-        return "border-slate-500/20 bg-slate-800/40 hover:bg-slate-800/50"
+        return "text-slate-300"
       case "white":
-        return "border-zinc-300/20 bg-zinc-100/5 hover:bg-zinc-100/10"
+        return "text-zinc-200"
       default:
-        return ""
+        return "text-christmas-snow"
     }
   }
 
@@ -775,7 +783,7 @@ export function EventsExplorer({
                               </p>
                             </div>
 
-                            <div className="flex flex-wrap gap-1.5 xl:justify-end">
+                            <div className="flex min-w-0 flex-nowrap gap-1.5 overflow-x-auto pb-1 xl:justify-end">
                               {summaryMetrics.map((metric) => (
                                 <MetricPill key={`${game.event_id}-${metric.key}`} metric={metric} />
                               ))}
@@ -786,36 +794,31 @@ export function EventsExplorer({
 
                       <AccordionContent className="px-2.5 pb-2.5">
                         <div className="space-y-3">
-                          <div className="flex gap-2 overflow-x-auto pb-1">
-                            <div className="min-w-[180px] shrink-0 rounded-xl border border-border/50 bg-background/35 p-3">
-                              <div className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-background/25">
-                                <Shield className="h-4 w-4 text-christmas-snow" />
-                              </div>
-                              <p className="mt-2 text-[11px] text-muted-foreground">MVP</p>
-                              <p className="mt-1 text-lg font-semibold text-christmas-snow">
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
+                              <Shield className="h-3.5 w-3.5 text-christmas-snow" />
+                              <span className="text-muted-foreground">MVP</span>
+                              <span className="font-semibold text-christmas-snow">
                                 {game.topPerformer ? `${game.topPerformer.nickname} • #${game.topPerformer.rank}` : "Нет данных"}
-                              </p>
+                              </span>
                             </div>
 
-                            <div className="min-w-[220px] shrink-0 rounded-xl border border-border/50 bg-background/35 p-3">
-                              <div className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-background/25">
-                                <Video className="h-4 w-4 text-christmas-snow" />
-                              </div>
-                              <p className="mt-2 text-[11px] text-muted-foreground">Запись</p>
+                            <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
+                              <Video className="h-3.5 w-3.5 text-christmas-snow" />
+                              <span className="text-muted-foreground">Запись</span>
                               {recordingUrl ? (
                                 <a
                                   href={recordingUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(event) => event.stopPropagation()}
-                                  className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-christmas-gold underline-offset-4 hover:text-christmas-snow hover:underline"
+                                  className="font-semibold text-christmas-gold underline-offset-4 hover:text-christmas-snow hover:underline"
                                   title={recordingUrl}
                                 >
-                                  Запись
-                                  <span className="text-[11px] text-muted-foreground">{getLinkHostLabel(recordingUrl)}</span>
+                                  {getLinkHostLabel(recordingUrl)}
                                 </a>
                               ) : (
-                                <p className="mt-1 text-sm font-semibold text-muted-foreground">Ссылка не указана</p>
+                                <span className="font-medium text-muted-foreground">нет</span>
                               )}
                             </div>
                           </div>
@@ -852,10 +855,7 @@ export function EventsExplorer({
                                     const eloWidth = Math.max(0, Math.min(100, player.eloShare))
 
                                     return (
-                                      <TableRow
-                                        key={`${game.event_id}-${player.player_id}`}
-                                        className={cn("border-l-2", getSquadRowClassName(player.squad_label, isHighlighted))}
-                                      >
+                                      <TableRow key={`${game.event_id}-${player.player_id}`} className={getSquadRowClassName(isHighlighted)}>
                                         <TableCell className="font-mono text-christmas-gold">#{player.rank}</TableCell>
                                         <TableCell className="max-w-[240px]">
                                           <div className="flex items-center gap-3">
@@ -881,7 +881,11 @@ export function EventsExplorer({
                                             </TooltipContent>
                                           </Tooltip>
                                         </TableCell>
-                                        <TableCell className="text-christmas-snow">{player.squad_label}</TableCell>
+                                        <TableCell
+                                          className={cn("font-medium", getSquadLabelClassName(player.squad_label, isHighlighted))}
+                                        >
+                                          {player.squad_label}
+                                        </TableCell>
                                         <TableCell className="text-center">
                                           <Tooltip>
                                             <TooltipTrigger asChild>

@@ -41,6 +41,7 @@ interface HeaderSlide {
   id: "mdc" | "grave" | "dcia"
   title: string
   subtitle: string
+  tagline?: string | null
   emblemSrc: string
   emblemAlt: string
   heroLabel: string
@@ -317,7 +318,8 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
         {
           id: "grave",
           title: "GRAVE",
-          subtitle: "Grave",
+          subtitle: theme.subtitle,
+          tagline: "Grave",
           emblemSrc: withBasePath("/grave-emblem.png"),
           emblemAlt: "Эмблема GRAVE",
           heroLabel: "[GRAVE]",
@@ -336,7 +338,8 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
         {
           id: "dcia",
           title: "Коалиция DCIA",
-          subtitle: "De Caelo ad Inferos",
+          subtitle: theme.subtitle,
+          tagline: "De Caelo ad Inferos",
           emblemSrc: withBasePath("/dcia-emblem.png"),
           emblemAlt: "Эмблема коалиции DCIA",
           heroLabel: "DCIA",
@@ -489,7 +492,12 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
               >
                 {currentSlide.title}
               </h1>
-              {!isCollapsed && <p className="mt-1 text-sm font-medium text-christmas-gold md:text-base">{currentSlide.subtitle}</p>}
+              {!isCollapsed && (
+                <div className="mt-1 space-y-0.5">
+                  <p className="text-sm font-medium text-christmas-gold md:text-base">{currentSlide.subtitle}</p>
+                  {currentSlide.tagline ? <p className="text-xs text-muted-foreground">{currentSlide.tagline}</p> : null}
+                </div>
+              )}
             </div>
           </div>
 

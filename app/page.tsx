@@ -1021,7 +1021,10 @@ export default function YearReviewPage() {
     [data],
   )
   const mdcRosterCount = useMemo(
-    () => (rawData ? rawData.players.filter((player) => matchesTagToken(player.tag, "mdc")).length : 0),
+    () =>
+      rawData
+        ? rawData.players.filter((player) => matchesTagToken(player.tag, "mdc") || player.is_mdc_member).length
+        : 0,
     [rawData],
   )
   const graveRosterCount = useMemo(
