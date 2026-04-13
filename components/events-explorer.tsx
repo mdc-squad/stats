@@ -13,13 +13,14 @@ import { PlayerAvatar } from "@/components/player-avatar"
 import { PlayerSelector } from "@/components/player-selector"
 import { RoleIcon } from "@/components/role-icon"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { SpecializationIcon } from "@/components/specialization-icon"
+import { getSpecializationLabel, SpecializationIcon } from "@/components/specialization-icon"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getMetricIcon } from "@/lib/app-icons"
 import { getEventSizeLabel, type PastGameSummary, type Player } from "@/lib/data-utils"
-import { getSquadToneClasses } from "@/lib/squad-utils"
+import { getSquadToneKey, isSelectableSquadLabel } from "@/lib/squad-utils"
+import { cn } from "@/lib/utils"
 import { ArrowLeftRight, Filter, Search, Shield, Video } from "lucide-react"
 
 interface EventsExplorerProps {
@@ -40,6 +41,21 @@ type MetricDescriptor = {
   value: string
   icon: ComponentType<{ className?: string }>
   className: string
+}
+
+const METRIC_TOOLTIP_LABELS: Record<
+  "revives" | "heals" | "downs" | "kills" | "deaths" | "vehicle" | "kd" | "kda" | "elo",
+  string
+> = {
+  revives: "Поднятия",
+  heals: "Хил",
+  downs: "Ноки",
+  kills: "Убийства",
+  deaths: "Смерти",
+  vehicle: "Техника",
+  kd: "K/D",
+  kda: "KDA",
+  elo: "ELO",
 }
 
 function formatMatchDateParts(value: string): { date: string; time: string } {
@@ -75,6 +91,13 @@ function getResultMeta(entry: Pick<PastGameSummary, "is_win" | "result">): {
   label: string
   className: string
 } {
+  if (entry.is_win === null && !entry.result?.trim()) {
+    return {
+      label: "Запланированная игра",
+      className: "border-sky-400/40 bg-sky-400/10 text-sky-200",
+    }
+  }
+
   if (entry.is_win === true) {
     return {
       label: "Победа",
@@ -93,6 +116,10 @@ function getResultMeta(entry: Pick<PastGameSummary, "is_win" | "result">): {
     label: entry.result?.trim() || "Результат не указан",
     className: "border-muted/40 bg-background/60 text-muted-foreground",
   }
+}
+
+function isPlannedGame(entry: Pick<PastGameSummary, "is_win" | "result">): boolean {
+  return entry.is_win === null && !entry.result?.trim()
 }
 
 function getGameAnchorId(eventId: string): string {
@@ -207,28 +234,26 @@ function MetricPill({ metric }: { metric: MetricDescriptor }) {
   )
 }
 
-function GameMetricCard({ metric }: { metric: MetricDescriptor }) {
-  const Icon = metric.icon
-
-  return (
-    <div className={`rounded-xl border p-3 ${metric.className}`}>
-      <div className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-background/25">
-        <Icon className="h-4 w-4 text-christmas-snow" />
-      </div>
-      <p className="mt-2 text-[11px] text-muted-foreground">{metric.label}</p>
-      <p className="mt-1 text-lg font-semibold text-christmas-snow">{metric.value}</p>
-    </div>
-  )
-}
-
-function MetricTableHead({ metric }: { metric: "revives" | "heals" | "downs" | "kills" | "vehicle" | "kd" | "kda" | "elo" }) {
+function MetricTableHead({
+  metric,
+}: {
+  metric: "revives" | "heals" | "downs" | "kills" | "deaths" | "vehicle" | "kd" | "kda" | "elo"
+}) {
   const Icon = getMetricIcon(metric)
+  const label = METRIC_TOOLTIP_LABELS[metric]
 
   return (
     <TableHead className="text-center">
-      <span className="inline-flex w-full items-center justify-center text-muted-foreground">
-        <Icon className="h-4 w-4" />
-      </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex w-full items-center justify-center text-muted-foreground">
+            <Icon className="h-4 w-4" />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="border border-border bg-card text-card-foreground">
+          {label}
+        </TooltipContent>
+      </Tooltip>
     </TableHead>
   )
 }
@@ -293,14 +318,12 @@ export function EventsExplorer({
     const labels = new Set<string>()
     games.forEach((game) => {
       game.players.forEach((player) => {
-        player.squad_labels
-          .filter((label) => label && label !== "Без отряда")
-          .forEach((label) => labels.add(label))
+        player.squad_labels.filter((label) => isSelectableSquadLabel(label)).forEach((label) => labels.add(label))
       })
     })
     squadDomain.forEach((label) => {
       const trimmed = label.trim()
-      if (trimmed && trimmed !== "Без отряда" && trimmed !== "0") {
+      if (isSelectableSquadLabel(trimmed)) {
         labels.add(trimmed)
       }
     })
@@ -374,6 +397,10 @@ export function EventsExplorer({
 
     setActiveSection("matches")
     setExpandedGames((current) => {
+      if (focusedGame?.event_id === focusTarget.eventId && isPlannedGame(focusedGame)) {
+        return current.filter((eventId) => eventId !== focusTarget.eventId)
+      }
+
       if (current.includes(focusTarget.eventId)) {
         return current
       }
@@ -390,7 +417,7 @@ export function EventsExplorer({
     return () => {
       window.clearTimeout(timeoutId)
     }
-  }, [focusTarget])
+  }, [focusTarget, focusedGame])
 
   const focusedGameHiddenByFilters =
     !!focusTarget && !!focusedGame && !filteredGames.some((game) => game.event_id === focusedGame.event_id)
@@ -403,6 +430,49 @@ export function EventsExplorer({
     setFactionFilters([])
     setSquadFilters([])
     setMatchPlayerIds([])
+  }
+
+  const getRoleTooltipLabel = (player: PastGameSummary["players"][number]) => {
+    const labels = Array.from(new Set((player.roles.length > 0 ? player.roles : [player.role || ""]).filter(Boolean)))
+    return labels.length > 0 ? labels.join(", ") : "Без роли"
+  }
+
+  const getSpecializationTooltipLabel = (player: PastGameSummary["players"][number]) => {
+    const labels = Array.from(new Set(player.specializations.map((specialization) => getSpecializationLabel(specialization)).filter(Boolean)))
+    return labels.length > 0 ? labels.join(", ") : "Специализация не указана"
+  }
+
+  const getSquadRowClassName = (squadLabel: string | null | undefined, isHighlighted: boolean) => {
+    if (isHighlighted) {
+      return "border-christmas-gold/50 bg-christmas-gold/5 hover:bg-christmas-gold/15"
+    }
+
+    switch (getSquadToneKey(squadLabel)) {
+      case "red":
+        return "border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/14"
+      case "blue":
+        return "border-sky-500/20 bg-sky-500/10 hover:bg-sky-500/14"
+      case "green":
+        return "border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/14"
+      case "yellow":
+        return "border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/14"
+      case "orange":
+        return "border-orange-500/20 bg-orange-500/10 hover:bg-orange-500/14"
+      case "purple":
+        return "border-violet-500/20 bg-violet-500/10 hover:bg-violet-500/14"
+      case "pink":
+        return "border-pink-500/20 bg-pink-500/10 hover:bg-pink-500/14"
+      case "cyan":
+        return "border-cyan-500/20 bg-cyan-500/10 hover:bg-cyan-500/14"
+      case "brown":
+        return "border-amber-700/20 bg-amber-900/15 hover:bg-amber-900/20"
+      case "black":
+        return "border-slate-500/20 bg-slate-800/40 hover:bg-slate-800/50"
+      case "white":
+        return "border-zinc-300/20 bg-zinc-100/5 hover:bg-zinc-100/10"
+      default:
+        return ""
+    }
   }
 
   return (
@@ -558,10 +628,18 @@ export function EventsExplorer({
               </CardContent>
             </Card>
           ) : (
-            <Accordion type="multiple" value={expandedGames} onValueChange={setExpandedGames} className="space-y-1.5">
+            <Accordion
+              type="multiple"
+              value={expandedGames}
+              onValueChange={(values) =>
+                setExpandedGames(values.filter((eventId) => !visibleGames.some((game) => game.event_id === eventId && isPlannedGame(game))))
+              }
+              className="space-y-1.5"
+            >
               {visibleGames.map((game) => {
                 const resultMeta = getResultMeta(game)
                 const isFocused = focusTarget?.eventId === game.event_id
+                const isPlanned = isPlannedGame(game)
                 const recordingUrl = normalizeExternalUrl(game.cast_url)
                 const cardToneStyle = getCollapsedGameToneStyle(game)
                 const { date, time } = formatMatchDateParts(game.started_at)
@@ -645,45 +723,6 @@ export function EventsExplorer({
                   },
                 ]
 
-                const expandedMetrics: MetricDescriptor[] = [
-                  {
-                    key: "date",
-                    label: "Дата и время",
-                    value: time ? `${date} • ${time}` : date,
-                    icon: getMetricIcon("events"),
-                    className: "border-border/50 bg-background/35",
-                  },
-                  {
-                    key: "format",
-                    label: "Формат",
-                    value: sizeLabel || "Н/Д",
-                    icon: Shield,
-                    className: "border-border/50 bg-background/35",
-                  },
-                  {
-                    key: "lineup",
-                    label: "Состав",
-                    value: `MDC ${game.mdc_players}${game.enemy_size ? ` vs ${game.enemy_size}` : ""}`,
-                    icon: Shield,
-                    className: "border-border/50 bg-background/35",
-                  },
-                  {
-                    key: "matchup",
-                    label: "Фракции",
-                    value: matchup || "Не указаны",
-                    icon: Shield,
-                    className: "border-border/50 bg-background/35",
-                  },
-                  {
-                    key: "opponent",
-                    label: "Оппонент",
-                    value: game.opponent ? `${game.opponent}${game.opponent_strength ? ` • ${game.opponent_strength}` : ""}` : "Не указан",
-                    icon: Shield,
-                    className: "border-border/50 bg-background/35",
-                  },
-                  ...summaryMetrics,
-                ]
-
                 return (
                   <Card
                     key={game.event_id}
@@ -694,7 +733,13 @@ export function EventsExplorer({
                     }`}
                   >
                     <AccordionItem value={game.event_id} className="border-0">
-                      <AccordionTrigger className="px-2 py-2 hover:no-underline sm:px-2.5 [&>svg]:size-3.5">
+                      <AccordionTrigger
+                        disabled={isPlanned}
+                        className={cn(
+                          "px-2 py-2 hover:no-underline sm:px-2.5 [&>svg]:size-3.5",
+                          isPlanned && "cursor-default opacity-100 [&>svg]:hidden",
+                        )}
+                      >
                         <div className="min-w-0 flex-1">
                           <div className="grid gap-2 xl:grid-cols-[minmax(0,1.8fr)_minmax(0,1.3fr)] xl:items-center">
                             <div className="space-y-1 text-left">
@@ -741,12 +786,8 @@ export function EventsExplorer({
 
                       <AccordionContent className="px-2.5 pb-2.5">
                         <div className="space-y-3">
-                          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
-                            {expandedMetrics.map((metric) => (
-                              <GameMetricCard key={`${game.event_id}-${metric.key}`} metric={metric} />
-                            ))}
-
-                            <div className="rounded-xl border border-border/50 bg-background/35 p-3">
+                          <div className="flex gap-2 overflow-x-auto pb-1">
+                            <div className="min-w-[180px] shrink-0 rounded-xl border border-border/50 bg-background/35 p-3">
                               <div className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-background/25">
                                 <Shield className="h-4 w-4 text-christmas-snow" />
                               </div>
@@ -756,7 +797,7 @@ export function EventsExplorer({
                               </p>
                             </div>
 
-                            <div className="rounded-xl border border-border/50 bg-background/35 p-3">
+                            <div className="min-w-[220px] shrink-0 rounded-xl border border-border/50 bg-background/35 p-3">
                               <div className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-background/25">
                                 <Video className="h-4 w-4 text-christmas-snow" />
                               </div>
@@ -793,11 +834,11 @@ export function EventsExplorer({
                                     <TableHead className="text-center">Роль</TableHead>
                                     <TableHead>Отряд</TableHead>
                                     <TableHead className="text-center">Спец.</TableHead>
-                                    <TableHead className="text-center">Цвет</TableHead>
                                     <MetricTableHead metric="revives" />
                                     <MetricTableHead metric="heals" />
                                     <MetricTableHead metric="downs" />
                                     <MetricTableHead metric="kills" />
+                                    <MetricTableHead metric="deaths" />
                                     <MetricTableHead metric="vehicle" />
                                     <MetricTableHead metric="kd" />
                                     <MetricTableHead metric="kda" />
@@ -808,13 +849,12 @@ export function EventsExplorer({
                                   {game.players.map((player) => {
                                     const isHighlighted =
                                       focusTarget?.eventId === game.event_id && focusTarget.playerId === player.player_id
-                                    const tone = getSquadToneClasses(player.squad_label)
                                     const eloWidth = Math.max(0, Math.min(100, player.eloShare))
 
                                     return (
                                       <TableRow
                                         key={`${game.event_id}-${player.player_id}`}
-                                        className={isHighlighted ? "bg-christmas-gold/10 hover:bg-christmas-gold/15" : ""}
+                                        className={cn("border-l-2", getSquadRowClassName(player.squad_label, isHighlighted))}
                                       >
                                         <TableCell className="font-mono text-christmas-gold">#{player.rank}</TableCell>
                                         <TableCell className="max-w-[240px]">
@@ -828,38 +868,47 @@ export function EventsExplorer({
                                           </div>
                                         </TableCell>
                                         <TableCell className="text-center">
-                                          <div className="flex items-center justify-center gap-1" title={player.role || "Без роли"}>
-                                            {(player.roles.length > 0 ? player.roles : [player.role || ""]).filter(Boolean).slice(0, 2).map((role) => (
-                                              <RoleIcon key={`${player.player_id}-${role}`} role={role} className="h-4 w-4" />
-                                            ))}
-                                          </div>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <div className="flex items-center justify-center gap-1">
+                                                {(player.roles.length > 0 ? player.roles : [player.role || ""]).filter(Boolean).slice(0, 2).map((role) => (
+                                                  <RoleIcon key={`${player.player_id}-${role}`} role={role} className="h-4 w-4" />
+                                                ))}
+                                              </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="border border-border bg-card text-card-foreground">
+                                              {getRoleTooltipLabel(player)}
+                                            </TooltipContent>
+                                          </Tooltip>
                                         </TableCell>
                                         <TableCell className="text-christmas-snow">{player.squad_label}</TableCell>
                                         <TableCell className="text-center">
-                                          <div
-                                            className="flex items-center justify-center gap-1"
-                                            title={player.specializations.join(", ") || "Специализация не указана"}
-                                          >
-                                            {player.specializations.length > 0 ? (
-                                              player.specializations.slice(0, 3).map((specialization) => (
-                                                <SpecializationIcon
-                                                  key={`${player.player_id}-${specialization}`}
-                                                  specialization={specialization}
-                                                  className="text-sm"
-                                                />
-                                              ))
-                                            ) : (
-                                              <span className="text-muted-foreground">-</span>
-                                            )}
-                                          </div>
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                          <span className={`mx-auto block h-3.5 w-3.5 rounded-full ${tone.dot}`} />
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <div className="flex items-center justify-center gap-1">
+                                                {player.specializations.length > 0 ? (
+                                                  player.specializations.slice(0, 3).map((specialization) => (
+                                                    <SpecializationIcon
+                                                      key={`${player.player_id}-${specialization}`}
+                                                      specialization={specialization}
+                                                      className="text-sm"
+                                                    />
+                                                  ))
+                                                ) : (
+                                                  <span className="text-muted-foreground">-</span>
+                                                )}
+                                              </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="border border-border bg-card text-card-foreground">
+                                              {getSpecializationTooltipLabel(player)}
+                                            </TooltipContent>
+                                          </Tooltip>
                                         </TableCell>
                                         <TableCell className="text-center text-sky-300">{player.revives}</TableCell>
                                         <TableCell className="text-center text-rose-300">{player.heals}</TableCell>
                                         <TableCell className="text-center text-orange-300">{player.downs}</TableCell>
                                         <TableCell className="text-center text-emerald-300">{player.kills}</TableCell>
+                                        <TableCell className="text-center text-red-300">{player.deaths}</TableCell>
                                         <TableCell className="text-center text-blue-300">{player.vehicle}</TableCell>
                                         <TableCell className="text-center text-christmas-snow">{player.kd.toFixed(2)}</TableCell>
                                         <TableCell className="text-center text-christmas-snow">{player.kda.toFixed(2)}</TableCell>

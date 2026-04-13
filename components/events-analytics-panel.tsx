@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { getMetricIcon } from "@/lib/app-icons"
 import type { PastGamePlayerStat, PastGameSummary, Player } from "@/lib/data-utils"
+import { isSelectableSquadLabel } from "@/lib/squad-utils"
 import { ArrowLeftRight, Activity, Skull, TrendingUp } from "lucide-react"
 
 type AnalyticsMetric =
@@ -86,13 +87,16 @@ const METRIC_LABELS: Record<AnalyticsMetric, string> = {
 }
 
 const BREAKDOWN_LABELS: Record<AnalyticsBreakdown, string> = {
-  overall: "Общий срез",
+  overall: "Весь состав",
   opponent: "По оппонентам",
   map: "По картам",
   faction: "По фракциям",
   result: "По результатам",
   squad: "По отрядам",
 }
+
+const TOOLTIP_VISIBLE_ROWS = 10
+const TOOLTIP_ROW_HEIGHT_PX = 24
 
 function getSeriesColor(index: number): string {
   const hue = (index * 47) % 360
@@ -374,7 +378,7 @@ function getSeriesCandidates(
       return
     }
 
-    const squadLabels = new Set(scopedPlayers.map((player) => player.squad_label).filter(Boolean))
+    const squadLabels = new Set(scopedPlayers.map((player) => player.squad_label).filter((label) => isSelectableSquadLabel(label)))
     squadLabels.forEach((label) => addCandidate(label, label))
   })
 
@@ -454,6 +458,7 @@ function AnalyticsTooltipContent({
       const rightValue = typeof right.value === "number" ? right.value : Number(right.value)
       return (Number.isFinite(rightValue) ? rightValue : -Infinity) - (Number.isFinite(leftValue) ? leftValue : -Infinity)
     })
+  const maxHeight = `${TOOLTIP_VISIBLE_ROWS * TOOLTIP_ROW_HEIGHT_PX}px`
 
   return (
     <div className="w-[290px] rounded-xl border border-border bg-card p-3 text-card-foreground shadow-xl">
@@ -461,7 +466,15 @@ function AnalyticsTooltipContent({
         {label}
         {point?.eventLabel ? ` • ${point.eventLabel}` : ""}
       </p>
-      <div className="mt-2 max-h-[272px] space-y-1.5 overflow-y-auto pr-1">
+      <div
+        className="mt-2 space-y-1.5 overflow-y-auto pr-1 overscroll-contain"
+        style={{ maxHeight }}
+        onWheel={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          event.currentTarget.scrollTop += event.deltaY
+        }}
+      >
         {visibleItems.map((entry) => {
           const numericValue =
             typeof entry.value === "number" ? entry.value : typeof entry.value === "string" ? Number(entry.value) : null
@@ -729,7 +742,7 @@ export function EventsAnalyticsPanel({
                 <SelectValue placeholder="Группировка" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="overall">Общий срез</SelectItem>
+                <SelectItem value="overall">Весь состав</SelectItem>
                 <SelectItem value="opponent">По оппонентам</SelectItem>
                 <SelectItem value="map">По картам</SelectItem>
                 <SelectItem value="faction">По фракциям</SelectItem>
@@ -758,7 +771,7 @@ export function EventsAnalyticsPanel({
                   Кривая: {METRIC_LABELS[metric]} • {mode === "cumulative" ? "кумулятивно" : "по матчам"}
                 </p>
                 <p className="text-muted-foreground">
-                  {BREAKDOWN_LABELS[breakdown]} • {selectedPlayerIds.length > 0 ? `игроков: ${selectedPlayerIds.length}` : "весь состав"}
+                  {BREAKDOWN_LABELS[breakdown]} • {selectedPlayerIds.length > 0 ? `игроки: ${selectedPlayerIds.length}` : "игроки: весь состав"}
                 </p>
               </div>
               <Badge variant="outline" className="border-christmas-gold/30 text-christmas-gold">
@@ -766,12 +779,12 @@ export function EventsAnalyticsPanel({
               </Badge>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {analytics.series.map((series) => (
                 <Badge
                   key={series.key}
                   variant="outline"
-                  className="gap-2 border-border/60 bg-background/30 px-2 py-1 text-muted-foreground"
+                  className="justify-start gap-2 border-border/60 bg-background/30 px-2 py-1 text-left text-muted-foreground"
                 >
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: series.color }} />
                   <span className="text-christmas-snow">{series.label}</span>

@@ -31,6 +31,12 @@ interface ClanTimelineInfo {
   celebrationLabel: string | null
 }
 
+interface ClanFoundationInfo {
+  year: number
+  monthIndex: number
+  day: number
+}
+
 interface HeaderSlide {
   id: "mdc" | "grave" | "dcia"
   title: string
@@ -51,10 +57,22 @@ interface HeaderSlide {
   showAnthem: boolean
 }
 
-const CLAN_FOUNDATION = {
+const CLAN_FOUNDATION: ClanFoundationInfo = {
   year: 2023,
   monthIndex: 3,
   day: 29,
+}
+
+const GRAVE_FOUNDATION: ClanFoundationInfo = {
+  year: 2024,
+  monthIndex: 11,
+  day: 12,
+}
+
+const DCIA_FOUNDATION: ClanFoundationInfo = {
+  year: 2026,
+  monthIndex: 3,
+  day: 9,
 }
 
 const CLAN_FOUNDATION_LABEL = "29.04.2023"
@@ -112,13 +130,13 @@ function formatAgeLabel(years: number, months: number) {
   return parts.join(" ")
 }
 
-function getClanTimeline(referenceDate: Date): ClanTimelineInfo {
+function getClanTimeline(referenceDate: Date, foundation: ClanFoundationInfo): ClanTimelineInfo {
   const today = toUtcDate(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth(), referenceDate.getUTCDate())
 
-  let years = today.getUTCFullYear() - CLAN_FOUNDATION.year
-  let months = today.getUTCMonth() - CLAN_FOUNDATION.monthIndex
+  let years = today.getUTCFullYear() - foundation.year
+  let months = today.getUTCMonth() - foundation.monthIndex
 
-  if (today.getUTCDate() < CLAN_FOUNDATION.day) {
+  if (today.getUTCDate() < foundation.day) {
     months -= 1
   }
 
@@ -130,14 +148,14 @@ function getClanTimeline(referenceDate: Date): ClanTimelineInfo {
   const ageLabel = formatAgeLabel(Math.max(years, 0), Math.max(months, 0))
 
   const hasReachedAnniversaryThisYear =
-    today.getUTCMonth() > CLAN_FOUNDATION.monthIndex ||
-    (today.getUTCMonth() === CLAN_FOUNDATION.monthIndex && today.getUTCDate() >= CLAN_FOUNDATION.day)
+    today.getUTCMonth() > foundation.monthIndex ||
+    (today.getUTCMonth() === foundation.monthIndex && today.getUTCDate() >= foundation.day)
 
   const lastAnniversaryYear = hasReachedAnniversaryThisYear ? today.getUTCFullYear() : today.getUTCFullYear() - 1
   const nextAnniversaryYear = hasReachedAnniversaryThisYear ? today.getUTCFullYear() + 1 : today.getUTCFullYear()
 
-  const lastAnniversaryDate = toUtcDate(lastAnniversaryYear, CLAN_FOUNDATION.monthIndex, CLAN_FOUNDATION.day)
-  const nextAnniversaryDate = toUtcDate(nextAnniversaryYear, CLAN_FOUNDATION.monthIndex, CLAN_FOUNDATION.day)
+  const lastAnniversaryDate = toUtcDate(lastAnniversaryYear, foundation.monthIndex, foundation.day)
+  const nextAnniversaryDate = toUtcDate(nextAnniversaryYear, foundation.monthIndex, foundation.day)
 
   const daysSinceLast = daysBetween(lastAnniversaryDate, today)
   const daysUntilNext = daysBetween(today, nextAnniversaryDate)
@@ -145,11 +163,17 @@ function getClanTimeline(referenceDate: Date): ClanTimelineInfo {
   let celebrationLabel: string | null = null
 
   if (daysSinceLast >= 0 && daysSinceLast <= ANNIVERSARY_WINDOW_DAYS) {
-    const anniversaryAge = lastAnniversaryYear - CLAN_FOUNDATION.year
-    celebrationLabel = `Нам ${anniversaryAge} ${pluralize(anniversaryAge, "год", "года", "лет")}`
+    const anniversaryAge = lastAnniversaryYear - foundation.year
+
+    if (anniversaryAge > 0) {
+      celebrationLabel = `Нам ${anniversaryAge} ${pluralize(anniversaryAge, "год", "года", "лет")}`
+    }
   } else if (daysUntilNext >= 0 && daysUntilNext <= ANNIVERSARY_WINDOW_DAYS) {
-    const anniversaryAge = nextAnniversaryYear - CLAN_FOUNDATION.year
-    celebrationLabel = `Скоро ${anniversaryAge} ${pluralize(anniversaryAge, "год", "года", "лет")}`
+    const anniversaryAge = nextAnniversaryYear - foundation.year
+
+    if (anniversaryAge > 0) {
+      celebrationLabel = `Скоро ${anniversaryAge} ${pluralize(anniversaryAge, "год", "года", "лет")}`
+    }
   }
 
   return {
@@ -183,7 +207,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const fadeTimeoutRef = useRef<number | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [timeline, setTimeline] = useState<ClanTimelineInfo | null>(null)
+  const [referenceDate, setReferenceDate] = useState<Date | null>(null)
   const [isCompactViewport, setIsCompactViewport] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [activeSlideIndex, setActiveSlideIndex] = useState(0)
@@ -193,7 +217,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
   const coalitionPlayersCount = mdcPlayersCount + gravePlayersCount
 
   useEffect(() => {
-    setTimeline(getClanTimeline(new Date()))
+    setReferenceDate(new Date())
   }, [])
 
   useEffect(() => {
@@ -257,7 +281,13 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
     }
   }, [])
 
-  const clanAgeLabel = timeline ? `Нам ${timeline.ageLabel}` : "Возраст клана"
+  const mdcTimeline = referenceDate ? getClanTimeline(referenceDate, CLAN_FOUNDATION) : null
+  const graveTimeline = referenceDate ? getClanTimeline(referenceDate, GRAVE_FOUNDATION) : null
+  const dciaTimeline = referenceDate ? getClanTimeline(referenceDate, DCIA_FOUNDATION) : null
+
+  const clanAgeLabel = mdcTimeline ? `Нам ${mdcTimeline.ageLabel}` : "Возраст клана"
+  const graveAgeLabel = graveTimeline ? `Нам ${graveTimeline.ageLabel}` : "Возраст GRAVE"
+  const dciaAgeLabel = dciaTimeline ? `Нам ${dciaTimeline.ageLabel}` : "Возраст коалиции"
 
   const slides = useMemo<HeaderSlide[]>(() => {
     const preparedSlides: HeaderSlide[] = [
@@ -277,7 +307,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
           label: "Возраст",
           value: clanAgeLabel,
         },
-        celebrationLabel: timeline?.celebrationLabel ?? null,
+        celebrationLabel: mdcTimeline?.celebrationLabel ?? null,
         showAnthem: true,
       },
     ]
@@ -295,11 +325,17 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
           playersValue: String(gravePlayersCount),
           dateLabel: "Основан",
           dateValue: GRAVE_FOUNDATION_LABEL,
+          extraStat: {
+            icon: Sparkles,
+            label: "Возраст",
+            value: graveAgeLabel,
+          },
+          celebrationLabel: graveTimeline?.celebrationLabel ?? null,
           showAnthem: false,
         },
         {
           id: "dcia",
-          title: "DCIA",
+          title: "Коалиция DCIA",
           subtitle: "De Caelo ad Inferos",
           emblemSrc: withBasePath("/dcia-emblem.png"),
           emblemAlt: "Эмблема коалиции DCIA",
@@ -308,13 +344,30 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
           playersValue: String(coalitionPlayersCount),
           dateLabel: "Основан",
           dateValue: DCIA_FOUNDATION_LABEL,
+          extraStat: {
+            icon: Sparkles,
+            label: "Возраст",
+            value: dciaAgeLabel,
+          },
+          celebrationLabel: dciaTimeline?.celebrationLabel ?? null,
           showAnthem: false,
         },
       )
     }
 
     return preparedSlides
-  }, [clanAgeLabel, coalitionPlayersCount, gravePlayersCount, mdcPlayersCount, theme.subtitle, timeline?.celebrationLabel])
+  }, [
+    clanAgeLabel,
+    coalitionPlayersCount,
+    dciaAgeLabel,
+    dciaTimeline?.celebrationLabel,
+    graveAgeLabel,
+    gravePlayersCount,
+    graveTimeline?.celebrationLabel,
+    mdcPlayersCount,
+    mdcTimeline?.celebrationLabel,
+    theme.subtitle,
+  ])
 
   useEffect(() => {
     if (activeSlideIndex < slides.length) {
