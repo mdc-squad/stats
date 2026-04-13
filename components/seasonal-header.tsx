@@ -338,8 +338,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
         },
         {
           id: "dcia",
-          overline: "De Caelo ad Infernos",
-          title: "",
+          title: "De Caelo ad Infernos",
           subtitle: theme.subtitle,
           tagline: null,
           emblemSrc: withBasePath("/dcia-emblem.png"),
