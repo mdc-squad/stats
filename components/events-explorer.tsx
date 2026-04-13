@@ -792,7 +792,7 @@ export function EventsExplorer({
                               </p>
                             </div>
 
-                            <div className="flex min-w-0 flex-nowrap gap-1.5 overflow-x-auto pb-1 xl:justify-end">
+                            <div className="flex flex-wrap gap-1.5 xl:justify-end">
                               {summaryMetrics.map((metric) => (
                                 <MetricPill key={`${game.event_id}-${metric.key}`} metric={metric} />
                               ))}
