@@ -64,7 +64,7 @@ export function getSpecializationLabel(value: string | null | undefined): string
 
 export function getSpecializationEmoji(value: string | null | undefined): string {
   const key = normalizeSpecializationKey(value)
-  if (!key && (value ?? "").trim().toLowerCase() === "cast") return "📷"
+  if (!key && (value ?? "").trim().toLowerCase() === "cast") return "🎥"
   return key ? SPECIALIZATION_EMOJIS[key] : "❔"
 }
 
