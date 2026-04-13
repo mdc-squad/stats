@@ -533,7 +533,7 @@ export function EventsExplorer({
             </div>
 
             <div className="space-y-2">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Фракция MDC</p>
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Фракция</p>
               <MultiValueFilter
                 options={factionOptions}
                 selected={factionFilters}
