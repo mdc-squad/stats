@@ -227,7 +227,7 @@ function MetricPill({ metric }: { metric: MetricDescriptor }) {
   const Icon = metric.icon
 
   return (
-    <div className={`flex min-w-0 flex-[0_1_auto] items-center gap-1.5 rounded-lg border px-1.5 py-1 ${metric.className}`}>
+    <div className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-1.5 py-1 ${metric.className}`}>
       <Tooltip>
         <TooltipTrigger asChild>
           <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/10 bg-background/25 sm:h-6 sm:w-6">
@@ -238,9 +238,7 @@ function MetricPill({ metric }: { metric: MetricDescriptor }) {
           {metric.label}
         </TooltipContent>
       </Tooltip>
-      <span className="max-w-[52px] truncate text-xs font-semibold text-christmas-snow sm:max-w-[72px] sm:text-sm">
-        {metric.value}
-      </span>
+      <span className="whitespace-nowrap text-xs font-semibold text-christmas-snow sm:text-sm">{metric.value}</span>
     </div>
   )
 }
