@@ -271,9 +271,13 @@ function isLectureEventType(value: string): boolean {
   return normalized.includes("лекц") || normalized.includes("lecture")
 }
 
-function matchesDefaultTagFilter(value: string): boolean {
+function matchesTagToken(value: string, token: string): boolean {
   const normalized = value.trim().toLowerCase().replaceAll("ё", "е")
-  return DEFAULT_TAG_FILTER_TOKENS.some((token) => normalized.includes(token))
+  return normalized.includes(token)
+}
+
+function matchesDefaultTagFilter(value: string): boolean {
+  return DEFAULT_TAG_FILTER_TOKENS.some((token) => matchesTagToken(value, token))
 }
 
 function isHiddenTagFilterValue(value: string): boolean {
@@ -777,14 +781,6 @@ export default function YearReviewPage() {
     [seasonalTheme],
   )
 
-  const clanData = useMemo(() => {
-    if (!rawData) return null
-    const rosterTags = buildGlobalTagFilterOptions(rawData.players, rawData.dictionaries?.tags ?? [])
-      .filter((option) => option.rawTags.some(matchesDefaultTagFilter))
-      .flatMap((option) => option.rawTags)
-    return filterDataByTags(rawData, rosterTags)
-  }, [rawData])
-
   const selectedPeriodOption = useMemo(
     () => STATS_PERIOD_OPTIONS.find((option) => option.value === selectedPeriod) ?? STATS_PERIOD_OPTIONS[0],
     [selectedPeriod],
@@ -1024,7 +1020,14 @@ export default function YearReviewPage() {
     () => (data ? getWeeklyParticipation(data.events, data.player_event_stats) : []),
     [data],
   )
-  const clanRosterCount = useMemo(() => (clanData ? clanData.players.length : 0), [clanData])
+  const mdcRosterCount = useMemo(
+    () => (rawData ? rawData.players.filter((player) => matchesTagToken(player.tag, "mdc")).length : 0),
+    [rawData],
+  )
+  const graveRosterCount = useMemo(
+    () => (rawData ? rawData.players.filter((player) => matchesTagToken(player.tag, "grave")).length : 0),
+    [rawData],
+  )
   const competitiveClanPlayers = useMemo(
     () => (competitiveData ? competitiveData.players : []),
     [competitiveData],
@@ -1492,7 +1495,7 @@ export default function YearReviewPage() {
       <div className="fixed inset-0 z-0" style={{ background: seasonalTheme.overlayGradient }} />
 
       {seasonalTheme.showSnowfall && <Snowfall />}
-      <SeasonalHeader playersCount={clanRosterCount} theme={seasonalTheme} />
+      <SeasonalHeader mdcPlayersCount={mdcRosterCount} gravePlayersCount={graveRosterCount} theme={seasonalTheme} />
 
       <main className="container mx-auto px-4 py-6 space-y-6 relative z-10">
         <section>
@@ -2015,8 +2018,8 @@ export default function YearReviewPage() {
               games={pastGames}
               players={data.players}
               squadDomain={data.dictionaries?.squads ?? []}
-              pinnedPlayerIds={selectedPlayers}
-              onPinnedPlayersChange={setSelectedPlayers}
+              selectedPlayerIds={selectedPlayers}
+              onSelectedPlayersChange={setSelectedPlayers}
               focusTarget={gameFocusTarget}
             />
           </TabsContent>

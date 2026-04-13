@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { LucideIcon } from "lucide-react"
 import {
   CalendarDays,
@@ -13,19 +13,42 @@ import {
   TreePine,
   Trophy,
   Users,
+  Volume2,
 } from "lucide-react"
+import { Slider } from "@/components/ui/slider"
 import type { SeasonalTheme, SeasonalThemeIcon } from "@/lib/seasonal-theme"
 import { withBasePath } from "@/lib/base-path"
 import { cn } from "@/lib/utils"
 
 interface SeasonalHeaderProps {
-  playersCount: number
+  mdcPlayersCount: number
+  gravePlayersCount: number
   theme: SeasonalTheme
 }
 
 interface ClanTimelineInfo {
   ageLabel: string
   celebrationLabel: string | null
+}
+
+interface HeaderSlide {
+  id: "mdc" | "grave" | "dcia"
+  title: string
+  subtitle: string
+  emblemSrc: string
+  emblemAlt: string
+  heroLabel: string
+  playersLabel: string
+  playersValue: string
+  dateLabel: string
+  dateValue: string
+  extraStat?: {
+    icon: LucideIcon
+    label: string
+    value: string
+  }
+  celebrationLabel?: string | null
+  showAnthem: boolean
 }
 
 const CLAN_FOUNDATION = {
@@ -35,8 +58,13 @@ const CLAN_FOUNDATION = {
 }
 
 const CLAN_FOUNDATION_LABEL = "29.04.2023"
+const GRAVE_FOUNDATION_LABEL = "12.12.2024"
+const DCIA_FOUNDATION_LABEL = "09.04.2026"
 const CLAN_MOTTO = "Смерть с небес и в этом сила, Mdc - непобедима!"
 const ANNIVERSARY_WINDOW_DAYS = 62
+const DEFAULT_ANTHEM_VOLUME = 20
+const SLIDE_INTERVAL_MS = 5000
+const SLIDE_FADE_MS = 280
 
 const ICON_BY_THEME: Record<SeasonalThemeIcon, LucideIcon> = {
   tree: TreePine,
@@ -150,13 +178,19 @@ function HeaderStat({
   )
 }
 
-export function SeasonalHeader({ playersCount, theme }: SeasonalHeaderProps) {
+export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: SeasonalHeaderProps) {
   const ThemeIcon = ICON_BY_THEME[theme.icon] ?? Sparkles
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const fadeTimeoutRef = useRef<number | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [timeline, setTimeline] = useState<ClanTimelineInfo | null>(null)
   const [isCompactViewport, setIsCompactViewport] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0)
+  const [isSlideVisible, setIsSlideVisible] = useState(true)
+  const [volume, setVolume] = useState(DEFAULT_ANTHEM_VOLUME)
+
+  const coalitionPlayersCount = mdcPlayersCount + gravePlayersCount
 
   useEffect(() => {
     setTimeline(getClanTimeline(new Date()))
@@ -201,9 +235,21 @@ export function SeasonalHeader({ playersCount, theme }: SeasonalHeaderProps) {
   }, [isCompactViewport])
 
   useEffect(() => {
-    return () => {
-      const audio = audioRef.current
+    const audio = audioRef.current
+    if (!audio) {
+      return
+    }
 
+    audio.volume = volume / 100
+  }, [volume])
+
+  useEffect(() => {
+    return () => {
+      if (fadeTimeoutRef.current !== null) {
+        window.clearTimeout(fadeTimeoutRef.current)
+      }
+
+      const audio = audioRef.current
       if (!audio) return
 
       audio.pause()
@@ -211,18 +257,125 @@ export function SeasonalHeader({ playersCount, theme }: SeasonalHeaderProps) {
     }
   }, [])
 
+  const clanAgeLabel = timeline ? `Нам ${timeline.ageLabel}` : "Возраст клана"
+
+  const slides = useMemo<HeaderSlide[]>(() => {
+    const preparedSlides: HeaderSlide[] = [
+      {
+        id: "mdc",
+        title: "Mors De Caelo",
+        subtitle: theme.subtitle,
+        emblemSrc: withBasePath("/mdc-clan-emblem.png"),
+        emblemAlt: "Эмблема клана MDC",
+        heroLabel: CLAN_MOTTO,
+        playersLabel: "Mdc",
+        playersValue: String(mdcPlayersCount),
+        dateLabel: "Основан",
+        dateValue: CLAN_FOUNDATION_LABEL,
+        extraStat: {
+          icon: Sparkles,
+          label: "Возраст",
+          value: clanAgeLabel,
+        },
+        celebrationLabel: timeline?.celebrationLabel ?? null,
+        showAnthem: true,
+      },
+    ]
+
+    if (gravePlayersCount > 0) {
+      preparedSlides.push(
+        {
+          id: "grave",
+          title: "GRAVE",
+          subtitle: "Grave",
+          emblemSrc: withBasePath("/grave-emblem.png"),
+          emblemAlt: "Эмблема GRAVE",
+          heroLabel: "[GRAVE]",
+          playersLabel: "GRAVE",
+          playersValue: String(gravePlayersCount),
+          dateLabel: "Основан",
+          dateValue: GRAVE_FOUNDATION_LABEL,
+          showAnthem: false,
+        },
+        {
+          id: "dcia",
+          title: "DCIA",
+          subtitle: "De Caelo ad Inferos",
+          emblemSrc: withBasePath("/dcia-emblem.png"),
+          emblemAlt: "Эмблема коалиции DCIA",
+          heroLabel: "DCIA",
+          playersLabel: "Коалиция",
+          playersValue: String(coalitionPlayersCount),
+          dateLabel: "Основан",
+          dateValue: DCIA_FOUNDATION_LABEL,
+          showAnthem: false,
+        },
+      )
+    }
+
+    return preparedSlides
+  }, [clanAgeLabel, coalitionPlayersCount, gravePlayersCount, mdcPlayersCount, theme.subtitle, timeline?.celebrationLabel])
+
+  useEffect(() => {
+    if (activeSlideIndex < slides.length) {
+      return
+    }
+
+    setActiveSlideIndex(0)
+    setIsSlideVisible(true)
+  }, [activeSlideIndex, slides.length])
+
+  useEffect(() => {
+    if (slides.length <= 1 || isPlaying) {
+      return
+    }
+
+    const intervalId = window.setInterval(() => {
+      setIsSlideVisible(false)
+
+      if (fadeTimeoutRef.current !== null) {
+        window.clearTimeout(fadeTimeoutRef.current)
+      }
+
+      fadeTimeoutRef.current = window.setTimeout(() => {
+        setActiveSlideIndex((current) => (current + 1) % slides.length)
+        setIsSlideVisible(true)
+      }, SLIDE_FADE_MS)
+    }, SLIDE_INTERVAL_MS)
+
+    return () => {
+      window.clearInterval(intervalId)
+      if (fadeTimeoutRef.current !== null) {
+        window.clearTimeout(fadeTimeoutRef.current)
+        fadeTimeoutRef.current = null
+      }
+      setIsSlideVisible(true)
+    }
+  }, [isPlaying, slides.length])
+
+  const currentSlide = slides[Math.min(activeSlideIndex, slides.length - 1)] ?? slides[0]
+
+  const stopAnthem = () => {
+    const audio = audioRef.current
+
+    if (!audio) return
+
+    audio.pause()
+    audio.currentTime = 0
+  }
+
   const toggleAnthem = async () => {
     const audio = audioRef.current
 
     if (!audio) return
 
     if (!audio.paused) {
-      audio.pause()
-      audio.currentTime = 0
+      stopAnthem()
       return
     }
 
     audio.currentTime = 0
+    audio.volume = volume / 100
 
     try {
       await audio.play()
@@ -231,7 +384,10 @@ export function SeasonalHeader({ playersCount, theme }: SeasonalHeaderProps) {
     }
   }
 
-  const clanAgeLabel = timeline ? `Нам ${timeline.ageLabel}` : "Возраст клана"
+  const animatedContentClassName = cn(
+    "transition-all duration-300",
+    isSlideVisible ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
+  )
 
   return (
     <header
@@ -242,7 +398,7 @@ export function SeasonalHeader({ playersCount, theme }: SeasonalHeaderProps) {
         isCollapsed ? "bg-card/95 shadow-lg shadow-black/15" : "bg-card/80",
       )}
     >
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-christmas-red via-christmas-green to-christmas-gold" />
+      <div className="absolute left-0 right-0 top-0 h-1 bg-gradient-to-r from-christmas-red via-christmas-green to-christmas-gold" />
 
       <div className={cn("container mx-auto px-4 transition-all duration-300", isCollapsed ? "py-2" : "py-5")}>
         <div
@@ -252,18 +408,14 @@ export function SeasonalHeader({ playersCount, theme }: SeasonalHeaderProps) {
           )}
         >
           <div className={cn("flex min-w-0 items-center", isCollapsed ? "gap-3" : "gap-4")}>
-            <div className="relative shrink-0">
+            <div className={cn("relative shrink-0", animatedContentClassName)}>
               <div
                 className={cn(
                   "overflow-hidden rounded-full bg-background/45 shadow-xl shadow-black/25 transition-all duration-300",
                   isCollapsed ? "h-12 w-12" : "h-20 w-20 md:h-24 md:w-24",
                 )}
               >
-                <img
-                  src={withBasePath("/mdc-clan-emblem.png")}
-                  alt="Эмблема клана MDC"
-                  className="h-full w-full rounded-full object-cover"
-                />
+                <img src={currentSlide.emblemSrc} alt={currentSlide.emblemAlt} className="h-full w-full rounded-full object-cover" />
               </div>
               <div
                 className={cn(
@@ -275,16 +427,16 @@ export function SeasonalHeader({ playersCount, theme }: SeasonalHeaderProps) {
               </div>
             </div>
 
-            <div className="min-w-0">
+            <div className={cn("min-w-0", animatedContentClassName)}>
               <h1
                 className={cn(
                   "font-bold leading-tight text-christmas-snow transition-all duration-300",
                   isCollapsed ? "text-lg" : "text-2xl md:text-3xl",
                 )}
               >
-                Mors De Caelo
+                {currentSlide.title}
               </h1>
-              {!isCollapsed && <p className="mt-1 text-sm font-medium text-christmas-gold md:text-base">{theme.subtitle}</p>}
+              {!isCollapsed && <p className="mt-1 text-sm font-medium text-christmas-gold md:text-base">{currentSlide.subtitle}</p>}
             </div>
           </div>
 
@@ -292,45 +444,75 @@ export function SeasonalHeader({ playersCount, theme }: SeasonalHeaderProps) {
             <div className="shrink-0 rounded-full border border-christmas-gold/20 bg-background/45 px-3 py-1.5 shadow-lg shadow-black/10">
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-christmas-snow">
                 <Users className="h-3.5 w-3.5 text-christmas-gold" />
-                {playersCount}
+                {currentSlide.playersValue}
               </span>
             </div>
           ) : (
             <>
-              <div className="flex min-w-0 flex-col items-center gap-1 text-center lg:px-2">
-                <button
-                  type="button"
-                  onClick={() => void toggleAnthem()}
-                  aria-pressed={isPlaying}
-                  aria-label={isPlaying ? "Остановить гимн клана" : "Включить гимн клана"}
-                  className={`group inline-flex max-w-full items-center justify-center gap-2 rounded-2xl border border-transparent px-2 py-0.5 text-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-christmas-gold/60 ${
-                    isPlaying
-                      ? "text-christmas-snow"
-                      : "text-christmas-snow/92 hover:text-christmas-snow"
-                  }`}
-                >
-                  <span
-                    className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full transition-colors ${
-                      isPlaying ? "animate-pulse bg-christmas-green" : "bg-christmas-gold/80 group-hover:bg-christmas-gold"
-                    }`}
-                  />
-                  <span className="text-[15px] font-semibold leading-snug tracking-[0.01em] md:text-base">{CLAN_MOTTO}</span>
-                </button>
+              <div className={cn("flex min-w-0 flex-col items-center gap-2 text-center lg:px-2", animatedContentClassName)}>
+                {currentSlide.showAnthem ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void toggleAnthem()}
+                      aria-pressed={isPlaying}
+                      aria-label={isPlaying ? "Остановить гимн клана" : "Включить гимн клана"}
+                      className={cn(
+                        "group inline-flex max-w-full items-center justify-center gap-2 rounded-2xl border border-transparent px-2 py-0.5 text-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-christmas-gold/60",
+                        isPlaying ? "text-christmas-snow" : "text-christmas-snow/92 hover:text-christmas-snow",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "mt-1 h-2.5 w-2.5 shrink-0 rounded-full transition-colors",
+                          isPlaying ? "animate-pulse bg-christmas-green" : "bg-christmas-gold/80 group-hover:bg-christmas-gold",
+                        )}
+                      />
+                      <span className="text-[15px] font-semibold leading-snug tracking-[0.01em] md:text-base">{currentSlide.heroLabel}</span>
+                    </button>
 
-                <span className="text-[11px] text-muted-foreground">
-                  {isPlaying ? "Гимн звучит" : "Нажатие включает гимн"}
-                </span>
+                    {isPlaying ? (
+                      <div className="flex w-full max-w-sm items-center gap-3 rounded-2xl border border-christmas-gold/20 bg-background/35 px-3 py-2 shadow-lg shadow-black/10">
+                        <Volume2 className="h-4 w-4 shrink-0 text-christmas-gold" />
+                        <Slider
+                          value={[volume]}
+                          onValueChange={(values) => setVolume(Math.max(0, Math.min(100, values[0] ?? DEFAULT_ANTHEM_VOLUME)))}
+                          min={0}
+                          max={100}
+                          step={1}
+                          className="[&_[data-slot=slider-range]]:bg-christmas-gold"
+                          aria-label="Громкость гимна"
+                        />
+                        <span className="w-10 text-right text-xs text-christmas-snow">{volume}%</span>
+                      </div>
+                    ) : null}
+
+                    <span className="text-[11px] text-muted-foreground">{isPlaying ? "Гимн звучит" : "Нажатие включает гимн"}</span>
+                  </>
+                ) : (
+                  <div className="flex min-h-[82px] items-center justify-center">
+                    <span className="text-3xl font-black uppercase tracking-[0.28em] text-christmas-snow md:text-4xl">
+                      {currentSlide.heroLabel}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              <div className="flex flex-wrap items-stretch gap-2 lg:justify-end">
-                <HeaderStat icon={Users} label="Игроков" value={playersCount.toString()} />
-                <HeaderStat icon={CalendarDays} label="Основан" value={CLAN_FOUNDATION_LABEL} />
-                <HeaderStat icon={Sparkles} label="Возраст" value={clanAgeLabel} />
+              <div className={cn("flex flex-wrap items-stretch gap-2 lg:justify-end", animatedContentClassName)}>
+                <HeaderStat icon={Users} label={currentSlide.playersLabel} value={currentSlide.playersValue} />
+                <HeaderStat icon={CalendarDays} label={currentSlide.dateLabel} value={currentSlide.dateValue} />
+                {currentSlide.extraStat ? (
+                  <HeaderStat
+                    icon={currentSlide.extraStat.icon}
+                    label={currentSlide.extraStat.label}
+                    value={currentSlide.extraStat.value}
+                  />
+                ) : null}
 
-                {timeline?.celebrationLabel ? (
+                {currentSlide.celebrationLabel ? (
                   <div className="inline-flex items-center gap-2 rounded-2xl border border-christmas-red/20 bg-christmas-red/10 px-3 py-2 text-xs font-medium text-christmas-snow shadow-lg shadow-black/10">
                     <Sparkles className="h-3.5 w-3.5 text-christmas-gold" />
-                    <span>{timeline.celebrationLabel}</span>
+                    <span>{currentSlide.celebrationLabel}</span>
                   </div>
                 ) : null}
               </div>

@@ -25,6 +25,9 @@ export interface GameEvent {
   mode: string | null
   faction_1: string | null
   faction_2: string | null
+  category: string | null
+  ks: number | null
+  rks: number | null
   team_size: number | null
   enemy_size: number | null
   tickets_1: number | null
@@ -1840,6 +1843,9 @@ export interface PastGameSummary {
   faction_1: string | null
   faction_2: string | null
   faction_matchup: string | null
+  opponent_strength: string | null
+  ks: number | null
+  rks: number | null
   opponent: string | null
   result: string | null
   is_win: boolean | null
@@ -1859,6 +1865,9 @@ export interface PastGameSummary {
   totalRevives: number
   totalHeals: number
   totalVehicle: number
+  avgKd: number
+  avgKda: number
+  avgElo: number
   players: PastGamePlayerStat[]
   topPerformer: PastGamePlayerStat | null
 }
@@ -2287,6 +2296,9 @@ export function getPastGames(
         faction_1: faction1,
         faction_2: faction2,
         faction_matchup: factionMatchup,
+        opponent_strength: event?.category ?? null,
+        ks: event?.ks ?? null,
+        rks: event?.rks ?? null,
         opponent,
         result: event?.result ?? null,
         is_win: event?.is_win ?? null,
@@ -2306,6 +2318,18 @@ export function getPastGames(
         totalRevives: rankedPlayers.reduce((sum, stat) => sum + stat.revives, 0),
         totalHeals: rankedPlayers.reduce((sum, stat) => sum + stat.heals, 0),
         totalVehicle: rankedPlayers.reduce((sum, stat) => sum + stat.vehicle, 0),
+        avgKd:
+          rankedPlayers.length > 0
+            ? rankedPlayers.reduce((sum, stat) => sum + stat.kd, 0) / rankedPlayers.length
+            : 0,
+        avgKda:
+          rankedPlayers.length > 0
+            ? rankedPlayers.reduce((sum, stat) => sum + stat.kda, 0) / rankedPlayers.length
+            : 0,
+        avgElo:
+          rankedPlayers.length > 0
+            ? rankedPlayers.reduce((sum, stat) => sum + stat.elo, 0) / rankedPlayers.length
+            : 0,
         players: rankedPlayers,
         topPerformer: rankedPlayers[0] ?? null,
       }
