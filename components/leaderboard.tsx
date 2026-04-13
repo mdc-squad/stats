@@ -7,6 +7,7 @@ import { PlayerAvatar } from "@/components/player-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ChevronDown } from "lucide-react"
 import { type Player } from "@/lib/data-utils"
 import { cn } from "@/lib/utils"
 
@@ -20,6 +21,8 @@ interface LeaderboardProps {
   variant?: "default" | "christmas"
   playerAchievements?: Record<string, string[]>
   collapsedCount?: number
+  isCollapsed?: boolean
+  onToggleCollapse?: () => void
 }
 
 const DEFAULT_COLLAPSED_COUNT = 10
@@ -36,6 +39,8 @@ export function Leaderboard({
   variant = "default",
   playerAchievements,
   collapsedCount = DEFAULT_COLLAPSED_COUNT,
+  isCollapsed = false,
+  onToggleCollapse,
 }: LeaderboardProps) {
   const [showAll, setShowAll] = useState(false)
 
@@ -73,68 +78,82 @@ export function Leaderboard({
               {showAll ? `Игроков в топе: ${players.length}` : `Показано: ${visiblePlayers.length} из ${players.length}`}
             </p>
           </div>
-          {canExpand && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 shrink-0 border-christmas-gold/35 bg-christmas-gold/10 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-christmas-snow hover:border-christmas-gold/60 hover:bg-christmas-gold/20"
-              onClick={() => setShowAll((current) => !current)}
-            >
-              {showAll ? "Свернуть" : "Весь топ"}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {canExpand && !isCollapsed && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0 border-christmas-gold/35 bg-christmas-gold/10 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-christmas-snow hover:border-christmas-gold/60 hover:bg-christmas-gold/20"
+                onClick={() => setShowAll((current) => !current)}
+              >
+                {showAll ? "Свернуть" : "Весь топ"}
+              </Button>
+            )}
+            {onToggleCollapse && (
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                aria-label={isCollapsed ? "Развернуть лидерборд" : "Свернуть лидерборд"}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/40 text-muted-foreground transition-colors hover:text-christmas-snow"
+              >
+                <ChevronDown className={cn("h-4 w-4 transition-transform", !isCollapsed && "rotate-180")} />
+              </button>
+            )}
+          </div>
         </CardHeader>
-        <CardContent className={cn("flex flex-col", showAll && "min-h-0 flex-1")}>
-          <div className={cn("pr-2", showAll && "min-h-0 flex-1 overflow-y-auto")}>
-            <div className="space-y-1.5">
-              {visiblePlayers.map((player, index) => {
-                const rawValue = player.totals[stat]
-                const value = typeof rawValue === "number" && Number.isFinite(rawValue) ? rawValue : 0
-                const achievements = playerAchievements?.[player.player_id] ?? []
-                const secondaryLine =
-                  stat === "events"
-                    ? `WR: ${(player.totals.win_rate * 100).toFixed(0)}%`
-                    : `${player.totals.events.toLocaleString("ru-RU")} боевых событий`
+        {isCollapsed ? null : (
+          <CardContent className={cn("flex flex-col", showAll && "min-h-0 flex-1")}>
+            <div className={cn("pr-2", showAll && "min-h-0 flex-1 overflow-y-auto")}>
+              <div className="space-y-1.5">
+                {visiblePlayers.map((player, index) => {
+                  const rawValue = player.totals[stat]
+                  const value = typeof rawValue === "number" && Number.isFinite(rawValue) ? rawValue : 0
+                  const achievements = playerAchievements?.[player.player_id] ?? []
+                  const secondaryLine =
+                    stat === "events"
+                      ? `WR: ${(player.totals.win_rate * 100).toFixed(0)}%`
+                      : `${player.totals.events.toLocaleString("ru-RU")} боевых событий`
 
-                return (
-                  <div
-                    key={player.player_id}
-                    className={cn("rounded-md px-2 py-1.5 transition-colors", index < 3 && "bg-secondary/50")}
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="w-6 pt-1 text-center font-mono text-sm text-christmas-snow">{getMedal(index)}</span>
-                      <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
-                      <div className="min-w-0 flex-1">
-                        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1">
-                          <div className="min-w-0">
-                            <p className="font-medium text-sm truncate text-christmas-snow">{player.nickname}</p>
-                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <p className="text-xs text-muted-foreground">{secondaryLine}</p>
-                              {achievements.length > 0 && (
-                                <AchievementBadges
-                                  achievements={achievements}
-                                  display="icons"
-                                  containerClassName="shrink-0"
-                                />
-                              )}
+                  return (
+                    <div
+                      key={player.player_id}
+                      className={cn("rounded-md px-2 py-1.5 transition-colors", index < 3 && "bg-secondary/50")}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="w-6 pt-1 text-center font-mono text-sm text-christmas-snow">{getMedal(index)}</span>
+                        <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1">
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate text-christmas-snow">{player.nickname}</p>
+                              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <p className="text-xs text-muted-foreground">{secondaryLine}</p>
+                                {achievements.length > 0 && (
+                                  <AchievementBadges
+                                    achievements={achievements}
+                                    display="icons"
+                                    containerClassName="shrink-0"
+                                  />
+                                )}
+                              </div>
                             </div>
+                            <Badge
+                              variant="outline"
+                              className="self-start whitespace-nowrap border-christmas-gold/30 font-mono text-christmas-gold"
+                            >
+                              {formatValue ? formatValue(value) : value}
+                            </Badge>
                           </div>
-                          <Badge
-                            variant="outline"
-                            className="self-start whitespace-nowrap border-christmas-gold/30 font-mono text-christmas-gold"
-                          >
-                            {formatValue ? formatValue(value) : value}
-                          </Badge>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        </CardContent>
+          </CardContent>
+        )}
       </Card>
     </div>
   )

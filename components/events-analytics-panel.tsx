@@ -152,19 +152,20 @@ const METRIC_OPTIONS: MultiValueFilterOption[] = METRIC_ORDER.map((metric) => ({
   label: METRIC_LABELS[metric],
 }))
 
-const METRIC_BASE_HUES: Record<AnalyticsMetric, number> = {
-  winRate: 142,
-  kills: 152,
-  deaths: 0,
-  downs: 28,
-  revives: 202,
-  heals: 334,
-  vehicle: 214,
-  kd: 42,
-  kda: 270,
-  elo: 220,
-  ticketDiff: 188,
-}
+const LINE_COLOR_PALETTE = [
+  "#ef4444",
+  "#22c55e",
+  "#3b82f6",
+  "#f59e0b",
+  "#a855f7",
+  "#14b8a6",
+  "#f97316",
+  "#e11d48",
+  "#0ea5e9",
+  "#84cc16",
+  "#6366f1",
+  "#ec4899",
+]
 
 const TOOLTIP_VISIBLE_ROWS = 10
 const TOOLTIP_ROW_HEIGHT_PX = 24
@@ -501,9 +502,9 @@ function getChartLineLabel(metric: AnalyticsMetric, seriesLabel: string, metricC
 }
 
 function getChartLineColor(metric: AnalyticsMetric, seriesIndex: number): string {
-  const hue = (METRIC_BASE_HUES[metric] + seriesIndex * 19) % 360
-  const lightness = Math.max(44, 66 - seriesIndex * 3)
-  return `hsl(${hue} 78% ${lightness}%)`
+  const metricIndex = METRIC_ORDER.indexOf(metric)
+  const paletteIndex = (metricIndex * 5 + seriesIndex * 2) % LINE_COLOR_PALETTE.length
+  return LINE_COLOR_PALETTE[paletteIndex]
 }
 
 function buildAnalyticsSummary(games: PastGameSummary[], selectedPlayerIds: Set<string>): AnalyticsSummary {
@@ -875,10 +876,6 @@ export function EventsAnalyticsPanel({
               placeholder="Весь состав или конкретные игроки..."
             />
           </div>
-          <div className="rounded-xl border border-border/50 bg-background/35 p-3 text-xs leading-relaxed text-muted-foreground">
-            На одном графике можно совмещать несколько метрик, а дополнительные панели строить ниже. Так удобнее смотреть
-            корреляции между `K/D`, `KDA`, тикетами, хилом, поднятиями и остальными параметрами на одном временном ряду.
-          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
@@ -1030,17 +1027,25 @@ export function EventsAnalyticsPanel({
                             <ReferenceLine y={0} stroke="var(--muted-foreground)" strokeDasharray="5 5" opacity={0.4} />
                           )}
                           <Tooltip content={<AnalyticsTooltipContent lineMetaByDataKey={model.lineMetaByDataKey} />} />
-                          {model.lines.map((line) => (
+                          {[...model.lines]
+                            .sort((left, right) => {
+                              const metricDelta = METRIC_ORDER.indexOf(left.metric) - METRIC_ORDER.indexOf(right.metric)
+                              if (metricDelta !== 0) return metricDelta
+                              return left.matches - right.matches
+                            })
+                            .map((line) => (
                             <Line
                               key={line.key}
                               type="monotone"
                               dataKey={line.dataKey}
                               name={line.label}
                               stroke={line.color}
-                              strokeWidth={2.2}
+                              strokeWidth={config.metrics.length > 1 ? 2.4 : 2.2}
+                              strokeOpacity={config.metrics.length > 1 ? 0.9 : 1}
                               dot={false}
                               connectNulls={config.mode === "cumulative"}
                               activeDot={{ r: 4, fill: line.color }}
+                              style={{ zIndex: 10 + METRIC_ORDER.indexOf(line.metric) }}
                             />
                           ))}
                         </LineChart>

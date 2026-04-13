@@ -339,7 +339,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
         {
           id: "dcia",
           overline: "De Caelo ad Infernos",
-          title: "DCIA",
+          title: "",
           subtitle: theme.subtitle,
           tagline: null,
           emblemSrc: withBasePath("/dcia-emblem.png"),
@@ -417,6 +417,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
     currentSlide.tagline.trim().length > 0 &&
     currentSlide.tagline.trim().toLowerCase() !== currentSlide.title.trim().toLowerCase()
   const showOverline = !!currentSlide.overline && currentSlide.overline.trim().length > 0
+  const showTitle = !!currentSlide.title && currentSlide.title.trim().length > 0
 
   const stopAnthem = () => {
     const audio = audioRef.current
@@ -496,16 +497,18 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
                   {currentSlide.overline}
                 </p>
               ) : null}
-              <h1
-                className={cn(
-                  "font-bold leading-tight text-christmas-snow transition-all duration-300",
-                  isCollapsed ? "text-lg" : "text-2xl md:text-3xl",
-                )}
-              >
-                {currentSlide.title}
-              </h1>
+              {showTitle ? (
+                <h1
+                  className={cn(
+                    "font-bold leading-tight text-christmas-snow transition-all duration-300",
+                    isCollapsed ? "text-lg" : "text-2xl md:text-3xl",
+                  )}
+                >
+                  {currentSlide.title}
+                </h1>
+              ) : null}
               {!isCollapsed && (
-                <div className="mt-1 space-y-0.5">
+                <div className={cn("space-y-0.5", showTitle ? "mt-1" : "mt-0.5")}>
                   <p className="text-sm font-medium text-christmas-gold md:text-base">{currentSlide.subtitle}</p>
                   {showTagline ? <p className="text-xs text-muted-foreground">{currentSlide.tagline}</p> : null}
                 </div>

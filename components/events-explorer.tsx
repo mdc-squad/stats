@@ -227,18 +227,20 @@ function MetricPill({ metric }: { metric: MetricDescriptor }) {
   const Icon = metric.icon
 
   return (
-    <div className={`flex min-w-[76px] shrink-0 items-center gap-2 rounded-lg border px-2 py-1.5 ${metric.className}`}>
+    <div className={`flex min-w-0 flex-[0_1_auto] items-center gap-1.5 rounded-lg border px-1.5 py-1 ${metric.className}`}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/10 bg-background/25">
-            <Icon className="h-3.5 w-3.5" />
+          <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/10 bg-background/25 sm:h-6 sm:w-6">
+            <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </span>
         </TooltipTrigger>
         <TooltipContent side="top" className="border border-border bg-card text-card-foreground">
           {metric.label}
         </TooltipContent>
       </Tooltip>
-      <span className="text-sm font-semibold text-christmas-snow">{metric.value}</span>
+      <span className="max-w-[52px] truncate text-xs font-semibold text-christmas-snow sm:max-w-[72px] sm:text-sm">
+        {metric.value}
+      </span>
     </div>
   )
 }
@@ -442,7 +444,9 @@ export function EventsExplorer({
   }
 
   const getRoleTooltipLabel = (player: PastGameSummary["players"][number]) => {
-    const labels = Array.from(new Set((player.roles.length > 0 ? player.roles : [player.role || ""]).filter(Boolean)))
+    const baseRoles = player.roles.length > 0 ? player.roles : [player.role || ""]
+    const hasCastSpec = player.specializations.some((spec) => spec.trim().toLowerCase() === "cast")
+    const labels = Array.from(new Set([...baseRoles, hasCastSpec ? "cast" : ""].filter(Boolean)))
     return labels.length > 0 ? labels.join(", ") : "Без роли"
   }
 
@@ -460,6 +464,9 @@ export function EventsExplorer({
   }
 
   const getSquadLabelClassName = (squadLabel: string | null | undefined, isHighlighted: boolean) => {
+    if (!squadLabel || squadLabel.trim() === "" || squadLabel === "0") {
+      return "text-muted-foreground"
+    }
     if (isHighlighted) {
       return "text-christmas-gold"
     }
@@ -758,7 +765,7 @@ export function EventsExplorer({
                         )}
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="grid gap-2 xl:grid-cols-[minmax(0,1.8fr)_minmax(0,1.3fr)] xl:items-center">
+                          <div className="grid gap-2 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1.55fr)] xl:items-center">
                             <div className="space-y-1 text-left">
                               <div className="flex flex-wrap items-center gap-1">
                                 <Badge variant="outline" className={`h-auto px-1.5 py-0 text-[9px] ${resultMeta.className}`}>
@@ -792,7 +799,7 @@ export function EventsExplorer({
                               </p>
                             </div>
 
-                            <div className="flex flex-wrap gap-1.5 xl:justify-end">
+                            <div className="flex min-w-0 flex-nowrap gap-1.5 xl:justify-end">
                               {summaryMetrics.map((metric) => (
                                 <MetricPill key={`${game.event_id}-${metric.key}`} metric={metric} />
                               ))}
@@ -880,9 +887,21 @@ export function EventsExplorer({
                                           <Tooltip>
                                             <TooltipTrigger asChild>
                                               <div className="flex items-center justify-center gap-1">
-                                                {(player.roles.length > 0 ? player.roles : [player.role || ""]).filter(Boolean).slice(0, 2).map((role) => (
-                                                  <RoleIcon key={`${player.player_id}-${role}`} role={role} className="h-4 w-4" />
-                                                ))}
+                                                {(
+                                                  player.specializations.some((spec) => spec.trim().toLowerCase() === "cast")
+                                                    ? [
+                                                        ...(player.roles.length > 0 ? player.roles : [player.role || ""]),
+                                                        "cast",
+                                                      ]
+                                                    : player.roles.length > 0
+                                                    ? player.roles
+                                                    : [player.role || ""]
+                                                )
+                                                  .filter(Boolean)
+                                                  .slice(0, 2)
+                                                  .map((role) => (
+                                                    <RoleIcon key={`${player.player_id}-${role}`} role={role} className="h-4 w-4" />
+                                                  ))}
                                               </div>
                                             </TooltipTrigger>
                                             <TooltipContent side="top" className="border border-border bg-card text-card-foreground">
@@ -893,7 +912,7 @@ export function EventsExplorer({
                                         <TableCell
                                           className={cn("font-medium", getSquadLabelClassName(player.squad_label, isHighlighted))}
                                         >
-                                          {player.squad_label}
+                                          {!player.squad_label || player.squad_label === "0" ? "Без отряда" : player.squad_label}
                                         </TableCell>
                                         <TableCell className="text-center">
                                           <Tooltip>
