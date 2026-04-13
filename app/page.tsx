@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { startTransition, useState, useEffect, useMemo, useCallback, useRef } from "react"
+import { startTransition, useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -205,6 +205,11 @@ const MIN_COMPETITIVE_EVENTS_FOR_TOPS = 11
 const MIN_PLAYER_CARD_SAMPLE_SIZE = 10
 const LEADERBOARD_PREVIEW_LIMIT = 10
 const VEHICLE_LEADERBOARD_PREVIEW_LIMIT = 5
+
+type LeaderboardCardConfig = {
+  key: string
+  render: (isCollapsed: boolean, onToggle: () => void) => ReactNode
+}
 const DEFAULT_TAG_FILTER_TOKENS = ["mdc", "grave"]
 const HIDDEN_TAG_FILTER_TOKENS = ["ветеран", "неактив"]
 const MDC_TAG_FILTER_VALUE = "__tag_group__mdc"
@@ -540,6 +545,7 @@ export default function YearReviewPage() {
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
   const [selectedPlayersForChart, setSelectedPlayersForChart] = useState<string[]>([])
   const [gameFocusTarget, setGameFocusTarget] = useState<{ eventId: string; playerId: string } | null>(null)
+  const [expandedLeaderboardRows, setExpandedLeaderboardRows] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -1479,6 +1485,262 @@ export default function YearReviewPage() {
   // Filter out empty role leaderboards
   const nonEmptyRoleLeaderboards = roleLeaderboards.filter(({ players }) => players.length > 0)
 
+  const leaderboardCards: LeaderboardCardConfig[] = [
+    {
+      key: "kd",
+      render: (isCollapsed: boolean, onToggle: () => void) => (
+        <Leaderboard
+          title="Топ по K/D"
+          players={leaderboardKD}
+          stat="kd"
+          formatValue={(v) => v.toFixed(2)}
+          playerAchievements={playerAchievements}
+          icon={renderMetricIcon("kd")}
+          variant="christmas"
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggle}
+        />
+      ),
+    },
+    {
+      key: "kda",
+      render: (isCollapsed: boolean, onToggle: () => void) => (
+        <Leaderboard
+          title="Топ по KDA"
+          players={leaderboardKDA}
+          stat="kda"
+          formatValue={(v) => v.toFixed(2)}
+          playerAchievements={playerAchievements}
+          icon={renderMetricIcon("kda")}
+          variant="christmas"
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggle}
+        />
+      ),
+    },
+    {
+      key: "elo",
+      render: (isCollapsed: boolean, onToggle: () => void) => (
+        <Leaderboard
+          title="Топ по ELO"
+          players={leaderboardELO}
+          stat="elo"
+          formatValue={(v) => v.toFixed(1)}
+          playerAchievements={playerAchievements}
+          icon={renderMetricIcon("elo")}
+          variant="christmas"
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggle}
+        />
+      ),
+    },
+    {
+      key: "tbf",
+      render: (isCollapsed: boolean, onToggle: () => void) => (
+        <Leaderboard
+          title="Топ по ТБФ"
+          players={leaderboardTBF}
+          stat="tbf"
+          formatValue={(v) => v.toFixed(1)}
+          playerAchievements={playerAchievements}
+          icon={renderMetricIcon("tbf")}
+          variant="christmas"
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggle}
+        />
+      ),
+    },
+    {
+      key: "rating",
+      render: (isCollapsed: boolean, onToggle: () => void) => (
+        <Leaderboard
+          title="Топ по ОР"
+          players={leaderboardRating}
+          stat="rating"
+          formatValue={(v) => v.toFixed(1)}
+          playerAchievements={playerAchievements}
+          icon={renderMetricIcon("rating")}
+          variant="christmas"
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggle}
+        />
+      ),
+    },
+    {
+      key: "kills",
+      render: (isCollapsed: boolean, onToggle: () => void) => (
+        <Leaderboard
+          title="Топ по убийствам"
+          players={leaderboardKills}
+          stat="kills"
+          playerAchievements={playerAchievements}
+          icon={renderMetricIcon("kills")}
+          variant="christmas"
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggle}
+        />
+      ),
+    },
+    {
+      key: "win_rate",
+      render: (isCollapsed: boolean, onToggle: () => void) => (
+        <Leaderboard
+          title="Топ победителей"
+          players={leaderboardWinRate}
+          stat="win_rate"
+          formatValue={(v) => `${(v * 100).toFixed(0)}%`}
+          playerAchievements={playerAchievements}
+          icon={renderMetricIcon("win_rate")}
+          variant="christmas"
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggle}
+        />
+      ),
+    },
+    {
+      key: "events",
+      render: (isCollapsed: boolean, onToggle: () => void) => (
+        <Leaderboard
+          title="Топ по боевой активности"
+          players={leaderboardEvents}
+          stat="events"
+          formatValue={(v) => `${v} боевых событий`}
+          playerAchievements={playerAchievements}
+          icon={renderMetricIcon("events")}
+          variant="christmas"
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggle}
+        />
+      ),
+    },
+    {
+      key: "revives",
+      render: (isCollapsed: boolean, onToggle: () => void) => (
+        <Leaderboard
+          title="Топ по поднятиям"
+          players={leaderboardRevives}
+          stat="revives"
+          playerAchievements={playerAchievements}
+          icon={renderMetricIcon("revives")}
+          variant="christmas"
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggle}
+        />
+      ),
+    },
+    {
+      key: "heals",
+      render: (isCollapsed: boolean, onToggle: () => void) => (
+        <Leaderboard
+          title="Топ по хилу"
+          players={leaderboardHeals}
+          stat="heals"
+          playerAchievements={playerAchievements}
+          icon={renderMetricIcon("heals")}
+          variant="christmas"
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggle}
+        />
+      ),
+    },
+    {
+      key: "downs",
+      render: (isCollapsed: boolean, onToggle: () => void) => (
+        <Leaderboard
+          title="Топ по нокам"
+          players={leaderboardDowns}
+          stat="downs"
+          playerAchievements={playerAchievements}
+          icon={renderMetricIcon("downs")}
+          variant="christmas"
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggle}
+        />
+      ),
+    },
+    {
+      key: "vehicle",
+      render: (isCollapsed: boolean, onToggle: () => void) => (
+        <Leaderboard
+          title="Топ по выбитой технике"
+          players={leaderboardVehicle}
+          stat="vehicle"
+          playerAchievements={playerAchievements}
+          icon={renderMetricIcon("vehicle")}
+          variant="christmas"
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggle}
+        />
+      ),
+    },
+    {
+      key: "avgVehicle",
+      render: (isCollapsed: boolean, onToggle: () => void) => (
+        <AvgStatLeaderboard
+          title="Топ по средней технике за матч"
+          players={leaderboardAvgVehicle}
+          avgStat="avgVehicle"
+          totalStat="vehicle"
+          formatValue={(v) => v.toFixed(2)}
+          playerAchievements={playerAchievements}
+          icon={renderMetricIcon("avgVehicle")}
+          variant="christmas"
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggle}
+        />
+      ),
+    },
+    {
+      key: "avgHeals",
+      render: (isCollapsed: boolean, onToggle: () => void) => (
+        <AvgStatLeaderboard
+          title="Топ по среднему хилу за матч"
+          players={leaderboardAvgHeals}
+          avgStat="avgHeals"
+          totalStat="heals"
+          formatValue={(v) => v.toFixed(2)}
+          playerAchievements={playerAchievements}
+          icon={renderMetricIcon("avgHeals")}
+          variant="christmas"
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggle}
+        />
+      ),
+    },
+    {
+      key: "avgRevives",
+      render: (isCollapsed: boolean, onToggle: () => void) => (
+        <AvgStatLeaderboard
+          title="Топ по среднему поднятию за матч"
+          players={leaderboardAvgRevives}
+          avgStat="avgRevives"
+          totalStat="revives"
+          formatValue={(v) => v.toFixed(2)}
+          playerAchievements={playerAchievements}
+          icon={renderMetricIcon("avgRevives")}
+          variant="christmas"
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggle}
+        />
+      ),
+    },
+  ] as const
+
+  const leaderboardRows = leaderboardCards.reduce<LeaderboardCardConfig[][]>((rows, card, index) => {
+    if (index % 3 === 0) {
+      rows.push([card])
+    } else {
+      rows[rows.length - 1].push(card)
+    }
+    return rows
+  }, [])
+
+  const toggleLeaderboardRow = (rowIndex: number) => {
+    setExpandedLeaderboardRows((current) =>
+      current.includes(rowIndex) ? current.filter((value) => value !== rowIndex) : [...current, rowIndex],
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background relative" style={seasonalVariables}>
       <div
@@ -1772,140 +2034,16 @@ export default function YearReviewPage() {
             <p className="text-xs text-muted-foreground">
               В топ включены игроки с более чем {MIN_COMPETITIVE_EVENTS_FOR_TOPS - 1} играми.
             </p>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Leaderboard
-                title="Топ по K/D"
-                players={leaderboardKD}
-                stat="kd"
-                formatValue={(v) => v.toFixed(2)}
-                playerAchievements={playerAchievements}
-                icon={renderMetricIcon("kd")}
-                variant="christmas"
-              />
-              <Leaderboard
-                title="Топ по KDA"
-                players={leaderboardKDA}
-                stat="kda"
-                formatValue={(v) => v.toFixed(2)}
-                playerAchievements={playerAchievements}
-                icon={renderMetricIcon("kda")}
-                variant="christmas"
-              />
-              <Leaderboard
-                title="Топ по ELO"
-                players={leaderboardELO}
-                stat="elo"
-                formatValue={(v) => v.toFixed(1)}
-                playerAchievements={playerAchievements}
-                icon={renderMetricIcon("elo")}
-                variant="christmas"
-              />
-              <Leaderboard
-                title="Топ по ТБФ"
-                players={leaderboardTBF}
-                stat="tbf"
-                formatValue={(v) => v.toFixed(1)}
-                playerAchievements={playerAchievements}
-                icon={renderMetricIcon("tbf")}
-                variant="christmas"
-              />
-              <Leaderboard
-                title="Топ по ОР"
-                players={leaderboardRating}
-                stat="rating"
-                formatValue={(v) => v.toFixed(1)}
-                playerAchievements={playerAchievements}
-                icon={renderMetricIcon("rating")}
-                variant="christmas"
-              />
-              <Leaderboard
-                title="Топ по убийствам"
-                players={leaderboardKills}
-                stat="kills"
-                playerAchievements={playerAchievements}
-                icon={renderMetricIcon("kills")}
-                variant="christmas"
-              />
-              <Leaderboard
-                title="Топ победителей"
-                players={leaderboardWinRate}
-                stat="win_rate"
-                formatValue={(v) => `${(v * 100).toFixed(0)}%`}
-                playerAchievements={playerAchievements}
-                icon={renderMetricIcon("win_rate")}
-                variant="christmas"
-              />
-              <Leaderboard
-                title="Топ по боевой активности"
-                players={leaderboardEvents}
-                stat="events"
-                formatValue={(v) => `${v} боевых событий`}
-                playerAchievements={playerAchievements}
-                icon={renderMetricIcon("events")}
-                variant="christmas"
-              />
-              <Leaderboard
-                title="Топ по поднятиям"
-                players={leaderboardRevives}
-                stat="revives"
-                playerAchievements={playerAchievements}
-                icon={renderMetricIcon("revives")}
-                variant="christmas"
-              />
-              <Leaderboard
-                title="Топ по хилу"
-                players={leaderboardHeals}
-                stat="heals"
-                playerAchievements={playerAchievements}
-                icon={renderMetricIcon("heals")}
-                variant="christmas"
-              />
-              <Leaderboard
-                title="Топ по нокам"
-                players={leaderboardDowns}
-                stat="downs"
-                playerAchievements={playerAchievements}
-                icon={renderMetricIcon("downs")}
-                variant="christmas"
-              />
-              <Leaderboard
-                title="Топ по выбитой технике"
-                players={leaderboardVehicle}
-                stat="vehicle"
-                playerAchievements={playerAchievements}
-                icon={renderMetricIcon("vehicle")}
-                variant="christmas"
-              />
-              <AvgStatLeaderboard
-                title="Топ по средней технике за матч"
-                players={leaderboardAvgVehicle}
-                avgStat="avgVehicle"
-                totalStat="vehicle"
-                formatValue={(v) => v.toFixed(2)}
-                playerAchievements={playerAchievements}
-                icon={renderMetricIcon("avgVehicle")}
-                variant="christmas"
-              />
-              <AvgStatLeaderboard
-                title="Топ по среднему хилу за матч"
-                players={leaderboardAvgHeals}
-                avgStat="avgHeals"
-                totalStat="heals"
-                formatValue={(v) => v.toFixed(2)}
-                playerAchievements={playerAchievements}
-                icon={renderMetricIcon("avgHeals")}
-                variant="christmas"
-              />
-              <AvgStatLeaderboard
-                title="Топ по среднему поднятию за матч"
-                players={leaderboardAvgRevives}
-                avgStat="avgRevives"
-                totalStat="revives"
-                formatValue={(v) => v.toFixed(2)}
-                playerAchievements={playerAchievements}
-                icon={renderMetricIcon("avgRevives")}
-                variant="christmas"
-              />
+            <div className="space-y-4">
+              {leaderboardRows.map((row, rowIndex) => {
+                const isExpanded = expandedLeaderboardRows.includes(rowIndex)
+                const isCollapsed = !isExpanded
+                return (
+                  <div key={`leaderboard-row-${rowIndex}`} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {row.map((card) => card.render(isCollapsed, () => toggleLeaderboardRow(rowIndex)))}
+                  </div>
+                )
+              })}
             </div>
           </TabsContent>
 
