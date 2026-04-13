@@ -107,7 +107,7 @@ export function RoleIcon({ role, className }: RoleIconProps) {
   const iconKey = ROLE_ICON_ALIASES[normalizedRole]
 
   if (iconKey === "cast") {
-    return <Video className={cn("h-4 w-4 shrink-0", className)} aria-hidden="true" />
+    return <Users className={cn("h-4 w-4 shrink-0", className)} aria-hidden="true" />
   }
 
   const src = iconKey ? withBasePath(ROLE_ICON_PATHS[iconKey]) : null

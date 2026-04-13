@@ -442,9 +442,7 @@ export function EventsExplorer({
   }
 
   const getRoleTooltipLabel = (player: PastGameSummary["players"][number]) => {
-    const baseRoles = player.roles.length > 0 ? player.roles : [player.role || ""]
-    const hasCastSpec = player.specializations.some((spec) => spec.trim().toLowerCase() === "cast")
-    const labels = Array.from(new Set([...baseRoles, hasCastSpec ? "cast" : ""].filter(Boolean)))
+    const labels = Array.from(new Set((player.roles.length > 0 ? player.roles : [player.role || ""]).filter(Boolean)))
     return labels.length > 0 ? labels.join(", ") : "Без роли"
   }
 
@@ -885,16 +883,7 @@ export function EventsExplorer({
                                           <Tooltip>
                                             <TooltipTrigger asChild>
                                               <div className="flex items-center justify-center gap-1">
-                                                {(
-                                                  player.specializations.some((spec) => spec.trim().toLowerCase() === "cast")
-                                                    ? [
-                                                        ...(player.roles.length > 0 ? player.roles : [player.role || ""]),
-                                                        "cast",
-                                                      ]
-                                                    : player.roles.length > 0
-                                                    ? player.roles
-                                                    : [player.role || ""]
-                                                )
+                                                {(player.roles.length > 0 ? player.roles : [player.role || ""])
                                                   .filter(Boolean)
                                                   .slice(0, 2)
                                                   .map((role) => (

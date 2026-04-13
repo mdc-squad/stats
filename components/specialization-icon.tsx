@@ -47,7 +47,7 @@ export function normalizeSpecializationKey(value: string | null | undefined): ke
     .replace(/ё/g, "е")
     .replace(/[^a-z0-9а-я]/gi, "")
 
-  if (!normalized || normalized === "cellimage" || normalized === "нет" || normalized === "cast") return ""
+  if (!normalized || normalized === "cellimage" || normalized === "нет") return ""
   if (normalized === "pusher" || normalized === "пушер") return "pusher"
   if (normalized === "anchor" || normalized === "якорь") return "anchor"
   if (normalized === "drg" || normalized === "дрг") return "drg"
@@ -64,6 +64,7 @@ export function getSpecializationLabel(value: string | null | undefined): string
 
 export function getSpecializationEmoji(value: string | null | undefined): string {
   const key = normalizeSpecializationKey(value)
+  if (!key && (value ?? "").trim().toLowerCase() === "cast") return "📷"
   return key ? SPECIALIZATION_EMOJIS[key] : "❔"
 }
 
