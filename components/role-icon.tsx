@@ -1,6 +1,6 @@
 "use client"
 
-import { Users } from "lucide-react"
+import { Users, Video } from "lucide-react"
 import { withBasePath } from "@/lib/base-path"
 import { cn } from "@/lib/utils"
 
@@ -89,6 +89,9 @@ const ROLE_ICON_ALIASES: Record<string, string> = {
   безкита: "unarmed",
   unarmed: "unarmed",
   recruit: "unarmed",
+  cast: "cast",
+  caster: "cast",
+  каст: "cast",
 }
 
 function normalizeRoleKey(value: string | null | undefined): string {
@@ -102,6 +105,11 @@ function normalizeRoleKey(value: string | null | undefined): string {
 export function RoleIcon({ role, className }: RoleIconProps) {
   const normalizedRole = normalizeRoleKey(role)
   const iconKey = ROLE_ICON_ALIASES[normalizedRole]
+
+  if (iconKey === "cast") {
+    return <Video className={cn("h-4 w-4 shrink-0", className)} aria-hidden="true" />
+  }
+
   const src = iconKey ? withBasePath(ROLE_ICON_PATHS[iconKey]) : null
 
   if (!src) {

@@ -26,6 +26,16 @@ function normalizeSquadToken(value: SquadIdentifier): string {
   return ""
 }
 
+export function isSelectableSquadLabel(value: SquadIdentifier): boolean {
+  const normalized = normalizeSquadToken(value).toLowerCase()
+
+  if (!normalized || normalized === "без отряда") {
+    return false
+  }
+
+  return !/^(?:0|0\s+(?:отряд|сквад|squad)|(?:отряд|сквад|squad)\s+0)$/.test(normalized)
+}
+
 export function getSquadLabel(squadNo: SquadIdentifier, squadDomain: string[] = []): string {
   const normalized = normalizeSquadToken(squadNo)
   if (!normalized) {

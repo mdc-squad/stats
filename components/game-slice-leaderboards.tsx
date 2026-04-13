@@ -156,6 +156,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
         downs: number
         deaths: number
         revives: number
+        heals: number
         elo: number
         ticketDiffTotal: number
         ticketDiffSamples: number
@@ -270,6 +271,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
             downs: 0,
             deaths: 0,
             revives: 0,
+            heals: 0,
             elo: 0,
             ticketDiffTotal: 0,
             ticketDiffSamples: 0,
@@ -284,6 +286,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
         entry.downs += player.downs
         entry.deaths += player.deaths
         entry.revives += player.revives
+        entry.heals += player.heals
         entry.elo += player.elo
 
         const ticketDiff = getTicketDiff(game)
@@ -328,6 +331,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
         avgKills: entry.matches > 0 ? entry.kills / entry.matches : 0,
         avgDowns: entry.matches > 0 ? entry.downs / entry.matches : 0,
         avgRevives: entry.matches > 0 ? entry.revives / entry.matches : 0,
+        avgHeals: entry.matches > 0 ? entry.heals / entry.matches : 0,
         avgElo: entry.matches > 0 ? entry.elo / entry.matches : 0,
         kd: entry.deaths > 0 ? entry.kills / entry.deaths : entry.kills,
       })),
@@ -471,8 +475,8 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           subtitle: `${entry.matches} игр • WR ${entry.winRate.toFixed(0)}%`,
           metricLabel: "Поднятия",
           metric: entry.avgRevives.toFixed(1),
-          helperLabel: "Ср. поднятий",
-          helper: entry.avgRevives.toFixed(1),
+          helperLabel: "Ср. хил",
+          helper: entry.avgHeals.toFixed(1),
           steamId: entry.steam_id,
           nickname: entry.nickname,
         })),
@@ -522,7 +526,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-base font-semibold text-christmas-snow">Игровые лидерборды</p>
         <Badge variant="outline" className="border-christmas-gold/30 text-christmas-gold">
-          {leaderboards.matchCount} матчей в срезе
+          {leaderboards.matchCount} матчей по фильтру игроков
         </Badge>
       </div>
 
@@ -531,14 +535,14 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           title="Лёгкие оппоненты"
           subtitle="Оппоненты, против которых лучшая средняя разница по тикетам и стабильно побеждаем."
           items={leaderboards.bestOpponents}
-          emptyText="Недостаточно матчей с выраженно успешными оппонентами в текущем срезе."
+          emptyText="Недостаточно матчей с выраженно успешными оппонентами по текущему фильтру."
           icon={Trophy}
         />
         <SliceLeaderboardCard
           title="Сложные оппоненты"
           subtitle="Оппоненты, против которых худшая средняя разница по тикетам и часто проигрываем."
           items={leaderboards.hardOpponents}
-          emptyText="В текущем срезе нет выраженных проблемных оппонентов."
+          emptyText="По текущему фильтру нет выраженных проблемных оппонентов."
           icon={Skull}
         />
         <SliceLeaderboardCard
@@ -552,14 +556,14 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           title="Лучшие медики"
           subtitle="Больше всего поднятий против конкретных кланов."
           items={leaderboards.medicOpponents}
-          emptyText="Нет устойчивых срезов по поднятиям в текущем срезе."
+          emptyText="Нет устойчивых подборок по поднятиям по текущему фильтру."
           icon={RevivesIcon}
         />
         <SliceLeaderboardCard
           title="Лучшие Убийцы"
           subtitle="Больше всего убийств против конкретного оппонента."
           items={leaderboards.killerOpponents}
-          emptyText="Недостаточно данных для персональных срезов по убийствам."
+          emptyText="Недостаточно данных для персональной выборки по убийствам."
           icon={Crosshair}
         />
         <SliceLeaderboardCard
