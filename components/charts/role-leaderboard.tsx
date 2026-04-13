@@ -85,9 +85,7 @@ export function RoleLeaderboard({
 }: RoleLeaderboardProps) {
   const [showAll, setShowAll] = useState(false)
 
-  if (players.length === 0 && isCollapsed) {
-    return null
-  }
+  if (players.length === 0) return null
 
   const getMedal = (index: number) => {
     if (index === 0) return "🥇"

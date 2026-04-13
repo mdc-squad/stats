@@ -2131,7 +2131,7 @@ export default function YearReviewPage() {
                     {row.map(({ role, players }) => (
                       <RoleLeaderboard
                         key={role}
-                        players={isCollapsed ? [] : players}
+                        players={players}
                         role={role}
                         metric={selectedRoleMetric}
                         playerAchievements={playerAchievements}
