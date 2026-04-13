@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { ChevronDown } from "lucide-react"
 import { PlayerAvatar } from "@/components/player-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,6 +22,8 @@ interface BestMatchesProps {
   players: { player_id: string; steam_id: string }[]
   title?: string
   metric?: MatchRecordMetric
+  isCollapsed?: boolean
+  onToggleCollapse?: () => void
 }
 
 const DEFAULT_COLLAPSED_COUNT = 10
@@ -92,6 +95,8 @@ export function BestMatches({
   players,
   title = "Рекорды по K/D",
   metric = "kd",
+  isCollapsed = false,
+  onToggleCollapse,
 }: BestMatchesProps) {
   const [showAll, setShowAll] = useState(false)
   const TitleIcon = getMetricIcon(metric)
@@ -121,55 +126,69 @@ export function BestMatches({
               {showAll ? `Игроков в топе: ${sortedMatches.length}` : `Показано: ${visibleRecords.length} из ${sortedMatches.length}`}
             </p>
           </div>
-          {canExpand && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 shrink-0 border-christmas-gold/35 bg-christmas-gold/10 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-christmas-snow hover:border-christmas-gold/60 hover:bg-christmas-gold/20"
-              onClick={() => setShowAll((current) => !current)}
-            >
-              {showAll ? "Свернуть" : "Весь топ"}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {canExpand && !isCollapsed && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0 border-christmas-gold/35 bg-christmas-gold/10 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-christmas-snow hover:border-christmas-gold/60 hover:bg-christmas-gold/20"
+                onClick={() => setShowAll((current) => !current)}
+              >
+                {showAll ? "Свернуть" : "Весь топ"}
+              </Button>
+            )}
+            {onToggleCollapse && (
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                aria-label={isCollapsed ? "Развернуть лидерборд" : "Свернуть лидерборд"}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/40 text-muted-foreground transition-colors hover:text-christmas-snow"
+              >
+                <ChevronDown className={cn("h-4 w-4 transition-transform", !isCollapsed && "rotate-180")} />
+              </button>
+            )}
+          </div>
         </CardHeader>
-        <CardContent className={cn("flex flex-col", showAll && "min-h-0 flex-1")}>
-          {sortedMatches.length === 0 && <p className="text-sm text-muted-foreground">Нет данных по матчам</p>}
-          {sortedMatches.length > 0 && (
-            <div className={cn("pr-2", showAll && "min-h-0 flex-1 overflow-y-auto")}>
-              <div className="space-y-1.5">
-                {visibleRecords.map((match, index) => (
-                  <div
-                    key={`${match.event_id}-${match.player_id}-${match.role}-${match.map}-${index}`}
-                    className={`rounded-md px-2 py-1.5 transition-colors ${index < 3 ? "bg-secondary/50" : ""}`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="w-6 pt-1 text-center font-mono text-sm text-christmas-snow">
-                        {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}.`}
-                      </span>
-                      <PlayerAvatar steamId={match.steam_id} nickname={match.nickname} size="sm" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="truncate text-sm font-medium text-christmas-snow">{match.nickname}</p>
+        {isCollapsed ? null : (
+          <CardContent className={cn("flex flex-col", showAll && "min-h-0 flex-1")}>
+            {sortedMatches.length === 0 && <p className="text-sm text-muted-foreground">Нет данных по матчам</p>}
+            {sortedMatches.length > 0 && (
+              <div className={cn("pr-2", showAll && "min-h-0 flex-1 overflow-y-auto")}>
+                <div className="space-y-1.5">
+                  {visibleRecords.map((match, index) => (
+                    <div
+                      key={`${match.event_id}-${match.player_id}-${match.role}-${match.map}-${index}`}
+                      className={`rounded-md px-2 py-1.5 transition-colors ${index < 3 ? "bg-secondary/50" : ""}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="w-6 pt-1 text-center font-mono text-sm text-christmas-snow">
+                          {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}.`}
+                        </span>
+                        <PlayerAvatar steamId={match.steam_id} nickname={match.nickname} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="truncate text-sm font-medium text-christmas-snow">{match.nickname}</p>
+                              </div>
+                              <p className="mt-1 truncate text-xs text-muted-foreground">
+                                {match.map} • {match.role} • {match.kills}K / {match.deaths}D / {match.downs}Н
+                              </p>
                             </div>
-                            <p className="mt-1 truncate text-xs text-muted-foreground">
-                              {match.map} • {match.role} • {match.kills}K / {match.deaths}D / {match.downs}Н
-                            </p>
+                            <Badge variant="outline" className="border-christmas-gold/30 font-mono text-christmas-gold">
+                              {getMetricLabel(metric)}: {getMetricValue(match, metric)}
+                            </Badge>
                           </div>
-                          <Badge variant="outline" className="border-christmas-gold/30 font-mono text-christmas-gold">
-                            {getMetricLabel(metric)}: {getMetricValue(match, metric)}
-                          </Badge>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </CardContent>
+            )}
+          </CardContent>
+        )}
       </Card>
     </div>
   )
