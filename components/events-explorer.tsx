@@ -21,7 +21,7 @@ import { getMetricIcon } from "@/lib/app-icons"
 import { getEventSizeLabel, type PastGameSummary, type Player } from "@/lib/data-utils"
 import { getSquadToneClasses, isSelectableSquadLabel } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
-import { ArrowLeftRight, Filter, Search, Shield, Users, Video } from "lucide-react"
+import { ArrowLeftRight, Filter, Play, Search, Shield, Users, Video } from "lucide-react"
 
 interface EventsExplorerProps {
   games: PastGameSummary[]
@@ -828,7 +828,7 @@ export function EventsExplorer({
                             </div>
 
                             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
-                              <Video className="h-3.5 w-3.5 text-christmas-snow" />
+                              <Play className="h-3.5 w-3.5 text-christmas-snow" />
                               <span className="text-muted-foreground">Запись</span>
                               {recordingUrl ? (
                                 <a
