@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
-import { ChevronDown } from "lucide-react"
+import { useEffect, useState } from "react"
 import { AchievementBadges } from "@/components/achievement-badges"
 import { PlayerAvatar } from "@/components/player-avatar"
 import { Badge } from "@/components/ui/badge"
@@ -38,7 +37,6 @@ interface RoleLeaderboardProps {
   playerAchievements?: Record<string, string[]>
   collapsedCount?: number
   isCollapsed?: boolean
-  onToggleCollapse?: () => void
 }
 
 const METRIC_LABELS: Record<RoleLeaderboardMetric, string> = {
@@ -81,9 +79,14 @@ export function RoleLeaderboard({
   playerAchievements,
   collapsedCount = DEFAULT_COLLAPSED_COUNT,
   isCollapsed = false,
-  onToggleCollapse,
 }: RoleLeaderboardProps) {
   const [showAll, setShowAll] = useState(false)
+
+  useEffect(() => {
+    if (isCollapsed) {
+      setShowAll(false)
+    }
+  }, [isCollapsed])
 
   if (players.length === 0) return null
 
@@ -112,29 +115,17 @@ export function RoleLeaderboard({
                 : `Минимум 10 игр на роли • показано ${visiblePlayers.length} из ${players.length}`}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {canExpand && !isCollapsed && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 shrink-0 border-christmas-gold/35 bg-christmas-gold/10 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-christmas-snow hover:border-christmas-gold/60 hover:bg-christmas-gold/20"
-                onClick={() => setShowAll((current) => !current)}
-              >
-                {showAll ? "Свернуть" : "Весь топ"}
-              </Button>
-            )}
-            {onToggleCollapse && (
-              <button
-                type="button"
-                onClick={onToggleCollapse}
-                aria-label={isCollapsed ? "Развернуть лидерборд" : "Свернуть лидерборд"}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/40 text-muted-foreground transition-colors hover:text-christmas-snow"
-              >
-                <ChevronDown className={cn("h-4 w-4 transition-transform", !isCollapsed && "rotate-180")} />
-              </button>
-            )}
-          </div>
+          {canExpand && !isCollapsed && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0 border-christmas-gold/35 bg-christmas-gold/10 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-christmas-snow hover:border-christmas-gold/60 hover:bg-christmas-gold/20"
+              onClick={() => setShowAll((current) => !current)}
+            >
+              {showAll ? "Свернуть" : "Весь топ"}
+            </Button>
+          )}
         </CardHeader>
         {isCollapsed ? null : (
           <CardContent className={cn("flex flex-col", showAll && "min-h-0 flex-1")}>
