@@ -19,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getMetricIcon } from "@/lib/app-icons"
 import { getEventSizeLabel, type PastGameSummary, type Player } from "@/lib/data-utils"
-import { getSquadToneKey, isSelectableSquadLabel } from "@/lib/squad-utils"
+import { getSquadToneClasses, getSquadToneKey, isSelectableSquadLabel } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
 import { ArrowLeftRight, Filter, Search, Shield, Video } from "lucide-react"
 
@@ -742,6 +742,14 @@ export function EventsExplorer({
                     className: "border-slate-400/20 bg-slate-400/10",
                   },
                 ]
+                const gameSquadLabels = Array.from(
+                  new Set(
+                    game.players.flatMap((player) => {
+                      const labels = player.squad_labels.length > 0 ? player.squad_labels : [player.squad_label]
+                      return labels.filter((label): label is string => isSelectableSquadLabel(label))
+                    }),
+                  ),
+                )
 
                 return (
                   <Card
@@ -806,6 +814,32 @@ export function EventsExplorer({
 
                       <AccordionContent className="px-2.5 pb-2.5">
                         <div className="space-y-3">
+                          {gameSquadLabels.length > 0 && (
+                            <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3.5">
+                              <div className="mb-3 flex items-center justify-center gap-2">
+                                <Shield className="h-4 w-4 text-christmas-gold" />
+                                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Цвета отрядов</p>
+                              </div>
+                              <div className="flex flex-wrap justify-center gap-1.5">
+                                {gameSquadLabels.map((squadLabel) => {
+                                  const tone = getSquadToneClasses(squadLabel)
+                                  return (
+                                    <span
+                                      key={`${game.event_id}-${squadLabel}`}
+                                      className={cn(
+                                        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold uppercase",
+                                        tone.badge,
+                                      )}
+                                    >
+                                      <span className={cn("h-2.5 w-2.5 rounded-full", tone.dot)} />
+                                      <span>{squadLabel}</span>
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+
                           <div className="flex flex-wrap items-center justify-end gap-2">
                             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
                               <Shield className="h-3.5 w-3.5 text-christmas-snow" />
