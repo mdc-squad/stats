@@ -1,18 +1,15 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import type { LucideIcon } from "lucide-react"
-import { MultiValueFilter, type MultiValueFilterOption } from "@/components/multi-value-filter"
 import { PlayerSelector } from "@/components/player-selector"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { getMetricIcon } from "@/lib/app-icons"
 import type { PastGamePlayerStat, PastGameSummary, Player } from "@/lib/data-utils"
-import { isSelectableSquadLabel } from "@/lib/squad-utils"
-import { ArrowLeftRight, Activity, Plus, TrendingUp, X } from "lucide-react"
+import { getSquadToneKey, isSelectableSquadLabel } from "@/lib/squad-utils"
+import { ArrowLeftRight, Activity, TrendingUp } from "lucide-react"
 
 type AnalyticsMetric =
   | "winRate"
@@ -74,9 +71,12 @@ type ComparisonSeries = {
 
 type ChartBuilderConfig = {
   id: string
+  title: string
+  description: string
   metrics: AnalyticsMetric[]
   mode: AnalyticsMode
   breakdown: AnalyticsBreakdown
+  referenceMetrics: AnalyticsMetric[]
 }
 
 type ChartLine = {
@@ -148,11 +148,6 @@ const METRIC_ORDER: AnalyticsMetric[] = [
   "elo",
 ]
 
-const METRIC_OPTIONS: MultiValueFilterOption[] = METRIC_ORDER.map((metric) => ({
-  value: metric,
-  label: METRIC_LABELS[metric],
-}))
-
 const LINE_COLOR_PALETTE = [
   "#ef4444",
   "#22c55e",
@@ -172,16 +167,59 @@ const TOOLTIP_VISIBLE_ROWS = 10
 const TOOLTIP_ROW_HEIGHT_PX = 24
 const MAX_COMPARISON_SERIES = 6
 
-let chartConfigCounter = 1
+const SQUAD_LINE_COLORS: Record<string, string> = {
+  red: "#fb7185",
+  blue: "#38bdf8",
+  green: "#34d399",
+  yellow: "#fbbf24",
+  orange: "#fb923c",
+  purple: "#a78bfa",
+  pink: "#f472b6",
+  cyan: "#22d3ee",
+  brown: "#b45309",
+  black: "#cbd5e1",
+  white: "#f8fafc",
+  neutral: "#94a3b8",
+}
 
-function createChartConfig(): ChartBuilderConfig {
-  return {
-    id: `chart-${chartConfigCounter++}`,
-    metrics: ["ticketDiff", "kd", "winRate"],
+const PRESET_CHART_CONFIGS: ChartBuilderConfig[] = [
+  {
+    id: "result-ticketdiff",
+    title: "Результат и разница тикетов",
+    description: "Проверяет, как изменение средней разницы тикетов совпадает с изменением WR.",
+    metrics: ["ticketDiff", "winRate"],
     mode: "cumulative",
     breakdown: "overall",
-  }
-}
+    referenceMetrics: ["ticketDiff"],
+  },
+  {
+    id: "combat-efficiency",
+    title: "Боевая эффективность и WR",
+    description: "Сравнивает K/D и KDA с динамикой побед, чтобы увидеть, что сильнее связано с результатом.",
+    metrics: ["kd", "kda", "winRate"],
+    mode: "cumulative",
+    breakdown: "overall",
+    referenceMetrics: ["kd"],
+  },
+  {
+    id: "squad-kd",
+    title: "Отряды по цветам: K/D",
+    description: "Показывает динамику K/D каждого цветового отряда. Цвет линии совпадает с цветом отряда.",
+    metrics: ["kd"],
+    mode: "cumulative",
+    breakdown: "squad",
+    referenceMetrics: [],
+  },
+  {
+    id: "squad-support",
+    title: "Отряды по цветам: поддержка",
+    description: "Сравнивает средние поднятия по цветам отрядов, чтобы увидеть вклад поддержки.",
+    metrics: ["revives"],
+    mode: "cumulative",
+    breakdown: "squad",
+    referenceMetrics: [],
+  },
+]
 
 function formatMatchDate(value: string): string {
   if (!value) return "N/A"
@@ -427,7 +465,7 @@ function getSeriesCandidates(
     return left.label.localeCompare(right.label, "ru")
   })
 
-  return sortedCandidates.slice(0, MAX_COMPARISON_SERIES)
+  return breakdown === "squad" ? sortedCandidates : sortedCandidates.slice(0, MAX_COMPARISON_SERIES)
 }
 
 function buildComparisonSeries(
@@ -494,7 +532,11 @@ function getChartLineLabel(metric: AnalyticsMetric, seriesLabel: string, metricC
   return `${METRIC_LABELS[metric]} • ${seriesLabel}`
 }
 
-function getChartLineColor(metric: AnalyticsMetric, seriesIndex: number): string {
+function getChartLineColor(metric: AnalyticsMetric, seriesIndex: number, breakdown: AnalyticsBreakdown, seriesLabel: string): string {
+  if (breakdown === "squad") {
+    return SQUAD_LINE_COLORS[getSquadToneKey(seriesLabel)]
+  }
+
   const metricIndex = METRIC_ORDER.indexOf(metric)
   const paletteIndex = (metricIndex * 5 + seriesIndex * 2) % LINE_COLOR_PALETTE.length
   return LINE_COLOR_PALETTE[paletteIndex]
@@ -572,7 +614,7 @@ function buildChartModel(games: PastGameSummary[], selectedPlayerIds: Set<string
       rawDataKey: getRawChartDataKey(metric, series.key),
       label: getChartLineLabel(metric, series.label, config.metrics.length, comparisonSeries.length),
       matches: series.matches,
-      color: getChartLineColor(metric, seriesIndex),
+      color: getChartLineColor(metric, seriesIndex, config.breakdown, series.label),
       metric,
     })),
   )
@@ -752,8 +794,6 @@ export function EventsAnalyticsPanel({
   selectedPlayerIds,
   onSelectedPlayerIdsChange,
 }: EventsAnalyticsPanelProps) {
-  const [chartConfigs, setChartConfigs] = useState<ChartBuilderConfig[]>(() => [createChartConfig()])
-
   const analyticsPlayers = useMemo(
     () => players.filter((player) => player.totals?.events > 0).sort((left, right) => left.nickname.localeCompare(right.nickname, "ru")),
     [players],
@@ -762,27 +802,9 @@ export function EventsAnalyticsPanel({
 
   const summary = useMemo(() => buildAnalyticsSummary(games, selectedSet), [games, selectedSet])
   const chartModels = useMemo(
-    () => chartConfigs.map((config) => ({ config, model: buildChartModel(games, selectedSet, config) })),
-    [chartConfigs, games, selectedSet],
+    () => PRESET_CHART_CONFIGS.map((config) => ({ config, model: buildChartModel(games, selectedSet, config) })),
+    [games, selectedSet],
   )
-
-  const addChart = () => {
-    setChartConfigs((current) => [...current, createChartConfig()])
-  }
-
-  const updateChartConfig = (chartId: string, patch: Partial<ChartBuilderConfig>) => {
-    setChartConfigs((current) => current.map((config) => (config.id === chartId ? { ...config, ...patch } : config)))
-  }
-
-  const removeChart = (chartId: string) => {
-    setChartConfigs((current) => {
-      if (current.length <= 1) {
-        return current
-      }
-
-      return current.filter((config) => config.id !== chartId)
-    })
-  }
 
   const summaryCards = [
     {
@@ -879,15 +901,6 @@ export function EventsAnalyticsPanel({
             <TrendingUp className="w-4 h-4 text-christmas-gold" />
             Статистика и аналитика игр
           </CardTitle>
-          <Button
-            type="button"
-            variant="outline"
-            className="border-christmas-gold/20 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10"
-            onClick={addChart}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Добавить график ниже
-          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -910,84 +923,17 @@ export function EventsAnalyticsPanel({
         </div>
 
         <div className="space-y-4">
-          {chartModels.map(({ config, model }, index) => (
+          {chartModels.map(({ config, model }) => (
             <Card key={config.id} className="border-border/50 bg-background/25">
               <CardContent className="space-y-4 pt-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="space-y-1">
-                    <p className="text-sm font-semibold text-christmas-snow">График {index + 1}</p>
+                    <p className="text-sm font-semibold text-christmas-snow">{config.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {BREAKDOWN_LABELS[config.breakdown]} • {config.mode === "cumulative" ? "кумулятивно" : "по матчам"} •{" "}
                       {selectedPlayerIds.length > 0 ? `игроки: ${selectedPlayerIds.length}` : "игроки: весь состав"}
                     </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-christmas-gold/20 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10"
-                      onClick={addChart}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Ниже
-                    </Button>
-                    {chartConfigs.length > 1 ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="border-border/60 bg-background/40 text-muted-foreground hover:bg-background/70 hover:text-christmas-snow"
-                        onClick={() => removeChart(config.id)}
-                      >
-                        <X className="mr-2 h-4 w-4" />
-                        Удалить
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.8fr)_repeat(2,minmax(0,0.9fr))]">
-                  <div className="space-y-2">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Метрики</p>
-                    <MultiValueFilter
-                      options={METRIC_OPTIONS}
-                      selected={config.metrics}
-                      onSelectionChange={(values) => updateChartConfig(config.id, { metrics: values as AnalyticsMetric[] })}
-                      placeholder="Одна или несколько метрик..."
-                      searchPlaceholder="Поиск по метрикам..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Режим</p>
-                    <Select value={config.mode} onValueChange={(value) => updateChartConfig(config.id, { mode: value as AnalyticsMode })}>
-                      <SelectTrigger className="w-full border-christmas-gold/20 bg-background/50 text-christmas-snow">
-                        <SelectValue placeholder="Режим" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cumulative">Кумулятивно</SelectItem>
-                        <SelectItem value="per_match">По матчам</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Группировка</p>
-                    <Select
-                      value={config.breakdown}
-                      onValueChange={(value) => updateChartConfig(config.id, { breakdown: value as AnalyticsBreakdown })}
-                    >
-                      <SelectTrigger className="w-full border-christmas-gold/20 bg-background/50 text-christmas-snow">
-                        <SelectValue placeholder="Группировка" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="overall">Весь состав</SelectItem>
-                        <SelectItem value="opponent">По оппонентам</SelectItem>
-                        <SelectItem value="map">По картам</SelectItem>
-                        <SelectItem value="faction">По фракциям</SelectItem>
-                        <SelectItem value="result">По результатам</SelectItem>
-                        <SelectItem value="squad">По отрядам</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <p className="text-xs text-muted-foreground">{config.description}</p>
                   </div>
                 </div>
 
@@ -1024,7 +970,15 @@ export function EventsAnalyticsPanel({
                           variant="outline"
                           className="justify-start gap-2 border-border/60 bg-background/30 px-2 py-1 text-left text-muted-foreground"
                         >
-                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: line.color }} />
+                          <span
+                            className="h-2.5 w-5 rounded-full"
+                            style={{
+                              background:
+                                config.referenceMetrics.includes(line.metric)
+                                  ? `repeating-linear-gradient(90deg, ${line.color} 0 4px, transparent 4px 7px)`
+                                  : line.color,
+                            }}
+                          />
                           <span className="text-christmas-snow">{line.label}</span>
                           <span>{line.matches} игр</span>
                         </Badge>
@@ -1062,20 +1016,21 @@ export function EventsAnalyticsPanel({
                               return left.matches - right.matches
                             })
                             .map((line) => (
-                            <Line
-                              key={line.key}
-                              type="monotone"
-                              dataKey={line.dataKey}
-                              name={line.label}
-                              stroke={line.color}
-                              strokeWidth={config.metrics.length > 1 ? 2.4 : 2.2}
-                              strokeOpacity={config.metrics.length > 1 ? 0.9 : 1}
-                              dot={false}
-                              connectNulls={config.mode === "cumulative"}
-                              activeDot={{ r: 4, fill: line.color }}
-                              style={{ zIndex: 10 + METRIC_ORDER.indexOf(line.metric) }}
-                            />
-                          ))}
+                              <Line
+                                key={line.key}
+                                type="monotone"
+                                dataKey={line.dataKey}
+                                name={line.label}
+                                stroke={line.color}
+                                strokeWidth={config.metrics.length > 1 ? 2.4 : 2.2}
+                                strokeOpacity={config.metrics.length > 1 ? 0.9 : 1}
+                                strokeDasharray={config.referenceMetrics.includes(line.metric) ? "6 4" : undefined}
+                                dot={false}
+                                connectNulls={config.mode === "cumulative"}
+                                activeDot={{ r: 4, fill: line.color }}
+                                style={{ zIndex: 10 + METRIC_ORDER.indexOf(line.metric) }}
+                              />
+                            ))}
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
