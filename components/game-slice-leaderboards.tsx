@@ -35,6 +35,8 @@ type LeaderboardCardConfig = {
   icon: typeof Trophy
 }
 
+const GAME_LEADERBOARD_LIMIT = 10
+
 function getTicketDiff(game: Pick<PastGameSummary, "tickets_1" | "tickets_2" | "score">): number | null {
   if (game.score !== null) {
     return game.score
@@ -446,7 +448,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           if (right.avgTicketDiff !== left.avgTicketDiff) return right.avgTicketDiff - left.avgTicketDiff
           return right.matches - left.matches
         })
-        .slice(0, 5)
+        .slice(0, GAME_LEADERBOARD_LIMIT)
         .map<LeaderboardItem>((entry) => ({
           key: `best-${entry.opponent}`,
           label: entry.opponent,
@@ -463,7 +465,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           if (left.avgTicketDiff !== right.avgTicketDiff) return left.avgTicketDiff - right.avgTicketDiff
           return right.matches - left.matches
         })
-        .slice(0, 5)
+        .slice(0, GAME_LEADERBOARD_LIMIT)
         .map<LeaderboardItem>((entry) => ({
           key: `hard-${entry.opponent}`,
           label: entry.opponent,
@@ -479,7 +481,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           if (right.winRate !== left.winRate) return right.winRate - left.winRate
           return right.matches - left.matches
         })
-        .slice(0, 5)
+        .slice(0, GAME_LEADERBOARD_LIMIT)
         .map<LeaderboardItem>((entry) => ({
           key: `combo-${entry.label}`,
           label: entry.label,
@@ -495,7 +497,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           if (right.avgTicketDiff !== left.avgTicketDiff) return right.avgTicketDiff - left.avgTicketDiff
           return right.matches - left.matches
         })
-        .slice(0, 5)
+        .slice(0, GAME_LEADERBOARD_LIMIT)
         .map<LeaderboardItem>((entry) => ({
           key: `medic-${entry.player_id}-${entry.opponent}`,
           label: `${entry.nickname} • ${entry.opponent}`,
@@ -514,7 +516,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           if (right.kd !== left.kd) return right.kd - left.kd
           return right.matches - left.matches
         })
-        .slice(0, 5)
+        .slice(0, GAME_LEADERBOARD_LIMIT)
         .map<LeaderboardItem>((entry) => ({
           key: `killer-${entry.player_id}-${entry.opponent}`,
           label: `${entry.nickname} • ${entry.opponent}`,
@@ -532,7 +534,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           if (right.kd !== left.kd) return right.kd - left.kd
           return right.matches - left.matches
         })
-        .slice(0, 5)
+        .slice(0, GAME_LEADERBOARD_LIMIT)
         .map<LeaderboardItem>((entry) => ({
           key: `strong-${entry.player_id}`,
           label: entry.nickname,
