@@ -568,7 +568,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
                   <div className="flex min-h-[82px] items-center justify-center">
                     {currentSlide.id === "dcia" ? (
                       <span className="flex flex-col items-center text-center font-black uppercase tracking-[0.28em] text-christmas-snow">
-                        <span className="text-2xl md:text-3xl">Коалиция</span>
+                        <span className="text-xl md:text-2xl">Коалиция</span>
                         <span className="text-3xl md:text-4xl">DCAI</span>
                       </span>
                     ) : (
