@@ -338,12 +338,12 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
         },
         {
           id: "dcia",
-          title: "De Caelo ad Infernos",
+          title: "De Caelo Ad Infernos",
           subtitle: theme.subtitle,
           tagline: null,
           emblemSrc: withBasePath("/dcia-emblem.png"),
           emblemAlt: "Эмблема коалиции DCIA",
-          heroLabel: "Коалиция DCIA",
+          heroLabel: "Коалиция\nDCAI",
           playersLabel: "Коалиция",
           playersValue: String(coalitionPlayersCount),
           dateLabel: "Основан",
@@ -566,7 +566,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
                   </>
                 ) : (
                   <div className="flex min-h-[82px] items-center justify-center">
-                    <span className="text-3xl font-black uppercase tracking-[0.28em] text-christmas-snow md:text-4xl">
+                    <span className="whitespace-pre-line text-center text-3xl font-black uppercase tracking-[0.28em] text-christmas-snow md:text-4xl">
                       {currentSlide.heroLabel}
                     </span>
                   </div>
