@@ -19,9 +19,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getMetricIcon } from "@/lib/app-icons"
 import { getEventSizeLabel, type PastGameSummary, type Player } from "@/lib/data-utils"
-import { getSquadToneClasses, getSquadToneKey, isSelectableSquadLabel } from "@/lib/squad-utils"
+import { getSquadToneClasses, isSelectableSquadLabel } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
-import { ArrowLeftRight, Filter, Search, Shield, Video } from "lucide-react"
+import { ArrowLeftRight, Filter, Search, Shield, Users, Video } from "lucide-react"
 
 interface EventsExplorerProps {
   games: PastGameSummary[]
@@ -459,42 +459,6 @@ export function EventsExplorer({
     return "border-l-2 border-christmas-gold/50 bg-christmas-gold/5 hover:bg-christmas-gold/15"
   }
 
-  const getSquadLabelClassName = (squadLabel: string | null | undefined, isHighlighted: boolean) => {
-    if (!squadLabel || squadLabel.trim() === "" || squadLabel === "0") {
-      return "text-muted-foreground"
-    }
-    if (isHighlighted) {
-      return "text-christmas-gold"
-    }
-
-    switch (getSquadToneKey(squadLabel)) {
-      case "red":
-        return "text-rose-300"
-      case "blue":
-        return "text-sky-300"
-      case "green":
-        return "text-emerald-300"
-      case "yellow":
-        return "text-amber-300"
-      case "orange":
-        return "text-orange-300"
-      case "purple":
-        return "text-violet-300"
-      case "pink":
-        return "text-pink-300"
-      case "cyan":
-        return "text-cyan-300"
-      case "brown":
-        return "text-amber-200"
-      case "black":
-        return "text-slate-300"
-      case "white":
-        return "text-zinc-200"
-      default:
-        return "text-christmas-snow"
-    }
-  }
-
   return (
     <div className="space-y-4">
       <Card className="border-christmas-gold/20 bg-card/70">
@@ -742,14 +706,14 @@ export function EventsExplorer({
                     className: "border-slate-400/20 bg-slate-400/10",
                   },
                 ]
-                const gameSquadLabels = Array.from(
-                  new Set(
-                    game.players.flatMap((player) => {
-                      const labels = player.squad_labels.length > 0 ? player.squad_labels : [player.squad_label]
-                      return labels.filter((label): label is string => isSelectableSquadLabel(label))
-                    }),
-                  ),
-                )
+                const reserveLabel =
+                  game.reservePlayers.length > 0
+                    ? game.reservePlayers.map((player) => (player.tag ? `${player.tag} ${player.nickname}` : player.nickname)).join(", ")
+                    : "нет"
+                const casterLabel =
+                  game.casters.length > 0
+                    ? game.casters.map((player) => (player.tag ? `${player.tag} ${player.nickname}` : player.nickname)).join(", ")
+                    : "нет"
 
                 return (
                   <Card
@@ -814,39 +778,25 @@ export function EventsExplorer({
 
                       <AccordionContent className="px-2.5 pb-2.5">
                         <div className="space-y-3">
-                          {gameSquadLabels.length > 0 && (
-                            <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3.5">
-                              <div className="mb-3 flex items-center justify-center gap-2">
-                                <Shield className="h-4 w-4 text-christmas-gold" />
-                                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Цвета отрядов</p>
-                              </div>
-                              <div className="flex flex-wrap justify-center gap-1.5">
-                                {gameSquadLabels.map((squadLabel) => {
-                                  const tone = getSquadToneClasses(squadLabel)
-                                  return (
-                                    <span
-                                      key={`${game.event_id}-${squadLabel}`}
-                                      className={cn(
-                                        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold uppercase",
-                                        tone.badge,
-                                      )}
-                                    >
-                                      <span className={cn("h-2.5 w-2.5 rounded-full", tone.dot)} />
-                                      <span>{squadLabel}</span>
-                                    </span>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          )}
-
                           <div className="flex flex-wrap items-center justify-end gap-2">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
+                              <Users className="h-3.5 w-3.5 text-christmas-snow" />
+                              <span className="text-muted-foreground">Резерв</span>
+                              <span className="font-semibold text-christmas-snow">{reserveLabel}</span>
+                            </div>
+
                             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
                               <Shield className="h-3.5 w-3.5 text-christmas-snow" />
                               <span className="text-muted-foreground">MVP</span>
                               <span className="font-semibold text-christmas-snow">
                                 {game.topPerformer ? `${game.topPerformer.nickname} • #${game.topPerformer.rank}` : "Нет данных"}
                               </span>
+                            </div>
+
+                            <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
+                              <Video className="h-3.5 w-3.5 text-christmas-snow" />
+                              <span className="text-muted-foreground">Кастер</span>
+                              <span className="font-semibold text-christmas-snow">{casterLabel}</span>
                             </div>
 
                             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
@@ -899,6 +849,7 @@ export function EventsExplorer({
                                     const isHighlighted =
                                       focusTarget?.eventId === game.event_id && focusTarget.playerId === player.player_id
                                     const eloWidth = Math.max(0, Math.min(100, player.eloShare))
+                                    const squadTone = getSquadToneClasses(player.squad_label)
 
                                     return (
                                       <TableRow key={`${game.event_id}-${player.player_id}`} className={getSquadRowClassName(isHighlighted)}>
@@ -930,10 +881,20 @@ export function EventsExplorer({
                                             </TooltipContent>
                                           </Tooltip>
                                         </TableCell>
-                                        <TableCell
-                                          className={cn("font-medium", getSquadLabelClassName(player.squad_label, isHighlighted))}
-                                        >
-                                          {!player.squad_label || player.squad_label === "0" ? "Без отряда" : player.squad_label}
+                                        <TableCell>
+                                          {isSelectableSquadLabel(player.squad_label) ? (
+                                            <span
+                                              className={cn(
+                                                "inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold uppercase",
+                                                squadTone.badge,
+                                              )}
+                                            >
+                                              <span className={cn("h-2 w-2 rounded-full", squadTone.dot)} />
+                                              <span>{player.squad_label}</span>
+                                            </span>
+                                          ) : (
+                                            <span className="text-muted-foreground">Без отряда</span>
+                                          )}
                                         </TableCell>
                                         <TableCell className="text-center">
                                           <Tooltip>
