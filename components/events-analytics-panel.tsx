@@ -82,6 +82,7 @@ type ChartBuilderConfig = {
 type ChartLine = {
   key: string
   dataKey: string
+  rawDataKey: string
   label: string
   matches: number
   color: string
@@ -91,7 +92,7 @@ type ChartLine = {
 type ChartModel = {
   chartData: Array<Record<string, number | string | null>>
   lines: ChartLine[]
-  lineMetaByDataKey: Record<string, { metric: AnalyticsMetric }>
+  lineMetaByDataKey: Record<string, { metric: AnalyticsMetric; rawDataKey: string }>
   gameCount: number
 }
 
@@ -169,13 +170,14 @@ const LINE_COLOR_PALETTE = [
 
 const TOOLTIP_VISIBLE_ROWS = 10
 const TOOLTIP_ROW_HEIGHT_PX = 24
+const MAX_COMPARISON_SERIES = 6
 
 let chartConfigCounter = 1
 
 function createChartConfig(): ChartBuilderConfig {
   return {
     id: `chart-${chartConfigCounter++}`,
-    metrics: ["kd"],
+    metrics: ["ticketDiff", "kd", "winRate"],
     mode: "cumulative",
     breakdown: "overall",
   }
@@ -229,21 +231,6 @@ function formatMetricValue(metric: AnalyticsMetric, value: number | null | undef
   }
 
   return value.toFixed(1)
-}
-
-function formatAxisValue(value: number, metrics: AnalyticsMetric[]): string {
-  if (!Number.isFinite(value)) {
-    return ""
-  }
-
-  if (metrics.length === 1) {
-    return formatMetricValue(metrics[0], value)
-  }
-
-  const absValue = Math.abs(value)
-  if (absValue >= 100) return Math.round(value).toString()
-  if (absValue >= 10) return value.toFixed(1)
-  return value.toFixed(2)
 }
 
 function getResultKey(game: Pick<PastGameSummary, "is_win">): "win" | "loss" | "unknown" {
@@ -435,10 +422,12 @@ function getSeriesCandidates(
     squadLabels.forEach((label) => addCandidate(label, label))
   })
 
-  return Array.from(counts.values()).sort((left, right) => {
+  const sortedCandidates = Array.from(counts.values()).sort((left, right) => {
     if (right.matches !== left.matches) return right.matches - left.matches
     return left.label.localeCompare(right.label, "ru")
   })
+
+  return sortedCandidates.slice(0, MAX_COMPARISON_SERIES)
 }
 
 function buildComparisonSeries(
@@ -483,6 +472,10 @@ function buildComparisonSeries(
 
 function getChartDataKey(metric: AnalyticsMetric, seriesKey: string): string {
   return `${metric}::${seriesKey}`
+}
+
+function getRawChartDataKey(metric: AnalyticsMetric, seriesKey: string): string {
+  return `raw::${metric}::${seriesKey}`
 }
 
 function getChartLineLabel(metric: AnalyticsMetric, seriesLabel: string, metricCount: number, seriesCount: number): string {
@@ -576,6 +569,7 @@ function buildChartModel(games: PastGameSummary[], selectedPlayerIds: Set<string
     comparisonSeries.map((series, seriesIndex) => ({
       key: `${config.id}-${metric}-${series.key}`,
       dataKey: getChartDataKey(metric, series.key),
+      rawDataKey: getRawChartDataKey(metric, series.key),
       label: getChartLineLabel(metric, series.label, config.metrics.length, comparisonSeries.length),
       matches: series.matches,
       color: getChartLineColor(metric, seriesIndex),
@@ -583,8 +577,8 @@ function buildChartModel(games: PastGameSummary[], selectedPlayerIds: Set<string
     })),
   )
 
-  const lineMetaByDataKey = lines.reduce<Record<string, { metric: AnalyticsMetric }>>((accumulator, line) => {
-    accumulator[line.dataKey] = { metric: line.metric }
+  const lineMetaByDataKey = lines.reduce<Record<string, { metric: AnalyticsMetric; rawDataKey: string }>>((accumulator, line) => {
+    accumulator[line.dataKey] = { metric: line.metric, rawDataKey: line.rawDataKey }
     return accumulator
   }, {})
 
@@ -608,20 +602,44 @@ function buildChartModel(games: PastGameSummary[], selectedPlayerIds: Set<string
         }
 
         const dataKey = getChartDataKey(metric, series.key)
+        const rawDataKey = getRawChartDataKey(metric, series.key)
         const aggregate = series.resolveAggregate(game)
 
         if (aggregate) {
           updateSeriesState(state, aggregate, game)
-          row[dataKey] =
+          const value =
             config.mode === "per_match" ? getPerMatchMetricValue(metric, aggregate, game) : getCumulativeMetricValue(metric, state)
+          row[dataKey] = value
+          row[rawDataKey] = value
           return
         }
 
-        row[dataKey] = config.mode === "cumulative" && state.matches > 0 ? getCumulativeMetricValue(metric, state) : null
+        const value = config.mode === "cumulative" && state.matches > 0 ? getCumulativeMetricValue(metric, state) : null
+        row[dataKey] = value
+        row[rawDataKey] = value
       })
     })
 
     return row
+  })
+
+  lines.forEach((line) => {
+    const values = chartData
+      .map((row) => row[line.rawDataKey])
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value))
+
+    if (values.length === 0) {
+      return
+    }
+
+    const min = Math.min(...values)
+    const max = Math.max(...values)
+    const range = max - min
+
+    chartData.forEach((row) => {
+      const rawValue = row[line.rawDataKey]
+      row[line.dataKey] = typeof rawValue === "number" && Number.isFinite(rawValue) ? (range === 0 ? 50 : ((rawValue - min) / range) * 100) : null
+    })
   })
 
   return {
@@ -645,9 +663,9 @@ function AnalyticsTooltipContent({
     dataKey?: string | number
     name?: string
     value?: number | string | null
-    payload?: { eventLabel?: string }
+    payload?: Record<string, number | string | null | undefined> & { eventLabel?: string }
   }>
-  lineMetaByDataKey: Record<string, { metric: AnalyticsMetric }>
+  lineMetaByDataKey: Record<string, { metric: AnalyticsMetric; rawDataKey: string }>
 }) {
   if (!active || !payload || payload.length === 0) {
     return null
@@ -664,7 +682,7 @@ function AnalyticsTooltipContent({
   const maxHeight = `${TOOLTIP_VISIBLE_ROWS * TOOLTIP_ROW_HEIGHT_PX}px`
 
   return (
-    <div className="w-[310px] rounded-xl border border-border bg-card p-3 text-card-foreground shadow-xl">
+    <div className="pointer-events-auto w-[310px] rounded-xl border border-border bg-card p-3 text-card-foreground shadow-xl">
       <p className="text-sm font-medium text-christmas-snow">
         {label}
         {point?.eventLabel ? ` • ${point.eventLabel}` : ""}
@@ -672,7 +690,7 @@ function AnalyticsTooltipContent({
       <div
         className="mt-2 space-y-1.5 overflow-y-auto pr-1 overscroll-contain"
         style={{ maxHeight }}
-        onWheel={(event) => {
+        onWheelCapture={(event) => {
           event.preventDefault()
           event.stopPropagation()
           event.currentTarget.scrollTop += event.deltaY
@@ -682,7 +700,11 @@ function AnalyticsTooltipContent({
           const numericValue =
             typeof entry.value === "number" ? entry.value : typeof entry.value === "string" ? Number(entry.value) : null
           const dataKey = typeof entry.dataKey === "string" ? entry.dataKey : ""
-          const metric = lineMetaByDataKey[dataKey]?.metric ?? "kd"
+          const meta = lineMetaByDataKey[dataKey]
+          const metric = meta?.metric ?? "kd"
+          const rawValue = meta?.rawDataKey ? entry.payload?.[meta.rawDataKey] : null
+          const rawNumericValue =
+            typeof rawValue === "number" ? rawValue : typeof rawValue === "string" ? Number(rawValue) : null
 
           return (
             <div key={`${entry.name}-${entry.color}-${dataKey}`} className="flex items-center justify-between gap-3 text-xs">
@@ -690,7 +712,10 @@ function AnalyticsTooltipContent({
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
                 <span className="truncate text-christmas-snow">{entry.name}</span>
               </span>
-              <span className="shrink-0 font-medium text-christmas-snow">{formatMetricValue(metric, numericValue)}</span>
+              <span className="shrink-0 text-right font-medium text-christmas-snow">
+                {formatMetricValue(metric, rawNumericValue)}
+                <span className="ml-1 text-muted-foreground">({formatMetricValue("winRate", numericValue)})</span>
+              </span>
             </div>
           )
         })}
@@ -980,6 +1005,9 @@ export function EventsAnalyticsPanel({
                       <div className="space-y-1">
                         <p className="text-christmas-snow">Метрики: {config.metrics.map((metric) => METRIC_LABELS[metric]).join(" • ")}</p>
                         <p className="text-muted-foreground">
+                          Индекс 0-100 показывает динамику каждой линии внутри собственного диапазона. Реальные значения остаются в подсказке.
+                        </p>
+                        <p className="text-muted-foreground">
                           {BREAKDOWN_LABELS[config.breakdown]} • {config.mode === "cumulative" ? "кумулятивно" : "по матчам"} • матчей:{" "}
                           {model.gameCount}
                         </p>
@@ -1018,15 +1046,15 @@ export function EventsAnalyticsPanel({
                             stroke="var(--muted-foreground)"
                             fontSize={10}
                             tickLine={false}
-                            tickFormatter={(value) => formatAxisValue(Number(value), config.metrics)}
+                            domain={[0, 100]}
+                            tickFormatter={(value) => `${Math.round(Number(value))}%`}
                           />
-                          {config.metrics.includes("winRate") && (
-                            <ReferenceLine y={50} stroke="var(--muted-foreground)" strokeDasharray="5 5" opacity={0.4} />
-                          )}
-                          {config.metrics.includes("ticketDiff") && (
-                            <ReferenceLine y={0} stroke="var(--muted-foreground)" strokeDasharray="5 5" opacity={0.4} />
-                          )}
-                          <Tooltip content={<AnalyticsTooltipContent lineMetaByDataKey={model.lineMetaByDataKey} />} />
+                          <ReferenceLine y={50} stroke="var(--muted-foreground)" strokeDasharray="5 5" opacity={0.4} />
+                          <Tooltip
+                            content={<AnalyticsTooltipContent lineMetaByDataKey={model.lineMetaByDataKey} />}
+                            wrapperStyle={{ pointerEvents: "auto" }}
+                            allowEscapeViewBox={{ x: true, y: true }}
+                          />
                           {[...model.lines]
                             .sort((left, right) => {
                               const metricDelta = METRIC_ORDER.indexOf(left.metric) - METRIC_ORDER.indexOf(right.metric)
