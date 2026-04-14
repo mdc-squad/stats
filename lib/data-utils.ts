@@ -258,6 +258,31 @@ function isReservePlayerEventEntry(stat: Pick<PlayerEventStat, "enter">): boolea
   return isReserveEntryState(stat.enter)
 }
 
+function normalizeTextToken(value: string | null | undefined): string {
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^a-z0-9а-я]/gi, "")
+}
+
+function isCasterPlayerEventEntry(stat: Pick<PlayerEventStat, "role" | "specialization">): boolean {
+  const rawSpecialization = (stat.specialization ?? "").trim()
+  const role = normalizeTextToken(stat.role)
+  const specialization = normalizeTextToken(stat.specialization)
+  return (
+    role === "cast" ||
+    role === "caster" ||
+    role === "каст" ||
+    role === "кастер" ||
+    rawSpecialization === "🎥" ||
+    specialization === "cast" ||
+    specialization === "caster" ||
+    specialization === "каст" ||
+    specialization === "кастер"
+  )
+}
+
 export function getPlayerAverageDenominator(player: Pick<Player, "totals">): number {
   const effectiveEvents = toFiniteNumber(player.totals.effectiveEvents)
   if (effectiveEvents > 0) {
@@ -1833,6 +1858,13 @@ export interface PastGamePlayerStat extends AggregatedPlayerEventStat {
   squad_labels: string[]
 }
 
+export interface PastGameStaffPlayer {
+  player_id: string
+  nickname: string
+  tag: string
+  steam_id: string
+}
+
 export interface PastGameSummary {
   event_id: string
   normalized_event_id: string
@@ -1869,6 +1901,8 @@ export interface PastGameSummary {
   avgKda: number
   avgElo: number
   players: PastGamePlayerStat[]
+  reservePlayers: PastGameStaffPlayer[]
+  casters: PastGameStaffPlayer[]
   topPerformer: PastGamePlayerStat | null
 }
 
@@ -2229,6 +2263,47 @@ export function getPastGames(
 ): PastGameSummary[] {
   const eventLookup = new Map(events.map((event) => [getEventLinkKey(event.event_id), event]))
   const playerLookup = new Map(players.map((player) => [player.player_id, player]))
+  const buildStaffPlayer = (stat: PlayerEventStat): PastGameStaffPlayer => {
+    const player = playerLookup.get(stat.player_id)
+    return {
+      player_id: stat.player_id,
+      nickname: player?.nickname || stat.nickname || "Unknown",
+      tag: player?.tag || stat.tag || "",
+      steam_id: player?.steam_id || "",
+    }
+  }
+  const addStaffPlayer = (target: Map<string, PastGameStaffPlayer>, stat: PlayerEventStat) => {
+    if (!stat.player_id || target.has(stat.player_id)) {
+      return
+    }
+
+    target.set(stat.player_id, buildStaffPlayer(stat))
+  }
+  const reservePlayersByEvent = new Map<string, Map<string, PastGameStaffPlayer>>()
+  const castersByEvent = new Map<string, Map<string, PastGameStaffPlayer>>()
+
+  playerStats.forEach((stat) => {
+    const normalizedEventId = getEventLinkKey(stat.event_id)
+    if (!normalizedEventId) {
+      return
+    }
+
+    if (isReservePlayerEventEntry(stat)) {
+      if (!reservePlayersByEvent.has(normalizedEventId)) {
+        reservePlayersByEvent.set(normalizedEventId, new Map())
+      }
+      addStaffPlayer(reservePlayersByEvent.get(normalizedEventId)!, stat)
+      return
+    }
+
+    if (isCasterPlayerEventEntry(stat)) {
+      if (!castersByEvent.has(normalizedEventId)) {
+        castersByEvent.set(normalizedEventId, new Map())
+      }
+      addStaffPlayer(castersByEvent.get(normalizedEventId)!, stat)
+    }
+  })
+
   const aggregatedStats = aggregatePlayerEventStats(playerStats)
   const statsByEvent = new Map<string, AggregatedPlayerEventStat[]>()
 
@@ -2279,12 +2354,26 @@ export function getPastGames(
         })
         .sort(compareMatchPlayers)
 
-      const topElo = playersWithRank[0]?.elo ?? 0
-      const rankedPlayers = playersWithRank.map((stat, index) => ({
+      const casterIds = new Set(Array.from(castersByEvent.get(eventKey)?.keys() ?? []))
+      const matchPlayers = playersWithRank.filter((stat) => !casterIds.has(stat.player_id))
+      const casterPlayersFromStats = playersWithRank.filter((stat) => casterIds.has(stat.player_id))
+      const topElo = matchPlayers[0]?.elo ?? 0
+      const rankedPlayers = matchPlayers.map((stat, index) => ({
         ...stat,
         rank: index + 1,
         eloShare: topElo > 0 ? (stat.elo / topElo) * 100 : 0,
       }))
+      const casters = Array.from(castersByEvent.get(eventKey)?.values() ?? [])
+      casterPlayersFromStats.forEach((stat) => {
+        if (!casters.some((caster) => caster.player_id === stat.player_id)) {
+          casters.push({
+            player_id: stat.player_id,
+            nickname: stat.nickname,
+            tag: stat.tag,
+            steam_id: stat.steam_id,
+          })
+        }
+      })
 
       return {
         event_id: fallbackEventId,
@@ -2331,6 +2420,8 @@ export function getPastGames(
             ? rankedPlayers.reduce((sum, stat) => sum + stat.elo, 0) / rankedPlayers.length
             : 0,
         players: rankedPlayers,
+        reservePlayers: Array.from(reservePlayersByEvent.get(eventKey)?.values() ?? []),
+        casters,
         topPerformer: rankedPlayers[0] ?? null,
       }
     })
