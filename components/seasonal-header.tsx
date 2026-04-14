@@ -168,7 +168,7 @@ function getClanTimeline(referenceDate: Date, foundation: ClanFoundationInfo): C
     const anniversaryAge = lastAnniversaryYear - foundation.year
 
     if (anniversaryAge > 0) {
-      celebrationLabel = `Нам ${anniversaryAge} ${pluralize(anniversaryAge, "год", "года", "лет")}`
+      celebrationLabel = `${anniversaryAge} ${pluralize(anniversaryAge, "год", "года", "лет")}`
     }
   } else if (daysUntilNext >= 0 && daysUntilNext <= ANNIVERSARY_WINDOW_DAYS) {
     const anniversaryAge = nextAnniversaryYear - foundation.year
@@ -287,9 +287,9 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
   const graveTimeline = referenceDate ? getClanTimeline(referenceDate, GRAVE_FOUNDATION) : null
   const dciaTimeline = referenceDate ? getClanTimeline(referenceDate, DCIA_FOUNDATION) : null
 
-  const clanAgeLabel = mdcTimeline ? `Нам ${mdcTimeline.ageLabel}` : "Возраст клана"
-  const graveAgeLabel = graveTimeline ? `Нам ${graveTimeline.ageLabel}` : "Возраст GRAVE"
-  const dciaAgeLabel = dciaTimeline ? `Нам ${dciaTimeline.ageLabel}` : "Возраст коалиции"
+  const clanAgeLabel = mdcTimeline ? mdcTimeline.ageLabel : "Возраст клана"
+  const graveAgeLabel = graveTimeline ? graveTimeline.ageLabel : "Возраст GRAVE"
+  const dciaAgeLabel = dciaTimeline ? dciaTimeline.ageLabel : "Возраст коалиции"
 
   const slides = useMemo<HeaderSlide[]>(() => {
     const preparedSlides: HeaderSlide[] = [
