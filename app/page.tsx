@@ -67,6 +67,7 @@ import { fetchAllData, type SyncProgressUpdate } from "@/lib/api"
 import { getSeasonalTheme, type SeasonalTheme } from "@/lib/seasonal-theme"
 import {
   Calendar,
+  ChevronDown,
   Sparkles,
   Star,
   RotateCcw,
@@ -208,7 +209,7 @@ const VEHICLE_LEADERBOARD_PREVIEW_LIMIT = 5
 
 type LeaderboardCardConfig = {
   key: string
-  render: (isCollapsed: boolean, onToggle: () => void) => ReactNode
+  render: (isCollapsed: boolean) => ReactNode
 }
 const DEFAULT_TAG_FILTER_TOKENS = ["mdc", "grave"]
 const HIDDEN_TAG_FILTER_TOKENS = ["ветеран", "неактив"]
@@ -1490,7 +1491,7 @@ export default function YearReviewPage() {
   const leaderboardCards: LeaderboardCardConfig[] = [
     {
       key: "kd",
-      render: (isCollapsed: boolean, onToggle: () => void) => (
+      render: (isCollapsed: boolean) => (
         <Leaderboard
           title="Топ по K/D"
           players={leaderboardKD}
@@ -1500,13 +1501,12 @@ export default function YearReviewPage() {
           icon={renderMetricIcon("kd")}
           variant="christmas"
           isCollapsed={isCollapsed}
-          onToggleCollapse={onToggle}
         />
       ),
     },
     {
       key: "kda",
-      render: (isCollapsed: boolean, onToggle: () => void) => (
+      render: (isCollapsed: boolean) => (
         <Leaderboard
           title="Топ по KDA"
           players={leaderboardKDA}
@@ -1516,13 +1516,12 @@ export default function YearReviewPage() {
           icon={renderMetricIcon("kda")}
           variant="christmas"
           isCollapsed={isCollapsed}
-          onToggleCollapse={onToggle}
         />
       ),
     },
     {
       key: "elo",
-      render: (isCollapsed: boolean, onToggle: () => void) => (
+      render: (isCollapsed: boolean) => (
         <Leaderboard
           title="Топ по ELO"
           players={leaderboardELO}
@@ -1532,13 +1531,12 @@ export default function YearReviewPage() {
           icon={renderMetricIcon("elo")}
           variant="christmas"
           isCollapsed={isCollapsed}
-          onToggleCollapse={onToggle}
         />
       ),
     },
     {
       key: "tbf",
-      render: (isCollapsed: boolean, onToggle: () => void) => (
+      render: (isCollapsed: boolean) => (
         <Leaderboard
           title="Топ по ТБФ"
           players={leaderboardTBF}
@@ -1548,13 +1546,12 @@ export default function YearReviewPage() {
           icon={renderMetricIcon("tbf")}
           variant="christmas"
           isCollapsed={isCollapsed}
-          onToggleCollapse={onToggle}
         />
       ),
     },
     {
       key: "rating",
-      render: (isCollapsed: boolean, onToggle: () => void) => (
+      render: (isCollapsed: boolean) => (
         <Leaderboard
           title="Топ по ОР"
           players={leaderboardRating}
@@ -1564,13 +1561,12 @@ export default function YearReviewPage() {
           icon={renderMetricIcon("rating")}
           variant="christmas"
           isCollapsed={isCollapsed}
-          onToggleCollapse={onToggle}
         />
       ),
     },
     {
       key: "kills",
-      render: (isCollapsed: boolean, onToggle: () => void) => (
+      render: (isCollapsed: boolean) => (
         <Leaderboard
           title="Топ по убийствам"
           players={leaderboardKills}
@@ -1579,13 +1575,12 @@ export default function YearReviewPage() {
           icon={renderMetricIcon("kills")}
           variant="christmas"
           isCollapsed={isCollapsed}
-          onToggleCollapse={onToggle}
         />
       ),
     },
     {
       key: "win_rate",
-      render: (isCollapsed: boolean, onToggle: () => void) => (
+      render: (isCollapsed: boolean) => (
         <Leaderboard
           title="Топ победителей"
           players={leaderboardWinRate}
@@ -1595,13 +1590,12 @@ export default function YearReviewPage() {
           icon={renderMetricIcon("win_rate")}
           variant="christmas"
           isCollapsed={isCollapsed}
-          onToggleCollapse={onToggle}
         />
       ),
     },
     {
       key: "events",
-      render: (isCollapsed: boolean, onToggle: () => void) => (
+      render: (isCollapsed: boolean) => (
         <Leaderboard
           title="Топ по боевой активности"
           players={leaderboardEvents}
@@ -1611,13 +1605,12 @@ export default function YearReviewPage() {
           icon={renderMetricIcon("events")}
           variant="christmas"
           isCollapsed={isCollapsed}
-          onToggleCollapse={onToggle}
         />
       ),
     },
     {
       key: "revives",
-      render: (isCollapsed: boolean, onToggle: () => void) => (
+      render: (isCollapsed: boolean) => (
         <Leaderboard
           title="Топ по поднятиям"
           players={leaderboardRevives}
@@ -1626,13 +1619,12 @@ export default function YearReviewPage() {
           icon={renderMetricIcon("revives")}
           variant="christmas"
           isCollapsed={isCollapsed}
-          onToggleCollapse={onToggle}
         />
       ),
     },
     {
       key: "heals",
-      render: (isCollapsed: boolean, onToggle: () => void) => (
+      render: (isCollapsed: boolean) => (
         <Leaderboard
           title="Топ по хилу"
           players={leaderboardHeals}
@@ -1641,13 +1633,12 @@ export default function YearReviewPage() {
           icon={renderMetricIcon("heals")}
           variant="christmas"
           isCollapsed={isCollapsed}
-          onToggleCollapse={onToggle}
         />
       ),
     },
     {
       key: "downs",
-      render: (isCollapsed: boolean, onToggle: () => void) => (
+      render: (isCollapsed: boolean) => (
         <Leaderboard
           title="Топ по нокам"
           players={leaderboardDowns}
@@ -1656,13 +1647,12 @@ export default function YearReviewPage() {
           icon={renderMetricIcon("downs")}
           variant="christmas"
           isCollapsed={isCollapsed}
-          onToggleCollapse={onToggle}
         />
       ),
     },
     {
       key: "vehicle",
-      render: (isCollapsed: boolean, onToggle: () => void) => (
+      render: (isCollapsed: boolean) => (
         <Leaderboard
           title="Топ по выбитой технике"
           players={leaderboardVehicle}
@@ -1671,13 +1661,12 @@ export default function YearReviewPage() {
           icon={renderMetricIcon("vehicle")}
           variant="christmas"
           isCollapsed={isCollapsed}
-          onToggleCollapse={onToggle}
         />
       ),
     },
     {
       key: "avgVehicle",
-      render: (isCollapsed: boolean, onToggle: () => void) => (
+      render: (isCollapsed: boolean) => (
         <AvgStatLeaderboard
           title="Топ по средней технике за матч"
           players={leaderboardAvgVehicle}
@@ -1688,13 +1677,12 @@ export default function YearReviewPage() {
           icon={renderMetricIcon("avgVehicle")}
           variant="christmas"
           isCollapsed={isCollapsed}
-          onToggleCollapse={onToggle}
         />
       ),
     },
     {
       key: "avgHeals",
-      render: (isCollapsed: boolean, onToggle: () => void) => (
+      render: (isCollapsed: boolean) => (
         <AvgStatLeaderboard
           title="Топ по среднему хилу за матч"
           players={leaderboardAvgHeals}
@@ -1705,13 +1693,12 @@ export default function YearReviewPage() {
           icon={renderMetricIcon("avgHeals")}
           variant="christmas"
           isCollapsed={isCollapsed}
-          onToggleCollapse={onToggle}
         />
       ),
     },
     {
       key: "avgRevives",
-      render: (isCollapsed: boolean, onToggle: () => void) => (
+      render: (isCollapsed: boolean) => (
         <AvgStatLeaderboard
           title="Топ по среднему поднятию за матч"
           players={leaderboardAvgRevives}
@@ -1722,7 +1709,6 @@ export default function YearReviewPage() {
           icon={renderMetricIcon("avgRevives")}
           variant="christmas"
           isCollapsed={isCollapsed}
-          onToggleCollapse={onToggle}
         />
       ),
     },
@@ -1789,6 +1775,19 @@ export default function YearReviewPage() {
       current.includes(rowIndex) ? current.filter((value) => value !== rowIndex) : [...current, rowIndex],
     )
   }
+
+  const renderRowToggleButton = (isCollapsed: boolean, onToggle: () => void, label: string) => (
+    <div className="flex justify-center pt-1">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={label}
+        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/40 text-muted-foreground transition-colors hover:text-christmas-snow"
+      >
+        <ChevronDown className={`h-4 w-4 transition-transform ${isCollapsed ? "" : "rotate-180"}`} />
+      </button>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-background relative" style={seasonalVariables}>
@@ -2088,8 +2087,15 @@ export default function YearReviewPage() {
                 const isExpanded = expandedLeaderboardRows.includes(rowIndex)
                 const isCollapsed = !isExpanded
                 return (
-                  <div key={`leaderboard-row-${rowIndex}`} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {row.map((card) => card.render(isCollapsed, () => toggleLeaderboardRow(rowIndex)))}
+                  <div key={`leaderboard-row-${rowIndex}`} className="space-y-2">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {row.map((card) => card.render(isCollapsed))}
+                    </div>
+                    {renderRowToggleButton(
+                      isCollapsed,
+                      () => toggleLeaderboardRow(rowIndex),
+                      isCollapsed ? "Развернуть ряд лидербордов" : "Свернуть ряд лидербордов",
+                    )}
                   </div>
                 )
               })}
@@ -2127,19 +2133,25 @@ export default function YearReviewPage() {
                 const isExpanded = expandedRoleRows.includes(rowIndex)
                 const isCollapsed = !isExpanded
                 return (
-                  <div key={`role-row-${rowIndex}`} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {row.map(({ role, players }) => (
-                      <RoleLeaderboard
-                        key={role}
-                        players={players}
-                        role={role}
-                        metric={selectedRoleMetric}
-                        playerAchievements={playerAchievements}
-                        icon={getRoleIcon(role)}
-                        isCollapsed={isCollapsed}
-                        onToggleCollapse={() => toggleRoleRow(rowIndex)}
-                      />
-                    ))}
+                  <div key={`role-row-${rowIndex}`} className="space-y-2">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {row.map(({ role, players }) => (
+                        <RoleLeaderboard
+                          key={role}
+                          players={players}
+                          role={role}
+                          metric={selectedRoleMetric}
+                          playerAchievements={playerAchievements}
+                          icon={getRoleIcon(role)}
+                          isCollapsed={isCollapsed}
+                        />
+                      ))}
+                    </div>
+                    {renderRowToggleButton(
+                      isCollapsed,
+                      () => toggleRoleRow(rowIndex),
+                      isCollapsed ? "Развернуть ряд ролей" : "Свернуть ряд ролей",
+                    )}
                   </div>
                 )
               })}
@@ -2160,18 +2172,24 @@ export default function YearReviewPage() {
                 const isExpanded = expandedRecordRows.includes(rowIndex)
                 const isCollapsed = !isExpanded
                 return (
-                  <div key={`record-row-${rowIndex}`} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {row.map((entry) => (
-                      <BestMatches
-                        key={entry.key}
-                        title={entry.title}
-                        metric={entry.metric}
-                        matches={isCollapsed ? [] : entry.matches}
-                        players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
-                        isCollapsed={isCollapsed}
-                        onToggleCollapse={() => toggleRecordRow(rowIndex)}
-                      />
-                    ))}
+                  <div key={`record-row-${rowIndex}`} className="space-y-2">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {row.map((entry) => (
+                        <BestMatches
+                          key={entry.key}
+                          title={entry.title}
+                          metric={entry.metric}
+                          matches={entry.matches}
+                          players={data.players.map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
+                          isCollapsed={isCollapsed}
+                        />
+                      ))}
+                    </div>
+                    {renderRowToggleButton(
+                      isCollapsed,
+                      () => toggleRecordRow(rowIndex),
+                      isCollapsed ? "Развернуть ряд рекордов" : "Свернуть ряд рекордов",
+                    )}
                   </div>
                 )
               })}
