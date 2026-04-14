@@ -223,6 +223,18 @@ function getLinkHostLabel(value: string): string {
   }
 }
 
+function normalizeClanTag(value: string | null | undefined): string {
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^a-z0-9а-я]/gi, "")
+}
+
+function tagIncludesClan(value: string | null | undefined, clan: "mdc" | "grave"): boolean {
+  return normalizeClanTag(value).includes(clan)
+}
+
 function MetricPill({ metric }: { metric: MetricDescriptor }) {
   const Icon = metric.icon
 
@@ -714,6 +726,16 @@ export function EventsExplorer({
                   game.casters.length > 0
                     ? game.casters.map((player) => (player.tag ? `${player.tag} ${player.nickname}` : player.nickname)).join(", ")
                     : "нет"
+                const mdcMatchPlayers = game.players.filter((player) => tagIncludesClan(player.tag, "mdc")).length
+                const graveMatchPlayers = game.players.filter((player) => tagIncludesClan(player.tag, "grave")).length
+                const formatPlayers =
+                  typeof game.team_size === "number" && Number.isFinite(game.team_size) && game.team_size > 0
+                    ? game.team_size
+                    : game.players.length
+                const mercMatchPlayers = Math.max(formatPlayers - mdcMatchPlayers - graveMatchPlayers, 0)
+                const mvpLabel = game.topPerformer
+                  ? `${game.topPerformer.tag ? `${game.topPerformer.tag} ` : ""}${game.topPerformer.nickname} • #${game.topPerformer.rank}`
+                  : "Нет данных"
 
                 return (
                   <Card
@@ -781,6 +803,14 @@ export function EventsExplorer({
                           <div className="flex flex-wrap items-center justify-end gap-2">
                             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
                               <Users className="h-3.5 w-3.5 text-christmas-snow" />
+                              <span className="text-muted-foreground">Состав</span>
+                              <span className="font-semibold text-christmas-snow">
+                                MDC {mdcMatchPlayers} • GRAVE {graveMatchPlayers} • Мерки {mercMatchPlayers}
+                              </span>
+                            </div>
+
+                            <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
+                              <Users className="h-3.5 w-3.5 text-christmas-snow" />
                               <span className="text-muted-foreground">Резерв</span>
                               <span className="font-semibold text-christmas-snow">{reserveLabel}</span>
                             </div>
@@ -788,9 +818,7 @@ export function EventsExplorer({
                             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
                               <Shield className="h-3.5 w-3.5 text-christmas-snow" />
                               <span className="text-muted-foreground">MVP</span>
-                              <span className="font-semibold text-christmas-snow">
-                                {game.topPerformer ? `${game.topPerformer.nickname} • #${game.topPerformer.rank}` : "Нет данных"}
-                              </span>
+                              <span className="font-semibold text-christmas-snow">{mvpLabel}</span>
                             </div>
 
                             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
@@ -831,7 +859,7 @@ export function EventsExplorer({
                                     <TableHead>#</TableHead>
                                     <TableHead>Игрок</TableHead>
                                     <TableHead className="text-center">Роль</TableHead>
-                                    <TableHead>Отряд</TableHead>
+                                    <TableHead className="text-center">Отряд</TableHead>
                                     <TableHead className="text-center">Спец.</TableHead>
                                     <MetricTableHead metric="revives" />
                                     <MetricTableHead metric="heals" />
@@ -881,11 +909,11 @@ export function EventsExplorer({
                                             </TooltipContent>
                                           </Tooltip>
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="text-center">
                                           {isSelectableSquadLabel(player.squad_label) ? (
                                             <span
                                               className={cn(
-                                                "inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold uppercase",
+                                                "mx-auto inline-flex items-center justify-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold uppercase",
                                                 squadTone.badge,
                                               )}
                                             >
