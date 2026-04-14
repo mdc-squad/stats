@@ -194,12 +194,12 @@ function HeaderStat({
   value: string
 }) {
   return (
-    <div className="min-w-[120px] rounded-2xl border border-christmas-gold/15 bg-background/35 px-3 py-2 shadow-lg shadow-black/10 backdrop-blur-sm">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-christmas-gold/80">
+    <div className="min-w-[120px] rounded-2xl border border-christmas-gold/15 bg-background/35 px-3 py-2 text-center shadow-lg shadow-black/10 backdrop-blur-sm">
+      <div className="flex items-center justify-center gap-2 text-[11px] uppercase tracking-[0.22em] text-christmas-gold/80">
         <Icon className="h-3.5 w-3.5" />
         <span>{label}</span>
       </div>
-      <p className="mt-1 text-sm font-semibold text-christmas-snow md:text-base">{value}</p>
+      <p className="mt-1 text-center text-sm font-semibold text-christmas-snow md:text-base">{value}</p>
     </div>
   )
 }
