@@ -253,16 +253,50 @@ function normalizeTeamAssignments(value: unknown): Map<string, Array<string | nu
   )
 }
 
+function normalizeTeamLeads(value: unknown): Map<string, Array<string | number>> {
+  const parsed = parseMaybeJson(value)
+  const root = toRecord(parsed)
+  if (!root) {
+    return new Map()
+  }
+
+  const leads = new Map<string, Set<string | number>>()
+
+  Object.entries(root).forEach(([teamLabel, members]) => {
+    const normalizedTeamLabel = teamLabel.trim()
+    const leaderNickname = collectTeamMemberNames(members)[0]
+    const key = normalizeKey(leaderNickname)
+    if (!normalizedTeamLabel || !key) {
+      return
+    }
+
+    if (!leads.has(key)) {
+      leads.set(key, new Set())
+    }
+
+    leads.get(key)?.add(normalizedTeamLabel)
+  })
+
+  return new Map(
+    Array.from(leads.entries()).map(([nickname, teams]) => [nickname, Array.from(teams)]),
+  )
+}
+
 function applyTeamsToPlayers(players: Player[], teamsPayload: unknown): Player[] {
   const assignments = normalizeTeamAssignments(teamsPayload)
+  const leads = normalizeTeamLeads(teamsPayload)
   if (assignments.size === 0) {
     return players
   }
 
-  return players.map((player) => ({
-    ...player,
-    teams: assignments.get(normalizeKey(player.nickname)) ?? [],
-  }))
+  return players.map((player) => {
+    const key = normalizeKey(player.nickname)
+    return {
+      ...player,
+      teams: assignments.get(key) ?? [],
+      team_leads: leads.get(key) ?? [],
+    }
+  })
 }
 
 function applyTeamsToData(data: MDCData, teamsPayload: unknown): MDCData {
@@ -829,6 +863,7 @@ function normalizePlayer(raw: UnknownRecord): Player {
     last_active_at: toString(raw.last_active_at, ""),
     tenure: toString(raw.tenure, ""),
     teams: normalizePlayerTeams(raw.teams ?? raw.Teams ?? raw.team ?? raw.squads),
+    team_leads: normalizePlayerTeams(raw.team_leads ?? raw.teamLeads ?? raw.leader_teams ?? raw.leaderTeams),
     totals: {
       heals,
       revives,
