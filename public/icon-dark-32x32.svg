@@ -1,17 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="512" height="512" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+<svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <style>
-    /* Палитра NATO */
-    .bg { fill: #212121; }          /* NATO Black */
-    .grid { stroke: #3e443a; }      /* NATO Green (приглушенный) */
-    .hud { stroke: #d6c7a1; fill: none; } /* Desert Tan */
-    .lock { stroke: #d6c7a1; fill: none; }
-    .core { fill: #d6c7a1; }
-    .text { fill: #d6c7a1; font-family: 'Courier New', monospace; font-size: 3px; }
-    .mdc-text { fill: #d6c7a1; font-family: sans-serif; font-weight: 700; }
+    /* Светлая палитра (Tactical Light) */
+    .bg { fill: #E0E0D5; }          /* Светлый костяной/серый */
+    .grid { stroke: #C2C2B0; }      /* Приглушенный песочный */
+    .hud { stroke: #2D332A; fill: none; } /* Темный NATO Green */
+    .lock { stroke: #2D332A; fill: none; }
+    .core { fill: #2D332A; }
+    .text { fill: #4A4E46; font-family: 'Courier New', monospace; font-size: 3px; }
+    .mdc-text { fill: #2D332A; font-family: sans-serif; font-weight: 700; }
 
-    /* Анимация (опционально, для стиля) */
-    .scanRing { stroke: #d6c7a1; fill: none; opacity: 0.6; }
+    /* Анимация и эффекты */
+    .scanRing { stroke: #2D332A; fill: none; opacity: 0.3; }
+    .flash-inner { fill: #2D332A; }
+    .flash-glow { fill: #2D332A; opacity: 0.15; }
   </style>
 
   <rect width="64" height="64" rx="10" class="bg"/>
@@ -32,7 +34,9 @@
   <g class="lock" stroke-width="1.4">
     <path d="M14 18 L14 14 L18 14"/>
     <path d="M14 46 L14 50 L18 50"/>
-    <path d="M50 18 L50 14 L46 14"/> <path d="M50 46 L50 50 L46 50"/> </g>
+    <path d="M50 18 L50 14 L46 14"/>
+    <path d="M50 46 L50 50 L46 50"/>
+  </g>
 
   <g class="hud" stroke-width="1.2">
     <circle cx="32" cy="32" r="13"/>
@@ -43,9 +47,9 @@
   <rect x="30" y="30" width="4" height="4" class="core"/>
 
   <g class="flash">
-    <circle cx="32" cy="32" r="2" fill="#d6c7a1"/>
-    <circle cx="32" cy="32" r="6" fill="#d6c7a1" opacity="0.4"/>
-    <circle cx="32" cy="32" r="10" fill="#d6c7a1" opacity="0.2"/>
+    <circle cx="32" cy="32" r="2" class="flash-inner"/>
+    <circle cx="32" cy="32" r="6" class="flash-glow"/>
+    <circle cx="32" cy="32" r="10" class="flash-glow" opacity="0.05"/>
   </g>
 
   <text x="3" y="10" class="text">029C BD</text>
