@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { getMetricIcon } from "@/lib/app-icons"
 import type { PastGamePlayerStat, PastGameSummary, Player } from "@/lib/data-utils"
-import { getSquadToneKey } from "@/lib/squad-utils"
+import { getSquadToneKey, isSelectableSquadLabel } from "@/lib/squad-utils"
 import { Activity, ArrowLeftRight, TrendingUp } from "lucide-react"
 
 type AnalyticsMetric =
@@ -93,6 +93,14 @@ type LockedChartValues = {
   label: string
   eventLabel?: string
   entries: ChartValueEntry[]
+}
+
+type ChartPayloadEntry = {
+  color?: string
+  dataKey?: string | number
+  name?: string | number
+  value?: number | string | null
+  payload?: Record<string, number | string | null | undefined> & { eventLabel?: string }
 }
 
 const METRIC_LABELS: Record<AnalyticsMetric, string> = {
@@ -209,6 +217,42 @@ function formatChartValue(metric: AnalyticsMetric, entry: Pick<ChartValueEntry, 
   }
 
   return formatMetricValue(metric, entry.value)
+}
+
+function getComparableValue(value: number | null): number {
+  return value === null || !Number.isFinite(value) ? Number.NEGATIVE_INFINITY : value
+}
+
+function getSortedChartEntries(payload: ChartPayloadEntry[]): ChartValueEntry[] {
+  return payload
+    .filter((entry) => entry.value !== null && entry.value !== undefined)
+    .map((entry) => ({
+      key: String(entry.dataKey ?? entry.name ?? ""),
+      name: String(entry.name ?? ""),
+      color: entry.color ?? "var(--muted-foreground)",
+      value: typeof entry.value === "number" ? entry.value : typeof entry.value === "string" ? Number(entry.value) : null,
+    }))
+    .sort((left, right) => getComparableValue(right.value) - getComparableValue(left.value))
+}
+
+function formatChartDelta(metric: AnalyticsMetric, entry: Pick<ChartValueEntry, "name" | "value">): string {
+  if (entry.value === null || entry.value === undefined || !Number.isFinite(entry.value)) {
+    return "н/д"
+  }
+
+  if (entry.name === "Кумулятивный K/D" || metric === "kd" || metric === "kda") {
+    return formatSignedNumber(entry.value, 2)
+  }
+
+  if (entry.name === "Кумулятивный Win Rate" || metric === "winRate") {
+    return `${formatSignedNumber(entry.value, 1)}%`
+  }
+
+  if (metric === "ticketDiff") {
+    return formatSignedNumber(entry.value, Math.abs(entry.value) >= 10 ? 0 : 1)
+  }
+
+  return formatSignedNumber(entry.value, Math.abs(entry.value) >= 10 ? 0 : 1)
 }
 
 function getResultKey(game: Pick<PastGameSummary, "is_win">): "win" | "loss" | "unknown" {
@@ -458,7 +502,7 @@ function getSeriesCandidates(
     }
 
     if (breakdown === "squad") {
-      const squadLabels = new Set(scopedPlayers.map((player) => player.squad_label).filter(Boolean))
+      const squadLabels = new Set(scopedPlayers.map((player) => player.squad_label).filter((label) => isSelectableSquadLabel(label)))
       squadLabels.forEach((label) => addCandidate(label, label))
       return
     }
@@ -572,12 +616,71 @@ function ChartValuesPanel({
       </div>
       <div className={useTwoColumns ? "grid grid-cols-1 gap-1.5 sm:grid-cols-2" : "space-y-1.5"}>
         {values.entries.map((entry) => (
-          <div key={entry.key} className="flex items-center justify-between gap-3 text-xs">
+          <div key={entry.key} className="flex items-center gap-2 text-xs">
             <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
               <span className="truncate text-christmas-snow">{entry.name}</span>
             </span>
             <span className="shrink-0 font-medium text-christmas-snow">{formatChartValue(metric, entry)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ChartDynamicsPanel({
+  metric,
+  left,
+  right,
+}: {
+  metric: AnalyticsMetric
+  left: LockedChartValues
+  right: LockedChartValues
+}) {
+  const leftByKey = new Map(left.entries.map((entry) => [entry.key, entry]))
+  const dynamics = right.entries
+    .map((rightEntry) => {
+      const leftEntry = leftByKey.get(rightEntry.key)
+      if (!leftEntry || leftEntry.value === null || rightEntry.value === null) {
+        return null
+      }
+
+      return {
+        key: rightEntry.key,
+        name: rightEntry.name,
+        color: rightEntry.color,
+        from: leftEntry.value,
+        to: rightEntry.value,
+        delta: rightEntry.value - leftEntry.value,
+      }
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+    .sort((leftEntry, rightEntry) => rightEntry.delta - leftEntry.delta)
+
+  if (dynamics.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="rounded-xl border border-christmas-gold/20 bg-christmas-gold/10 p-3 text-sm">
+      <div className="mb-2 space-y-1">
+        <p className="font-medium text-christmas-snow">Динамика изменения</p>
+        <p className="text-xs text-muted-foreground">
+          {getChartValueLabel(left.label, left.eventLabel)} → {getChartValueLabel(right.label, right.eventLabel)}
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+        {dynamics.map((entry) => (
+          <div key={entry.key} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
+            <span className="text-christmas-snow">{entry.name}</span>
+            <span className="text-muted-foreground">
+              {formatChartValue(metric, { name: entry.name, value: entry.from })} → {formatChartValue(metric, { name: entry.name, value: entry.to })}
+            </span>
+            <span className={entry.delta >= 0 ? "font-medium text-christmas-green" : "font-medium text-christmas-red"}>
+              {formatChartDelta(metric, { name: entry.name, value: entry.delta })}
+            </span>
           </div>
         ))}
       </div>
@@ -593,13 +696,7 @@ function ChartTooltipContent({
 }: {
   active?: boolean
   label?: string | number
-  payload?: Array<{
-    color?: string
-    dataKey?: string | number
-    name?: string | number
-    value?: number | string | null
-    payload?: Record<string, number | string | null | undefined> & { eventLabel?: string }
-  }>
+  payload?: ChartPayloadEntry[]
   metric: AnalyticsMetric
 }) {
   if (!active || !payload || payload.length === 0) {
@@ -607,14 +704,7 @@ function ChartTooltipContent({
   }
 
   const point = payload[0]?.payload
-  const entries = payload
-    .filter((entry) => entry.value !== null && entry.value !== undefined)
-    .map((entry) => ({
-      key: String(entry.dataKey ?? entry.name ?? ""),
-      name: String(entry.name ?? ""),
-      color: entry.color ?? "var(--muted-foreground)",
-      value: typeof entry.value === "number" ? entry.value : typeof entry.value === "string" ? Number(entry.value) : null,
-    }))
+  const entries = getSortedChartEntries(payload)
 
   if (entries.length === 0) {
     return null
@@ -640,7 +730,7 @@ export function EventsAnalyticsPanel({
   const [metric, setMetric] = useState<AnalyticsMetric>("kd")
   const [mode, setMode] = useState<AnalyticsMode>("cumulative")
   const [breakdown, setBreakdown] = useState<AnalyticsBreakdown>("overall")
-  const [lockedValues, setLockedValues] = useState<LockedChartValues | null>(null)
+  const [lockedValues, setLockedValues] = useState<LockedChartValues[]>([])
 
   const analyticsPlayers = useMemo(
     () => players.filter((player) => player.totals?.events > 0).sort((left, right) => left.nickname.localeCompare(right.nickname, "ru")),
@@ -727,13 +817,7 @@ export function EventsAnalyticsPanel({
     const chartState = state as
       | {
           activeLabel?: string | number
-          activePayload?: Array<{
-            color?: string
-            dataKey?: string | number
-            name?: string | number
-            value?: number | string | null
-            payload?: Record<string, number | string | null | undefined> & { eventLabel?: string }
-          }>
+          activePayload?: ChartPayloadEntry[]
         }
       | null
       | undefined
@@ -742,25 +826,19 @@ export function EventsAnalyticsPanel({
       return
     }
 
-    const entries = chartState.activePayload
-      .filter((entry) => entry.value !== null && entry.value !== undefined)
-      .map((entry) => ({
-        key: String(entry.dataKey ?? entry.name ?? ""),
-        name: String(entry.name ?? ""),
-        color: entry.color ?? "var(--muted-foreground)",
-        value: typeof entry.value === "number" ? entry.value : typeof entry.value === "string" ? Number(entry.value) : null,
-      }))
+    const entries = getSortedChartEntries(chartState.activePayload)
 
     if (entries.length === 0) {
       return
     }
 
     const point = chartState.activePayload[0]?.payload
-    setLockedValues({
+    const nextValues = {
       label: String(chartState.activeLabel ?? ""),
       eventLabel: point?.eventLabel ? String(point.eventLabel) : undefined,
       entries,
-    })
+    }
+    setLockedValues((current) => [...current, nextValues].slice(-2))
   }
   const summaryCards = [
     {
@@ -865,7 +943,7 @@ export function EventsAnalyticsPanel({
               players={analyticsPlayers}
               selected={selectedPlayerIds}
               onSelectionChange={(ids) => {
-                setLockedValues(null)
+                setLockedValues([])
                 onSelectedPlayerIdsChange(ids)
               }}
               placeholder="Весь состав или конкретные игроки..."
@@ -877,7 +955,7 @@ export function EventsAnalyticsPanel({
             <Select
               value={metric}
               onValueChange={(value) => {
-                setLockedValues(null)
+                setLockedValues([])
                 setMetric(value as AnalyticsMetric)
               }}
             >
@@ -907,7 +985,7 @@ export function EventsAnalyticsPanel({
             <Select
               value={mode}
               onValueChange={(value) => {
-                setLockedValues(null)
+                setLockedValues([])
                 setMode(value as AnalyticsMode)
               }}
             >
@@ -926,7 +1004,7 @@ export function EventsAnalyticsPanel({
             <Select
               value={breakdown}
               onValueChange={(value) => {
-                setLockedValues(null)
+                setLockedValues([])
                 setBreakdown(value as AnalyticsBreakdown)
               }}
             >
@@ -1053,13 +1131,25 @@ export function EventsAnalyticsPanel({
               </ResponsiveContainer>
             </div>
 
-            {lockedValues ? (
-              <ChartValuesPanel title="Зафиксировано" metric={metric} values={lockedValues} onClear={() => setLockedValues(null)} />
+            {lockedValues.length > 0 ? (
+              <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                {lockedValues.map((values, index) => (
+                  <ChartValuesPanel
+                    key={`${values.label}-${values.eventLabel ?? ""}-${index}`}
+                    title={`Фиксация ${index + 1}`}
+                    metric={metric}
+                    values={values}
+                    onClear={() => setLockedValues((current) => current.filter((_, currentIndex) => currentIndex !== index))}
+                  />
+                ))}
+              </div>
             ) : null}
+
+            {lockedValues.length === 2 ? <ChartDynamicsPanel metric={metric} left={lockedValues[0]!} right={lockedValues[1]!} /> : null}
 
             <div className="text-[11px] text-muted-foreground">
               Серии строятся по выбранной группировке: можно сравнивать оппонентов, карты, фракции и отряды. Клик по графику
-              фиксирует значения выбранного матча под графиком.
+              фиксирует до двух выбранных матчей под графиком и показывает динамику между ними.
             </div>
           </div>
         )}
