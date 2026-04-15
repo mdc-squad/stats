@@ -43,26 +43,42 @@ const CHART_METRICS = METRIC_DEFS.filter(
 )
 const PLAYER_METRICS = METRIC_DEFS
 
+function isVisibleSquadLabel(label: string) {
+  const normalized = label.trim().toLowerCase()
+  return (
+    isSelectableSquadLabel(label) &&
+    normalized !== "0" &&
+    normalized !== "без отряда" &&
+    normalized !== "не указан" &&
+    !normalized.includes("без отряда")
+  )
+}
+
 function fDate(value: string) { const d = new Date(value); return value && !Number.isNaN(d.getTime()) ? `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}` : "?" }
 function fNum(value: number, digits = 1) { if (!Number.isFinite(value)) return "0"; return digits === 0 ? Math.round(value).toLocaleString("ru-RU") : value.toFixed(digits) }
 function ratio(a: number, b: number) { return b > 0 ? a / b : a }
 function popular(values: string[]) { const m = new Map<string, number>(); values.map((v) => v.trim()).filter(Boolean).forEach((v) => m.set(v, (m.get(v) ?? 0) + 1)); return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"))[0]?.[0] ?? "" }
 function resultLabel(isWin: boolean | null, result: string | null) { return result?.trim() || (isWin === true ? "Победа" : isWin === false ? "Поражение" : "Результат не указан") }
-function playerSquadLabel(player: PastGamePlayerStat) { return [player.squad_label, ...(player.squad_labels ?? [])].map((v) => v?.trim()).find((v): v is string => Boolean(v) && isSelectableSquadLabel(v)) ?? null }
+function playerSquadLabel(player: PastGamePlayerStat) { return [player.squad_label, ...(player.squad_labels ?? [])].map((v) => v?.trim()).find((v): v is string => Boolean(v) && isVisibleSquadLabel(v)) ?? null }
 function matchMetric(match: SquadMatchSummary, metric: ChartMetricKey) { if (metric === "kd") return match.kd; if (metric === "kda") return match.kda; if (metric === "avgElo") return match.avgElo; if (metric === "avgTbf" || metric === "avgRating") return 0; const key = metric.replace("avg", "").toLowerCase() as keyof SquadMatchSummary; return match.players > 0 ? Number(match[key] ?? 0) / match.players : 0 }
 function playerMetric(player: SquadPlayerSummary, metric: SquadMetricKey) { if (metric === "games") return player.games; if (metric === "kd") return player.kd; if (metric === "kda") return player.kda; if (metric === "avgElo") return player.avgElo; if (metric === "avgTbf") return player.avgTbf; if (metric === "avgRating") return player.avgRating; const key = metric.replace("avg", "").toLowerCase() as keyof SquadPlayerSummary; return player.games > 0 ? Number(player[key] ?? 0) / player.games : 0 }
 function isSL(role: string) { return /(^|[^a-zа-я])(sl|squad|leader|лидер|сквад)/i.test(role.trim().toLowerCase()) }
 
 function MetricTile({ metric, value, compact = false }: { metric: MetricDef; value: number; compact?: boolean }) {
   const Icon = getMetricIcon(metric.icon)
-  return <Tooltip><TooltipTrigger asChild><div className={cn("rounded-lg border border-border/50 bg-background/35 p-3", compact && "p-2")}><p className="flex items-center gap-2 text-[11px] text-muted-foreground"><Icon className="h-3.5 w-3.5 text-christmas-gold" /><span className="truncate">{metric.label}</span></p><p className={cn("mt-2 font-semibold text-christmas-snow", compact ? "text-sm" : "text-lg")}>{fNum(value, metric.digits)}</p></div></TooltipTrigger><TooltipContent side="top" className="border border-border bg-card text-card-foreground">{metric.label}</TooltipContent></Tooltip>
+  return <Tooltip><TooltipTrigger asChild><div className={cn("rounded-lg border border-border/50 bg-background/35 p-3 text-center", compact && "p-2")}><p className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground"><Icon className="h-3.5 w-3.5 text-christmas-gold" /><span className="truncate">{metric.label}</span></p><p className={cn("mt-2 font-semibold text-christmas-snow", compact ? "text-sm" : "text-lg")}>{fNum(value, metric.digits)}</p></div></TooltipTrigger><TooltipContent side="top" className="border border-border bg-card text-card-foreground">{metric.label}</TooltipContent></Tooltip>
+}
+
+function PlayerMetricValue({ metric, value }: { metric: MetricDef; value: number }) {
+  const Icon = getMetricIcon(metric.icon)
+  return <Tooltip><TooltipTrigger asChild><div className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 py-1 text-center"><Icon className="h-3.5 w-3.5 text-christmas-gold" /><span className="text-[11px] font-medium text-christmas-snow">{fNum(value, metric.digits)}</span></div></TooltipTrigger><TooltipContent side="top" className="border border-border bg-card text-card-foreground">{metric.label}</TooltipContent></Tooltip>
 }
 
 function RoleDonut({ slices }: { slices: SquadSummary["roleSlices"] }) {
-  if (slices.length === 0) return <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/35 p-3"><div className="h-16 w-16 rounded-full border border-border/60 bg-background/60" /><p className="text-xs text-muted-foreground">Роли пока не определены.</p></div>
+  if (slices.length === 0) return <div className="flex h-full flex-1 items-center gap-3 rounded-lg border border-border/50 bg-background/35 p-3"><div className="h-16 w-16 rounded-full border border-border/60 bg-background/60" /><p className="text-xs text-muted-foreground">Роли пока не определены.</p></div>
   const total = slices.reduce((s, x) => s + x.count, 0); let c = 0
   const gradient = slices.map((x) => { const a = c; const b = c + (x.count / total) * 100; c = b; return `${x.color} ${a}% ${b}%` }).join(", ")
-  return <div className="grid gap-3 rounded-lg border border-border/50 bg-background/35 p-3 sm:grid-cols-[auto_1fr]"><div className="h-20 w-20 rounded-full border border-border/60" style={{ background: `conic-gradient(${gradient})` }}><div className="m-4 h-12 w-12 rounded-full border border-border/50 bg-card/95" /></div><div className="grid grid-cols-1 gap-1 text-xs sm:grid-cols-2">{slices.map((x) => <div key={x.role} className="flex min-w-0 items-center gap-2"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: x.color }} /><span className="truncate text-muted-foreground">{x.role}</span><span className="ml-auto text-christmas-snow">{x.count}</span></div>)}</div></div>
+  return <div className="grid h-full flex-1 gap-3 rounded-lg border border-border/50 bg-background/35 p-3 sm:grid-cols-[auto_1fr]"><div className="h-20 w-20 rounded-full border border-border/60" style={{ background: `conic-gradient(${gradient})` }}><div className="m-4 h-12 w-12 rounded-full border border-border/50 bg-card/95" /></div><div className="grid grid-cols-1 gap-1 text-xs sm:grid-cols-2">{slices.map((x) => <div key={x.role} className="flex min-w-0 items-center gap-2"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: x.color }} /><span className="truncate text-muted-foreground">{x.role}</span><span className="ml-auto text-christmas-snow">{x.count}</span></div>)}</div></div>
 }
 
 function SquadChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name?: string; value?: number; color?: string }>; label?: string }) {
@@ -87,8 +103,8 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
       if (!s.players.has(p.player_id)) s.players.set(p.player_id, { player_id: p.player_id, nickname: p.nickname, tag: p.tag, steam_id: p.steam_id, games: 0, wins: 0, kills: 0, deaths: 0, downs: 0, revives: 0, heals: 0, vehicle: 0, elo: 0, roles: [], specs: [] })
     }
 
-    squadDomain.map((x) => x.trim()).filter(isSelectableSquadLabel).forEach(ensure)
-    players.forEach((p) => getSquadLabels(p.teams ?? [], squadDomain).filter(isSelectableSquadLabel).forEach((label) => addRoster(label, p)))
+    squadDomain.map((x) => x.trim()).filter(isVisibleSquadLabel).forEach(ensure)
+    players.forEach((p) => getSquadLabels(p.teams ?? [], squadDomain).filter(isVisibleSquadLabel).forEach((label) => addRoster(label, p)))
 
     games.forEach((game) => {
       const grouped = new Map<string, PastGamePlayerStat[]>()
@@ -113,9 +129,8 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
         const match: SquadMatchSummary = { eventId: game.event_id, startedAt: game.started_at, map: game.map || "Карта не указана", mode: game.mode, opponent: game.opponent, faction: game.faction_matchup || game.faction_1, result: game.result, isWin: game.is_win, players: count, kills, deaths, downs, revives, heals, vehicle, avgElo, kd: ratio(kills, deaths), kda: ratio(kills + downs, deaths), isMvp: false }
         squad.games += 1; squad.wins += game.is_win ? 1 : 0; squad.kills += kills; squad.deaths += deaths; squad.downs += downs; squad.revives += revives; squad.heals += heals; squad.vehicle += vehicle; squad.elo += avgElo; squad.matches.push(match); matchSummaries.push({ squad, match })
         group.forEach((gp) => {
+          if (!squad.players.has(gp.player_id)) return
           const profile = playersById.get(gp.player_id)
-          if (profile) addRoster(label, profile)
-          if (!squad.players.has(gp.player_id)) squad.players.set(gp.player_id, { player_id: gp.player_id, nickname: gp.nickname, tag: gp.tag, steam_id: gp.steam_id, games: 0, wins: 0, kills: 0, deaths: 0, downs: 0, revives: 0, heals: 0, vehicle: 0, elo: 0, roles: [], specs: [] })
           const sp = squad.players.get(gp.player_id)!
           sp.games += 1; sp.wins += game.is_win ? 1 : 0; sp.kills += gp.kills; sp.deaths += gp.deaths; sp.downs += gp.downs; sp.revives += gp.revives; sp.heals += gp.heals; sp.vehicle += gp.vehicle; sp.elo += gp.elo
           if (gp.role) { sp.roles.push(gp.role); squad.roles.set(gp.role, (squad.roles.get(gp.role) ?? 0) + 1) }
@@ -184,8 +199,8 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-4">{METRIC_DEFS.map((m) => <MetricTile key={m.key} metric={m} value={squad[m.key]} />)}</div>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <div className="space-y-2"><p className="flex items-center gap-2 text-sm font-medium text-christmas-snow"><Sparkles className="h-4 w-4 text-christmas-gold" />Роли в отряде</p><RoleDonut slices={squad.roleSlices} /></div>
-                  <div className="space-y-2"><p className="flex items-center gap-2 text-sm font-medium text-christmas-snow"><Award className="h-4 w-4 text-christmas-gold" />Лучший матч</p>{squad.bestMatch ? <button type="button" onClick={() => onOpenGame?.(squad.bestMatch?.eventId ?? "")} className="w-full rounded-lg border border-border/50 bg-background/35 p-3 text-left transition-colors hover:border-christmas-gold/40 hover:bg-christmas-gold/10"><span className="flex items-center justify-between gap-3 text-sm font-medium text-christmas-snow">{fDate(squad.bestMatch.startedAt)} • {squad.bestMatch.map}<ExternalLink className="h-3.5 w-3.5 text-christmas-gold" /></span><span className="mt-1 block text-xs text-muted-foreground">{resultLabel(squad.bestMatch.isWin, squad.bestMatch.result)} • ELO {squad.bestMatch.avgElo.toFixed(1)} • KD {squad.bestMatch.kd.toFixed(2)}</span></button> : <div className="rounded-lg border border-border/50 bg-background/35 p-3 text-xs text-muted-foreground">Матчей пока нет.</div>}</div>
+                  <div className="flex h-full flex-col space-y-2"><p className="flex items-center gap-2 text-sm font-medium text-christmas-snow"><Sparkles className="h-4 w-4 text-christmas-gold" />Роли в отряде</p><RoleDonut slices={squad.roleSlices} /></div>
+                  <div className="flex h-full flex-col space-y-2"><p className="flex items-center gap-2 text-sm font-medium text-christmas-snow"><Award className="h-4 w-4 text-christmas-gold" />Лучший матч</p>{squad.bestMatch ? <button type="button" onClick={() => onOpenGame?.(squad.bestMatch?.eventId ?? "")} className="flex flex-1 flex-col justify-center rounded-lg border border-border/50 bg-background/35 p-3 text-left transition-colors hover:border-christmas-gold/40 hover:bg-christmas-gold/10"><span className="flex items-center justify-between gap-3 text-sm font-medium text-christmas-snow">{fDate(squad.bestMatch.startedAt)} • {squad.bestMatch.map}<ExternalLink className="h-3.5 w-3.5 text-christmas-gold" /></span><span className="mt-1 block text-xs text-muted-foreground">{resultLabel(squad.bestMatch.isWin, squad.bestMatch.result)} • ELO {squad.bestMatch.avgElo.toFixed(1)} • KD {squad.bestMatch.kd.toFixed(2)}</span></button> : <div className="flex flex-1 items-center rounded-lg border border-border/50 bg-background/35 p-3 text-xs text-muted-foreground">Матчей пока нет.</div>}</div>
                 </div>
 
                 <div className="space-y-2">
@@ -195,7 +210,7 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
 
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-christmas-snow">Игроки отряда</p>
-                  {squad.playersRanked.length === 0 ? <div className="rounded-lg border border-border/50 bg-background/35 px-3 py-2 text-[11px] text-muted-foreground">Пока нет игроков, закрепленных за этим цветом.</div> : <div className="space-y-2">{squad.playersRanked.map((player) => <button type="button" key={`${squad.label}-${player.player_id}`} onClick={() => onOpenPlayer?.(player.player_id)} className="w-full rounded-lg border border-border/50 bg-background/35 px-3 py-2 text-left transition-colors hover:border-christmas-gold/40 hover:bg-christmas-gold/10"><div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,1.3fr)] lg:items-center"><div className="flex min-w-0 items-center gap-3"><PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-christmas-snow">{player.tag ? <span className="text-christmas-gold">{player.tag} </span> : null}{player.nickname}</p><p className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground"><Tooltip><TooltipTrigger asChild><span className="inline-flex items-center gap-1"><RoleIcon role={player.popularRole} className="h-4 w-4" /><span className="truncate">{player.popularRole || "роль не указана"}</span></span></TooltipTrigger><TooltipContent side="top" className="border border-border bg-card text-card-foreground">Популярная роль</TooltipContent></Tooltip><span className="truncate">• {player.specialization || "специализация не указана"}</span></p></div></div><div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">{PLAYER_METRICS.map((m) => <MetricTile key={m.key} metric={m} value={playerMetric(player, m.key)} compact />)}</div></div></button>)}</div>}
+                  {squad.playersRanked.length === 0 ? <div className="rounded-lg border border-border/50 bg-background/35 px-3 py-2 text-[11px] text-muted-foreground">Пока нет игроков, закрепленных за этим цветом.</div> : <div className="space-y-2">{squad.playersRanked.map((player) => <button type="button" key={`${squad.label}-${player.player_id}`} onClick={() => onOpenPlayer?.(player.player_id)} className="w-full rounded-lg border border-border/50 bg-background/35 px-3 py-2 text-left transition-colors hover:border-christmas-gold/40 hover:bg-christmas-gold/10"><div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(360px,1.35fr)] lg:items-center"><div className="flex min-w-0 items-center gap-3"><PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-christmas-snow">{player.tag ? <span className="text-christmas-gold">{player.tag} </span> : null}{player.nickname}</p><p className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground"><Tooltip><TooltipTrigger asChild><span className="inline-flex items-center gap-1"><RoleIcon role={player.popularRole} className="h-4 w-4" /><span className="truncate">{player.popularRole || "роль не указана"}</span></span></TooltipTrigger><TooltipContent side="top" className="border border-border bg-card text-card-foreground">Популярная роль</TooltipContent></Tooltip><span className="truncate">• {player.specialization || "специализация не указана"}</span></p></div></div><div className="grid grid-cols-6 gap-1 sm:grid-cols-12">{PLAYER_METRICS.map((m) => <PlayerMetricValue key={m.key} metric={m} value={playerMetric(player, m.key)} />)}</div></div></button>)}</div>}
                 </div>
               </CardContent>
             </Card>
@@ -204,7 +219,7 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
       </div>
 
       <Card className="border-christmas-gold/20 bg-card/60">
-        <CardHeader className="gap-3 pb-3 md:flex-row md:items-center md:justify-between"><div><CardTitle className="flex items-center gap-2 text-base text-christmas-snow"><Swords className="h-4 w-4 text-christmas-gold" />Сравнение отрядов</CardTitle><p className="mt-1 text-sm text-muted-foreground">Линии окрашены в цвета отрядов.</p></div><Select value={chartMetric} onValueChange={(v) => setChartMetric(v as ChartMetricKey)}><SelectTrigger className="w-full border-christmas-gold/20 bg-background/50 text-christmas-snow md:w-[190px]"><SelectValue /></SelectTrigger><SelectContent>{CHART_METRICS.map((m) => <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>)}</SelectContent></Select></CardHeader>
+        <CardHeader className="gap-3 pb-3 md:flex-row md:items-center md:justify-between"><div><CardTitle className="flex items-center gap-2 text-base text-christmas-snow"><Swords className="h-4 w-4 text-christmas-gold" />Сравнение отрядов</CardTitle></div><Select value={chartMetric} onValueChange={(v) => setChartMetric(v as ChartMetricKey)}><SelectTrigger className="w-full border-christmas-gold/20 bg-background/50 text-christmas-snow md:w-[190px]"><SelectValue /></SelectTrigger><SelectContent>{CHART_METRICS.map((m) => <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>)}</SelectContent></Select></CardHeader>
         <CardContent><div className="h-[360px] w-full"><ResponsiveContainer width="100%" height="100%"><LineChart data={chartData} margin={{ top: 12, right: 16, left: 0, bottom: 8 }}><CartesianGrid stroke="rgba(148, 163, 184, 0.18)" strokeDasharray="3 3" /><XAxis dataKey="date" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickMargin={8} /><YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} width={42} /><RechartsTooltip content={<SquadChartTooltip />} />{chartLines.map((line) => <Line key={line.key} type="monotone" dataKey={line.key} name={line.label} stroke={line.color} strokeWidth={2.5} dot={{ r: 3, strokeWidth: 1 }} activeDot={{ r: 5 }} connectNulls />)}</LineChart></ResponsiveContainer></div><div className="mt-3 flex flex-wrap gap-2">{chartLines.map((line) => <Badge key={line.key} variant="outline" className="border-border/60 text-muted-foreground"><span className="mr-2 h-2 w-2 rounded-full" style={{ backgroundColor: line.color }} />{line.label}</Badge>)}</div><p className="mt-2 text-[11px] text-muted-foreground">Параметр: {selectedChartMetric.label}</p></CardContent>
       </Card>
     </div>
