@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { getMetricIcon } from "@/lib/app-icons"
 import type { PastGamePlayerStat, PastGameSummary, Player } from "@/lib/data-utils"
+import { getSquadToneKey } from "@/lib/squad-utils"
 import { Activity, ArrowLeftRight, TrendingUp } from "lucide-react"
 
 type AnalyticsMetric =
@@ -34,8 +35,6 @@ type AnalyticsBreakdown =
   | "faction"
   | "result"
   | "squad"
-  | "map_opponent"
-  | "faction_opponent"
 
 interface EventsAnalyticsPanelProps {
   games: PastGameSummary[]
@@ -83,6 +82,19 @@ type ComparisonSeries = {
   resolveAggregate: (game: PastGameSummary) => AnalyticsAggregate | null
 }
 
+type ChartValueEntry = {
+  key: string
+  name: string
+  color: string
+  value: number | null
+}
+
+type LockedChartValues = {
+  label: string
+  eventLabel?: string
+  entries: ChartValueEntry[]
+}
+
 const METRIC_LABELS: Record<AnalyticsMetric, string> = {
   winRate: "Win Rate",
   kills: "Убийства",
@@ -103,11 +115,9 @@ const BREAKDOWN_LABELS: Record<AnalyticsBreakdown, string> = {
   overall: "Общий срез",
   opponent: "По оппонентам",
   map: "По картам",
-  faction: "По декам",
+  faction: "По фракциям",
   result: "По результатам",
   squad: "По отрядам",
-  map_opponent: "Карта + оппонент",
-  faction_opponent: "Дека + оппонент",
 }
 
 const SERIES_COLORS = [
@@ -119,8 +129,20 @@ const SERIES_COLORS = [
   "#fb7185",
 ]
 
-const MAX_COMPARISON_SERIES = 6
-const COMBO_SEPARATOR = " :: "
+const SQUAD_LINE_COLORS: Record<string, string> = {
+  red: "#fb7185",
+  blue: "#38bdf8",
+  green: "#34d399",
+  yellow: "#fbbf24",
+  orange: "#fb923c",
+  purple: "#a78bfa",
+  pink: "#f472b6",
+  cyan: "#22d3ee",
+  brown: "#b45309",
+  black: "#cbd5e1",
+  white: "#f8fafc",
+  neutral: "#94a3b8",
+}
 
 function formatMatchDate(value: string): string {
   if (!value) return "N/A"
@@ -172,6 +194,23 @@ function formatMetricValue(metric: AnalyticsMetric, value: number | null | undef
   return value.toFixed(1)
 }
 
+function getChartValueLabel(label: string | number | undefined, eventLabel?: string): string {
+  const labelText = label === undefined ? "" : String(label)
+  return `${labelText}${eventLabel ? ` • ${eventLabel}` : ""}`
+}
+
+function formatChartValue(metric: AnalyticsMetric, entry: Pick<ChartValueEntry, "name" | "value">): string {
+  if (entry.name === "Кумулятивный K/D") {
+    return entry.value === null || entry.value === undefined ? "н/д" : entry.value.toFixed(2)
+  }
+
+  if (entry.name === "Кумулятивный Win Rate") {
+    return entry.value === null || entry.value === undefined ? "н/д" : `${entry.value.toFixed(1)}%`
+  }
+
+  return formatMetricValue(metric, entry.value)
+}
+
 function getResultKey(game: Pick<PastGameSummary, "is_win">): "win" | "loss" | "unknown" {
   if (game.is_win === true) return "win"
   if (game.is_win === false) return "loss"
@@ -182,6 +221,14 @@ function getResultLabel(resultKey: "win" | "loss" | "unknown"): string {
   if (resultKey === "win") return "Победы"
   if (resultKey === "loss") return "Поражения"
   return "Неизвестно"
+}
+
+function getSeriesColor(breakdown: AnalyticsBreakdown, label: string, index: number): string {
+  if (breakdown === "squad") {
+    return SQUAD_LINE_COLORS[getSquadToneKey(label)]
+  }
+
+  return SERIES_COLORS[index % SERIES_COLORS.length]!
 }
 
 function createSeriesState(): SeriesState {
@@ -400,7 +447,7 @@ function getSeriesCandidates(
     }
 
     if (breakdown === "faction") {
-      if (game.faction_matchup) addCandidate(game.faction_matchup, game.faction_matchup)
+      if (game.faction_1) addCandidate(game.faction_1, game.faction_1)
       return
     }
 
@@ -416,18 +463,6 @@ function getSeriesCandidates(
       return
     }
 
-    if (breakdown === "map_opponent") {
-      if (game.map && game.opponent) {
-        addCandidate(`${game.map}${COMBO_SEPARATOR}${game.opponent}`, `${game.map} • ${game.opponent}`)
-      }
-      return
-    }
-
-    if (breakdown === "faction_opponent") {
-      if (game.faction_matchup && game.opponent) {
-        addCandidate(`${game.faction_matchup}${COMBO_SEPARATOR}${game.opponent}`, `${game.faction_matchup} • ${game.opponent}`)
-      }
-    }
   })
 
   return Array.from(counts.values()).sort((left, right) => {
@@ -443,13 +478,12 @@ function buildComparisonSeries(
   breakdown: AnalyticsBreakdown,
 ): ComparisonSeries[] {
   const candidates = getSeriesCandidates(games, scope, selectedSet, breakdown)
-  const pickedCandidates =
-    breakdown === "overall" ? candidates.slice(0, 1) : candidates.slice(0, Math.min(MAX_COMPARISON_SERIES, candidates.length))
+  const pickedCandidates = breakdown === "overall" ? candidates.slice(0, 1) : candidates
 
   return pickedCandidates.map((candidate, index) => ({
     ...candidate,
     dataKey: `series_${index + 1}`,
-    color: SERIES_COLORS[index % SERIES_COLORS.length]!,
+    color: getSeriesColor(breakdown, candidate.label, index),
     resolveAggregate: (game) => {
       const scopedPlayers = getScopedPlayers(game, scope, selectedSet)
       if (scope === "selected" && scopedPlayers.length === 0) {
@@ -469,7 +503,7 @@ function buildComparisonSeries(
       }
 
       if (breakdown === "faction") {
-        return game.faction_matchup === candidate.key ? buildAggregate(scopedPlayers, game) : null
+        return game.faction_1 === candidate.key ? buildAggregate(scopedPlayers, game) : null
       }
 
       if (breakdown === "result") {
@@ -480,13 +514,7 @@ function buildComparisonSeries(
         return buildAggregate(scopedPlayers.filter((player) => player.squad_label === candidate.key), game)
       }
 
-      if (breakdown === "map_opponent") {
-        const comboKey = game.opponent ? `${game.map}${COMBO_SEPARATOR}${game.opponent}` : null
-        return comboKey === candidate.key ? buildAggregate(scopedPlayers, game) : null
-      }
-
-      const comboKey = game.faction_matchup && game.opponent ? `${game.faction_matchup}${COMBO_SEPARATOR}${game.opponent}` : null
-      return comboKey === candidate.key ? buildAggregate(scopedPlayers, game) : null
+      return null
     },
   }))
 }
@@ -513,6 +541,96 @@ function SummaryStatCard({
   )
 }
 
+function ChartValuesPanel({
+  title,
+  metric,
+  values,
+  onClear,
+}: {
+  title: string
+  metric: AnalyticsMetric
+  values: LockedChartValues
+  onClear?: () => void
+}) {
+  const useTwoColumns = values.entries.length > 8
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-background/35 p-3 text-sm">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="font-medium text-christmas-snow">
+          {title}: {getChartValueLabel(values.label, values.eventLabel)}
+        </p>
+        {onClear ? (
+          <button
+            type="button"
+            className="rounded-md border border-border/60 px-2 py-1 text-xs text-muted-foreground hover:bg-background/70 hover:text-christmas-snow"
+            onClick={onClear}
+          >
+            Снять фиксацию
+          </button>
+        ) : null}
+      </div>
+      <div className={useTwoColumns ? "grid grid-cols-1 gap-1.5 sm:grid-cols-2" : "space-y-1.5"}>
+        {values.entries.map((entry) => (
+          <div key={entry.key} className="flex items-center justify-between gap-3 text-xs">
+            <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
+              <span className="truncate text-christmas-snow">{entry.name}</span>
+            </span>
+            <span className="shrink-0 font-medium text-christmas-snow">{formatChartValue(metric, entry)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ChartTooltipContent({
+  active,
+  label,
+  payload,
+  metric,
+}: {
+  active?: boolean
+  label?: string | number
+  payload?: Array<{
+    color?: string
+    dataKey?: string | number
+    name?: string | number
+    value?: number | string | null
+    payload?: Record<string, number | string | null | undefined> & { eventLabel?: string }
+  }>
+  metric: AnalyticsMetric
+}) {
+  if (!active || !payload || payload.length === 0) {
+    return null
+  }
+
+  const point = payload[0]?.payload
+  const entries = payload
+    .filter((entry) => entry.value !== null && entry.value !== undefined)
+    .map((entry) => ({
+      key: String(entry.dataKey ?? entry.name ?? ""),
+      name: String(entry.name ?? ""),
+      color: entry.color ?? "var(--muted-foreground)",
+      value: typeof entry.value === "number" ? entry.value : typeof entry.value === "string" ? Number(entry.value) : null,
+    }))
+
+  if (entries.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="pointer-events-auto max-w-[min(92vw,560px)] rounded-xl border border-border bg-card p-3 text-card-foreground shadow-xl">
+      <ChartValuesPanel
+        title="Значения"
+        metric={metric}
+        values={{ label: String(label ?? ""), eventLabel: point?.eventLabel ? String(point.eventLabel) : undefined, entries }}
+      />
+    </div>
+  )
+}
+
 export function EventsAnalyticsPanel({
   games,
   players,
@@ -522,6 +640,7 @@ export function EventsAnalyticsPanel({
   const [metric, setMetric] = useState<AnalyticsMetric>("kd")
   const [mode, setMode] = useState<AnalyticsMode>("cumulative")
   const [breakdown, setBreakdown] = useState<AnalyticsBreakdown>("overall")
+  const [lockedValues, setLockedValues] = useState<LockedChartValues | null>(null)
 
   const analyticsPlayers = useMemo(
     () => players.filter((player) => player.totals?.events > 0).sort((left, right) => left.nickname.localeCompare(right.nickname, "ru")),
@@ -604,6 +723,45 @@ export function EventsAnalyticsPanel({
   }, [breakdown, effectiveScope, games, metric, mode, selectedPlayerIds])
 
   const hasBaseline = analytics.series.length === 1 && analytics.chartData.length > 0
+  const handleChartClick = (state: unknown) => {
+    const chartState = state as
+      | {
+          activeLabel?: string | number
+          activePayload?: Array<{
+            color?: string
+            dataKey?: string | number
+            name?: string | number
+            value?: number | string | null
+            payload?: Record<string, number | string | null | undefined> & { eventLabel?: string }
+          }>
+        }
+      | null
+      | undefined
+
+    if (!chartState?.activePayload || chartState.activePayload.length === 0) {
+      return
+    }
+
+    const entries = chartState.activePayload
+      .filter((entry) => entry.value !== null && entry.value !== undefined)
+      .map((entry) => ({
+        key: String(entry.dataKey ?? entry.name ?? ""),
+        name: String(entry.name ?? ""),
+        color: entry.color ?? "var(--muted-foreground)",
+        value: typeof entry.value === "number" ? entry.value : typeof entry.value === "string" ? Number(entry.value) : null,
+      }))
+
+    if (entries.length === 0) {
+      return
+    }
+
+    const point = chartState.activePayload[0]?.payload
+    setLockedValues({
+      label: String(chartState.activeLabel ?? ""),
+      eventLabel: point?.eventLabel ? String(point.eventLabel) : undefined,
+      entries,
+    })
+  }
   const summaryCards = [
     {
       key: "matches",
@@ -706,24 +864,37 @@ export function EventsAnalyticsPanel({
             <PlayerSelector
               players={analyticsPlayers}
               selected={selectedPlayerIds}
-              onSelectionChange={onSelectedPlayerIdsChange}
+              onSelectionChange={(ids) => {
+                setLockedValues(null)
+                onSelectedPlayerIdsChange(ids)
+              }}
               placeholder="Весь состав или конкретные игроки..."
             />
           </div>
 
           <div className="space-y-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Параметр</p>
-            <Select value={metric} onValueChange={(value) => setMetric(value as AnalyticsMetric)}>
+            <Select
+              value={metric}
+              onValueChange={(value) => {
+                setLockedValues(null)
+                setMetric(value as AnalyticsMetric)
+              }}
+            >
               <SelectTrigger className="w-full border-christmas-gold/20 bg-background/50 text-christmas-snow">
                 <SelectValue placeholder="Метрика" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="kd">K/D</SelectItem>
+                <SelectItem value="kda">KDA</SelectItem>
                 <SelectItem value="winRate">Win Rate</SelectItem>
                 <SelectItem value="ticketDiff">Разница билетов</SelectItem>
+                <SelectItem value="elo">ELO</SelectItem>
                 <SelectItem value="kills">Убийства</SelectItem>
                 <SelectItem value="downs">Ноки</SelectItem>
                 <SelectItem value="revives">Поднятия</SelectItem>
+                <SelectItem value="heals">Хил</SelectItem>
+                <SelectItem value="vehicle">Техника</SelectItem>
                 <SelectItem value="impact">Импакт</SelectItem>
                 <SelectItem value="deaths">Смерти</SelectItem>
                 <SelectItem value="participants">Участники</SelectItem>
@@ -733,7 +904,13 @@ export function EventsAnalyticsPanel({
 
           <div className="space-y-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Режим</p>
-            <Select value={mode} onValueChange={(value) => setMode(value as AnalyticsMode)}>
+            <Select
+              value={mode}
+              onValueChange={(value) => {
+                setLockedValues(null)
+                setMode(value as AnalyticsMode)
+              }}
+            >
               <SelectTrigger className="w-full border-christmas-gold/20 bg-background/50 text-christmas-snow">
                 <SelectValue placeholder="Режим" />
               </SelectTrigger>
@@ -746,7 +923,13 @@ export function EventsAnalyticsPanel({
 
           <div className="space-y-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Группировка</p>
-            <Select value={breakdown} onValueChange={(value) => setBreakdown(value as AnalyticsBreakdown)}>
+            <Select
+              value={breakdown}
+              onValueChange={(value) => {
+                setLockedValues(null)
+                setBreakdown(value as AnalyticsBreakdown)
+              }}
+            >
               <SelectTrigger className="w-full border-christmas-gold/20 bg-background/50 text-christmas-snow">
                 <SelectValue placeholder="Группировка" />
               </SelectTrigger>
@@ -754,11 +937,9 @@ export function EventsAnalyticsPanel({
                 <SelectItem value="overall">Общий срез</SelectItem>
                 <SelectItem value="opponent">По оппонентам</SelectItem>
                 <SelectItem value="map">По картам</SelectItem>
-                <SelectItem value="faction">По декам</SelectItem>
+                <SelectItem value="faction">По фракциям</SelectItem>
                 <SelectItem value="result">По результатам</SelectItem>
                 <SelectItem value="squad">По отрядам</SelectItem>
-                <SelectItem value="map_opponent">Карта + оппонент</SelectItem>
-                <SelectItem value="faction_opponent">Дека + оппонент</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -806,7 +987,7 @@ export function EventsAnalyticsPanel({
 
             <div className="h-[320px] rounded-xl border border-border/50 bg-background/25 p-3">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={analytics.chartData} margin={{ left: 0, right: 0, top: 12, bottom: 8 }}>
+                <LineChart data={analytics.chartData} margin={{ left: 0, right: 0, top: 12, bottom: 8 }} onClick={handleChartClick}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.28} />
                   <XAxis
                     dataKey="dateLabel"
@@ -840,30 +1021,7 @@ export function EventsAnalyticsPanel({
                   {metric === "ticketDiff" && (
                     <ReferenceLine yAxisId="left" y={0} stroke="var(--muted-foreground)" strokeDasharray="5 5" opacity={0.4} />
                   )}
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "var(--card)",
-                      border: "1px solid var(--border)",
-                      borderRadius: "10px",
-                      color: "var(--foreground)",
-                    }}
-                    formatter={(value: number | null, name: string) => {
-                      const baselineLabel = String(analytics.chartData[0]?.baselineLabel ?? "")
-                      if (name === baselineLabel) {
-                        if (baselineLabel === "Кумулятивный K/D") {
-                          return [value?.toFixed(2) ?? "н/д", name]
-                        }
-
-                        return [value === null || value === undefined ? "н/д" : `${value.toFixed(1)}%`, name]
-                      }
-
-                      return [formatMetricValue(metric, value), name]
-                    }}
-                    labelFormatter={(label, payload) => {
-                      const point = payload?.[0]?.payload as { eventLabel?: string } | undefined
-                      return `${label}${point?.eventLabel ? ` • ${point.eventLabel}` : ""}`
-                    }}
-                  />
+                  <Tooltip content={<ChartTooltipContent metric={metric} />} wrapperStyle={{ pointerEvents: "auto" }} />
                   {analytics.series.map((series) => (
                     <Line
                       key={series.key}
@@ -895,9 +1053,13 @@ export function EventsAnalyticsPanel({
               </ResponsiveContainer>
             </div>
 
+            {lockedValues ? (
+              <ChartValuesPanel title="Зафиксировано" metric={metric} values={lockedValues} onClear={() => setLockedValues(null)} />
+            ) : null}
+
             <div className="text-[11px] text-muted-foreground">
-              Серии теперь строятся не только по общему фильтру, но и по выбранной группировке: можно сравнивать оппонентов,
-              карты, деки, отряды и комбинированные связки вроде карта + оппонент или дека + оппонент.
+              Серии строятся по выбранной группировке: можно сравнивать оппонентов, карты, фракции и отряды. Клик по графику
+              фиксирует значения выбранного матча под графиком.
             </div>
           </div>
         )}
