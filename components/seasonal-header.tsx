@@ -343,7 +343,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
           tagline: null,
           emblemSrc: withBasePath("/dcia-emblem.png"),
           emblemAlt: "Эмблема коалиции DCIA",
-          heroLabel: "Коалиция\nDCAI",
+          heroLabel: "Коалиция\n『DCAI』",
           playersLabel: "Коалиция",
           playersValue: String(coalitionPlayersCount),
           dateLabel: "Основан",
@@ -567,9 +567,12 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
                 ) : (
                   <div className="flex min-h-[82px] items-center justify-center">
                     {currentSlide.id === "dcia" ? (
-                      <span className="flex flex-col items-center text-center font-black uppercase tracking-[0.28em] text-christmas-snow">
-                        <span className="text-xl md:text-2xl">Коалиция</span>
-                        <span className="text-3xl md:text-4xl">DCAI</span>
+                      <span className="flex flex-col items-center text-center font-black uppercase tracking-[0.22em] text-christmas-snow">
+                        <span className="text-lg md:text-xl">Коалиция</span>
+                        <span className="text-3xl leading-tight md:text-[2.35rem]">『DCAI』</span>
+                        <span className="mt-1 max-w-[22rem] text-[11px] font-medium normal-case leading-snug tracking-[0.08em] text-christmas-gold/90 md:text-xs">
+                          Вместе — от небес до самого ада!
+                        </span>
                       </span>
                     ) : (
                       <span className="whitespace-pre-line text-center text-3xl font-black uppercase tracking-[0.28em] text-christmas-snow md:text-4xl">
