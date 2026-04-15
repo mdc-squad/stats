@@ -1147,10 +1147,6 @@ export function EventsAnalyticsPanel({
 
             {lockedValues.length === 2 ? <ChartDynamicsPanel metric={metric} left={lockedValues[0]!} right={lockedValues[1]!} /> : null}
 
-            <div className="text-[11px] text-muted-foreground">
-              Серии строятся по выбранной группировке: можно сравнивать оппонентов, карты, фракции и отряды. Клик по графику
-              фиксирует до двух выбранных матчей под графиком и показывает динамику между ними.
-            </div>
           </div>
         )}
       </CardContent>
