@@ -1,15 +1,18 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import type { LucideIcon } from "lucide-react"
+import { MultiValueFilter, type MultiValueFilterOption } from "@/components/multi-value-filter"
 import { PlayerSelector } from "@/components/player-selector"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { getMetricIcon } from "@/lib/app-icons"
 import type { PastGamePlayerStat, PastGameSummary, Player } from "@/lib/data-utils"
-import { getSquadToneKey, isSelectableSquadLabel } from "@/lib/squad-utils"
-import { ArrowLeftRight, Activity, TrendingUp } from "lucide-react"
+import { isSelectableSquadLabel } from "@/lib/squad-utils"
+import { ArrowLeftRight, Activity, Plus, TrendingUp, X } from "lucide-react"
 
 type AnalyticsMetric =
   | "winRate"
@@ -71,18 +74,14 @@ type ComparisonSeries = {
 
 type ChartBuilderConfig = {
   id: string
-  title: string
-  description: string
   metrics: AnalyticsMetric[]
   mode: AnalyticsMode
   breakdown: AnalyticsBreakdown
-  referenceMetrics: AnalyticsMetric[]
 }
 
 type ChartLine = {
   key: string
   dataKey: string
-  rawDataKey: string
   label: string
   matches: number
   color: string
@@ -92,7 +91,7 @@ type ChartLine = {
 type ChartModel = {
   chartData: Array<Record<string, number | string | null>>
   lines: ChartLine[]
-  lineMetaByDataKey: Record<string, { metric: AnalyticsMetric; rawDataKey: string }>
+  lineMetaByDataKey: Record<string, { metric: AnalyticsMetric }>
   gameCount: number
 }
 
@@ -148,6 +147,11 @@ const METRIC_ORDER: AnalyticsMetric[] = [
   "elo",
 ]
 
+const METRIC_OPTIONS: MultiValueFilterOption[] = METRIC_ORDER.map((metric) => ({
+  value: metric,
+  label: METRIC_LABELS[metric],
+}))
+
 const LINE_COLOR_PALETTE = [
   "#ef4444",
   "#22c55e",
@@ -165,61 +169,17 @@ const LINE_COLOR_PALETTE = [
 
 const TOOLTIP_VISIBLE_ROWS = 10
 const TOOLTIP_ROW_HEIGHT_PX = 24
-const MAX_COMPARISON_SERIES = 6
 
-const SQUAD_LINE_COLORS: Record<string, string> = {
-  red: "#fb7185",
-  blue: "#38bdf8",
-  green: "#34d399",
-  yellow: "#fbbf24",
-  orange: "#fb923c",
-  purple: "#a78bfa",
-  pink: "#f472b6",
-  cyan: "#22d3ee",
-  brown: "#b45309",
-  black: "#cbd5e1",
-  white: "#f8fafc",
-  neutral: "#94a3b8",
-}
+let chartConfigCounter = 1
 
-const PRESET_CHART_CONFIGS: ChartBuilderConfig[] = [
-  {
-    id: "result-ticketdiff",
-    title: "Результат и разница тикетов",
-    description: "Проверяет, как изменение средней разницы тикетов совпадает с изменением WR.",
-    metrics: ["ticketDiff", "winRate"],
-    mode: "cumulative",
-    breakdown: "overall",
-    referenceMetrics: ["ticketDiff"],
-  },
-  {
-    id: "combat-efficiency",
-    title: "Боевая эффективность и WR",
-    description: "Сравнивает K/D и KDA с динамикой побед, чтобы увидеть, что сильнее связано с результатом.",
-    metrics: ["kd", "kda", "winRate"],
-    mode: "cumulative",
-    breakdown: "overall",
-    referenceMetrics: ["kd"],
-  },
-  {
-    id: "squad-kd",
-    title: "Отряды по цветам: K/D",
-    description: "Показывает динамику K/D каждого цветового отряда. Цвет линии совпадает с цветом отряда.",
+function createChartConfig(): ChartBuilderConfig {
+  return {
+    id: `chart-${chartConfigCounter++}`,
     metrics: ["kd"],
     mode: "cumulative",
-    breakdown: "squad",
-    referenceMetrics: [],
-  },
-  {
-    id: "squad-support",
-    title: "Отряды по цветам: поддержка",
-    description: "Сравнивает средние поднятия по цветам отрядов, чтобы увидеть вклад поддержки.",
-    metrics: ["revives"],
-    mode: "cumulative",
-    breakdown: "squad",
-    referenceMetrics: [],
-  },
-]
+    breakdown: "overall",
+  }
+}
 
 function formatMatchDate(value: string): string {
   if (!value) return "N/A"
@@ -269,6 +229,21 @@ function formatMetricValue(metric: AnalyticsMetric, value: number | null | undef
   }
 
   return value.toFixed(1)
+}
+
+function formatAxisValue(value: number, metrics: AnalyticsMetric[]): string {
+  if (!Number.isFinite(value)) {
+    return ""
+  }
+
+  if (metrics.length === 1) {
+    return formatMetricValue(metrics[0], value)
+  }
+
+  const absValue = Math.abs(value)
+  if (absValue >= 100) return Math.round(value).toString()
+  if (absValue >= 10) return value.toFixed(1)
+  return value.toFixed(2)
 }
 
 function getResultKey(game: Pick<PastGameSummary, "is_win">): "win" | "loss" | "unknown" {
@@ -460,12 +435,10 @@ function getSeriesCandidates(
     squadLabels.forEach((label) => addCandidate(label, label))
   })
 
-  const sortedCandidates = Array.from(counts.values()).sort((left, right) => {
+  return Array.from(counts.values()).sort((left, right) => {
     if (right.matches !== left.matches) return right.matches - left.matches
     return left.label.localeCompare(right.label, "ru")
   })
-
-  return breakdown === "squad" ? sortedCandidates : sortedCandidates.slice(0, MAX_COMPARISON_SERIES)
 }
 
 function buildComparisonSeries(
@@ -512,10 +485,6 @@ function getChartDataKey(metric: AnalyticsMetric, seriesKey: string): string {
   return `${metric}::${seriesKey}`
 }
 
-function getRawChartDataKey(metric: AnalyticsMetric, seriesKey: string): string {
-  return `raw::${metric}::${seriesKey}`
-}
-
 function getChartLineLabel(metric: AnalyticsMetric, seriesLabel: string, metricCount: number, seriesCount: number): string {
   if (metricCount === 1 && seriesCount === 1) {
     return METRIC_LABELS[metric]
@@ -532,11 +501,7 @@ function getChartLineLabel(metric: AnalyticsMetric, seriesLabel: string, metricC
   return `${METRIC_LABELS[metric]} • ${seriesLabel}`
 }
 
-function getChartLineColor(metric: AnalyticsMetric, seriesIndex: number, breakdown: AnalyticsBreakdown, seriesLabel: string): string {
-  if (breakdown === "squad") {
-    return SQUAD_LINE_COLORS[getSquadToneKey(seriesLabel)]
-  }
-
+function getChartLineColor(metric: AnalyticsMetric, seriesIndex: number): string {
   const metricIndex = METRIC_ORDER.indexOf(metric)
   const paletteIndex = (metricIndex * 5 + seriesIndex * 2) % LINE_COLOR_PALETTE.length
   return LINE_COLOR_PALETTE[paletteIndex]
@@ -611,16 +576,15 @@ function buildChartModel(games: PastGameSummary[], selectedPlayerIds: Set<string
     comparisonSeries.map((series, seriesIndex) => ({
       key: `${config.id}-${metric}-${series.key}`,
       dataKey: getChartDataKey(metric, series.key),
-      rawDataKey: getRawChartDataKey(metric, series.key),
       label: getChartLineLabel(metric, series.label, config.metrics.length, comparisonSeries.length),
       matches: series.matches,
-      color: getChartLineColor(metric, seriesIndex, config.breakdown, series.label),
+      color: getChartLineColor(metric, seriesIndex),
       metric,
     })),
   )
 
-  const lineMetaByDataKey = lines.reduce<Record<string, { metric: AnalyticsMetric; rawDataKey: string }>>((accumulator, line) => {
-    accumulator[line.dataKey] = { metric: line.metric, rawDataKey: line.rawDataKey }
+  const lineMetaByDataKey = lines.reduce<Record<string, { metric: AnalyticsMetric }>>((accumulator, line) => {
+    accumulator[line.dataKey] = { metric: line.metric }
     return accumulator
   }, {})
 
@@ -644,44 +608,20 @@ function buildChartModel(games: PastGameSummary[], selectedPlayerIds: Set<string
         }
 
         const dataKey = getChartDataKey(metric, series.key)
-        const rawDataKey = getRawChartDataKey(metric, series.key)
         const aggregate = series.resolveAggregate(game)
 
         if (aggregate) {
           updateSeriesState(state, aggregate, game)
-          const value =
+          row[dataKey] =
             config.mode === "per_match" ? getPerMatchMetricValue(metric, aggregate, game) : getCumulativeMetricValue(metric, state)
-          row[dataKey] = value
-          row[rawDataKey] = value
           return
         }
 
-        const value = config.mode === "cumulative" && state.matches > 0 ? getCumulativeMetricValue(metric, state) : null
-        row[dataKey] = value
-        row[rawDataKey] = value
+        row[dataKey] = config.mode === "cumulative" && state.matches > 0 ? getCumulativeMetricValue(metric, state) : null
       })
     })
 
     return row
-  })
-
-  lines.forEach((line) => {
-    const values = chartData
-      .map((row) => row[line.rawDataKey])
-      .filter((value): value is number => typeof value === "number" && Number.isFinite(value))
-
-    if (values.length === 0) {
-      return
-    }
-
-    const min = Math.min(...values)
-    const max = Math.max(...values)
-    const range = max - min
-
-    chartData.forEach((row) => {
-      const rawValue = row[line.rawDataKey]
-      row[line.dataKey] = typeof rawValue === "number" && Number.isFinite(rawValue) ? (range === 0 ? 50 : ((rawValue - min) / range) * 100) : null
-    })
   })
 
   return {
@@ -705,9 +645,9 @@ function AnalyticsTooltipContent({
     dataKey?: string | number
     name?: string
     value?: number | string | null
-    payload?: Record<string, number | string | null | undefined> & { eventLabel?: string }
+    payload?: { eventLabel?: string }
   }>
-  lineMetaByDataKey: Record<string, { metric: AnalyticsMetric; rawDataKey: string }>
+  lineMetaByDataKey: Record<string, { metric: AnalyticsMetric }>
 }) {
   if (!active || !payload || payload.length === 0) {
     return null
@@ -724,7 +664,7 @@ function AnalyticsTooltipContent({
   const maxHeight = `${TOOLTIP_VISIBLE_ROWS * TOOLTIP_ROW_HEIGHT_PX}px`
 
   return (
-    <div className="pointer-events-auto w-[310px] rounded-xl border border-border bg-card p-3 text-card-foreground shadow-xl">
+    <div className="w-[310px] rounded-xl border border-border bg-card p-3 text-card-foreground shadow-xl">
       <p className="text-sm font-medium text-christmas-snow">
         {label}
         {point?.eventLabel ? ` • ${point.eventLabel}` : ""}
@@ -732,7 +672,7 @@ function AnalyticsTooltipContent({
       <div
         className="mt-2 space-y-1.5 overflow-y-auto pr-1 overscroll-contain"
         style={{ maxHeight }}
-        onWheelCapture={(event) => {
+        onWheel={(event) => {
           event.preventDefault()
           event.stopPropagation()
           event.currentTarget.scrollTop += event.deltaY
@@ -742,11 +682,7 @@ function AnalyticsTooltipContent({
           const numericValue =
             typeof entry.value === "number" ? entry.value : typeof entry.value === "string" ? Number(entry.value) : null
           const dataKey = typeof entry.dataKey === "string" ? entry.dataKey : ""
-          const meta = lineMetaByDataKey[dataKey]
-          const metric = meta?.metric ?? "kd"
-          const rawValue = meta?.rawDataKey ? entry.payload?.[meta.rawDataKey] : null
-          const rawNumericValue =
-            typeof rawValue === "number" ? rawValue : typeof rawValue === "string" ? Number(rawValue) : null
+          const metric = lineMetaByDataKey[dataKey]?.metric ?? "kd"
 
           return (
             <div key={`${entry.name}-${entry.color}-${dataKey}`} className="flex items-center justify-between gap-3 text-xs">
@@ -754,10 +690,7 @@ function AnalyticsTooltipContent({
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
                 <span className="truncate text-christmas-snow">{entry.name}</span>
               </span>
-              <span className="shrink-0 text-right font-medium text-christmas-snow">
-                {formatMetricValue(metric, rawNumericValue)}
-                <span className="ml-1 text-muted-foreground">({formatMetricValue("winRate", numericValue)})</span>
-              </span>
+              <span className="shrink-0 font-medium text-christmas-snow">{formatMetricValue(metric, numericValue)}</span>
             </div>
           )
         })}
@@ -794,6 +727,8 @@ export function EventsAnalyticsPanel({
   selectedPlayerIds,
   onSelectedPlayerIdsChange,
 }: EventsAnalyticsPanelProps) {
+  const [chartConfigs, setChartConfigs] = useState<ChartBuilderConfig[]>(() => [createChartConfig()])
+
   const analyticsPlayers = useMemo(
     () => players.filter((player) => player.totals?.events > 0).sort((left, right) => left.nickname.localeCompare(right.nickname, "ru")),
     [players],
@@ -802,9 +737,27 @@ export function EventsAnalyticsPanel({
 
   const summary = useMemo(() => buildAnalyticsSummary(games, selectedSet), [games, selectedSet])
   const chartModels = useMemo(
-    () => PRESET_CHART_CONFIGS.map((config) => ({ config, model: buildChartModel(games, selectedSet, config) })),
-    [games, selectedSet],
+    () => chartConfigs.map((config) => ({ config, model: buildChartModel(games, selectedSet, config) })),
+    [chartConfigs, games, selectedSet],
   )
+
+  const addChart = () => {
+    setChartConfigs((current) => [...current, createChartConfig()])
+  }
+
+  const updateChartConfig = (chartId: string, patch: Partial<ChartBuilderConfig>) => {
+    setChartConfigs((current) => current.map((config) => (config.id === chartId ? { ...config, ...patch } : config)))
+  }
+
+  const removeChart = (chartId: string) => {
+    setChartConfigs((current) => {
+      if (current.length <= 1) {
+        return current
+      }
+
+      return current.filter((config) => config.id !== chartId)
+    })
+  }
 
   const summaryCards = [
     {
@@ -901,6 +854,15 @@ export function EventsAnalyticsPanel({
             <TrendingUp className="w-4 h-4 text-christmas-gold" />
             Статистика и аналитика игр
           </CardTitle>
+          <Button
+            type="button"
+            variant="outline"
+            className="border-christmas-gold/20 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10"
+            onClick={addChart}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Добавить график ниже
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -923,17 +885,84 @@ export function EventsAnalyticsPanel({
         </div>
 
         <div className="space-y-4">
-          {chartModels.map(({ config, model }) => (
+          {chartModels.map(({ config, model }, index) => (
             <Card key={config.id} className="border-border/50 bg-background/25">
               <CardContent className="space-y-4 pt-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="space-y-1">
-                    <p className="text-sm font-semibold text-christmas-snow">{config.title}</p>
+                    <p className="text-sm font-semibold text-christmas-snow">График {index + 1}</p>
                     <p className="text-xs text-muted-foreground">
                       {BREAKDOWN_LABELS[config.breakdown]} • {config.mode === "cumulative" ? "кумулятивно" : "по матчам"} •{" "}
                       {selectedPlayerIds.length > 0 ? `игроки: ${selectedPlayerIds.length}` : "игроки: весь состав"}
                     </p>
-                    <p className="text-xs text-muted-foreground">{config.description}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-christmas-gold/20 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10"
+                      onClick={addChart}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Ниже
+                    </Button>
+                    {chartConfigs.length > 1 ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-border/60 bg-background/40 text-muted-foreground hover:bg-background/70 hover:text-christmas-snow"
+                        onClick={() => removeChart(config.id)}
+                      >
+                        <X className="mr-2 h-4 w-4" />
+                        Удалить
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.8fr)_repeat(2,minmax(0,0.9fr))]">
+                  <div className="space-y-2">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Метрики</p>
+                    <MultiValueFilter
+                      options={METRIC_OPTIONS}
+                      selected={config.metrics}
+                      onSelectionChange={(values) => updateChartConfig(config.id, { metrics: values as AnalyticsMetric[] })}
+                      placeholder="Одна или несколько метрик..."
+                      searchPlaceholder="Поиск по метрикам..."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Режим</p>
+                    <Select value={config.mode} onValueChange={(value) => updateChartConfig(config.id, { mode: value as AnalyticsMode })}>
+                      <SelectTrigger className="w-full border-christmas-gold/20 bg-background/50 text-christmas-snow">
+                        <SelectValue placeholder="Режим" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cumulative">Кумулятивно</SelectItem>
+                        <SelectItem value="per_match">По матчам</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Группировка</p>
+                    <Select
+                      value={config.breakdown}
+                      onValueChange={(value) => updateChartConfig(config.id, { breakdown: value as AnalyticsBreakdown })}
+                    >
+                      <SelectTrigger className="w-full border-christmas-gold/20 bg-background/50 text-christmas-snow">
+                        <SelectValue placeholder="Группировка" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="overall">Весь состав</SelectItem>
+                        <SelectItem value="opponent">По оппонентам</SelectItem>
+                        <SelectItem value="map">По картам</SelectItem>
+                        <SelectItem value="faction">По фракциям</SelectItem>
+                        <SelectItem value="result">По результатам</SelectItem>
+                        <SelectItem value="squad">По отрядам</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -951,9 +980,6 @@ export function EventsAnalyticsPanel({
                       <div className="space-y-1">
                         <p className="text-christmas-snow">Метрики: {config.metrics.map((metric) => METRIC_LABELS[metric]).join(" • ")}</p>
                         <p className="text-muted-foreground">
-                          Индекс 0-100 показывает динамику каждой линии внутри собственного диапазона. Реальные значения остаются в подсказке.
-                        </p>
-                        <p className="text-muted-foreground">
                           {BREAKDOWN_LABELS[config.breakdown]} • {config.mode === "cumulative" ? "кумулятивно" : "по матчам"} • матчей:{" "}
                           {model.gameCount}
                         </p>
@@ -970,15 +996,7 @@ export function EventsAnalyticsPanel({
                           variant="outline"
                           className="justify-start gap-2 border-border/60 bg-background/30 px-2 py-1 text-left text-muted-foreground"
                         >
-                          <span
-                            className="h-2.5 w-5 rounded-full"
-                            style={{
-                              background:
-                                config.referenceMetrics.includes(line.metric)
-                                  ? `repeating-linear-gradient(90deg, ${line.color} 0 4px, transparent 4px 7px)`
-                                  : line.color,
-                            }}
-                          />
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: line.color }} />
                           <span className="text-christmas-snow">{line.label}</span>
                           <span>{line.matches} игр</span>
                         </Badge>
@@ -1000,15 +1018,15 @@ export function EventsAnalyticsPanel({
                             stroke="var(--muted-foreground)"
                             fontSize={10}
                             tickLine={false}
-                            domain={[0, 100]}
-                            tickFormatter={(value) => `${Math.round(Number(value))}%`}
+                            tickFormatter={(value) => formatAxisValue(Number(value), config.metrics)}
                           />
-                          <ReferenceLine y={50} stroke="var(--muted-foreground)" strokeDasharray="5 5" opacity={0.4} />
-                          <Tooltip
-                            content={<AnalyticsTooltipContent lineMetaByDataKey={model.lineMetaByDataKey} />}
-                            wrapperStyle={{ pointerEvents: "auto" }}
-                            allowEscapeViewBox={{ x: true, y: true }}
-                          />
+                          {config.metrics.includes("winRate") && (
+                            <ReferenceLine y={50} stroke="var(--muted-foreground)" strokeDasharray="5 5" opacity={0.4} />
+                          )}
+                          {config.metrics.includes("ticketDiff") && (
+                            <ReferenceLine y={0} stroke="var(--muted-foreground)" strokeDasharray="5 5" opacity={0.4} />
+                          )}
+                          <Tooltip content={<AnalyticsTooltipContent lineMetaByDataKey={model.lineMetaByDataKey} />} />
                           {[...model.lines]
                             .sort((left, right) => {
                               const metricDelta = METRIC_ORDER.indexOf(left.metric) - METRIC_ORDER.indexOf(right.metric)
@@ -1016,21 +1034,20 @@ export function EventsAnalyticsPanel({
                               return left.matches - right.matches
                             })
                             .map((line) => (
-                              <Line
-                                key={line.key}
-                                type="monotone"
-                                dataKey={line.dataKey}
-                                name={line.label}
-                                stroke={line.color}
-                                strokeWidth={config.metrics.length > 1 ? 2.4 : 2.2}
-                                strokeOpacity={config.metrics.length > 1 ? 0.9 : 1}
-                                strokeDasharray={config.referenceMetrics.includes(line.metric) ? "6 4" : undefined}
-                                dot={false}
-                                connectNulls={config.mode === "cumulative"}
-                                activeDot={{ r: 4, fill: line.color }}
-                                style={{ zIndex: 10 + METRIC_ORDER.indexOf(line.metric) }}
-                              />
-                            ))}
+                            <Line
+                              key={line.key}
+                              type="monotone"
+                              dataKey={line.dataKey}
+                              name={line.label}
+                              stroke={line.color}
+                              strokeWidth={config.metrics.length > 1 ? 2.4 : 2.2}
+                              strokeOpacity={config.metrics.length > 1 ? 0.9 : 1}
+                              dot={false}
+                              connectNulls={config.mode === "cumulative"}
+                              activeDot={{ r: 4, fill: line.color }}
+                              style={{ zIndex: 10 + METRIC_ORDER.indexOf(line.metric) }}
+                            />
+                          ))}
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
