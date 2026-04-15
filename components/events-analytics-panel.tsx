@@ -1,13 +1,15 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import type { LucideIcon } from "lucide-react"
 import { PlayerSelector } from "@/components/player-selector"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { getMetricIcon } from "@/lib/app-icons"
 import type { PastGamePlayerStat, PastGameSummary, Player } from "@/lib/data-utils"
-import { Activity, Crosshair, Heart, Shield, Skull, TrendingUp, Zap } from "lucide-react"
+import { Activity, ArrowLeftRight, TrendingUp } from "lucide-react"
 
 type AnalyticsMetric =
   | "winRate"
@@ -15,7 +17,11 @@ type AnalyticsMetric =
   | "deaths"
   | "downs"
   | "revives"
+  | "heals"
+  | "vehicle"
   | "kd"
+  | "kda"
+  | "elo"
   | "participants"
   | "impact"
   | "ticketDiff"
@@ -43,6 +49,9 @@ type AnalyticsAggregate = {
   deaths: number
   downs: number
   revives: number
+  heals: number
+  vehicle: number
+  elo: number
   impact: number
   participants: number
   ticketDiff: number | null
@@ -56,6 +65,9 @@ type SeriesState = {
   deaths: number
   downs: number
   revives: number
+  heals: number
+  vehicle: number
+  elo: number
   impact: number
   participants: number
   ticketDiffTotal: number
@@ -77,7 +89,11 @@ const METRIC_LABELS: Record<AnalyticsMetric, string> = {
   deaths: "Смерти",
   downs: "Ноки",
   revives: "Поднятия",
+  heals: "Хил",
+  vehicle: "Техника",
   kd: "K/D",
+  kda: "KDA",
+  elo: "ELO",
   participants: "Участники",
   impact: "Импакт",
   ticketDiff: "Разница билетов",
@@ -141,8 +157,12 @@ function formatMetricValue(metric: AnalyticsMetric, value: number | null | undef
     return `${value.toFixed(1)}%`
   }
 
-  if (metric === "kd") {
+  if (metric === "kd" || metric === "kda") {
     return value.toFixed(2)
+  }
+
+  if (metric === "elo") {
+    return value.toFixed(1)
   }
 
   if (metric === "ticketDiff") {
@@ -173,6 +193,9 @@ function createSeriesState(): SeriesState {
     deaths: 0,
     downs: 0,
     revives: 0,
+    heals: 0,
+    vehicle: 0,
+    elo: 0,
     impact: 0,
     participants: 0,
     ticketDiffTotal: 0,
@@ -202,6 +225,9 @@ function buildAggregate(players: PastGamePlayerStat[], game: PastGameSummary): A
     deaths: players.reduce((sum, player) => sum + player.deaths, 0),
     downs: players.reduce((sum, player) => sum + player.downs, 0),
     revives: players.reduce((sum, player) => sum + player.revives, 0),
+    heals: players.reduce((sum, player) => sum + player.heals, 0),
+    vehicle: players.reduce((sum, player) => sum + player.vehicle, 0),
+    elo: players.reduce((sum, player) => sum + player.elo, 0),
     impact: players.reduce((sum, player) => sum + getPlayerImpact(player), 0),
     participants: players.length,
     ticketDiff: getTicketDiff(game),
@@ -214,6 +240,9 @@ function updateSeriesState(state: SeriesState, aggregate: AnalyticsAggregate, ga
   state.deaths += aggregate.deaths
   state.downs += aggregate.downs
   state.revives += aggregate.revives
+  state.heals += aggregate.heals
+  state.vehicle += aggregate.vehicle
+  state.elo += aggregate.elo
   state.impact += aggregate.impact
   state.participants += aggregate.participants
 
@@ -239,8 +268,16 @@ function getPerMatchMetricValue(metric: AnalyticsMetric, aggregate: AnalyticsAgg
     return aggregate.deaths > 0 ? aggregate.kills / aggregate.deaths : aggregate.kills
   }
 
+  if (metric === "kda") {
+    return aggregate.deaths > 0 ? (aggregate.kills + aggregate.downs) / aggregate.deaths : aggregate.kills + aggregate.downs
+  }
+
   if (metric === "ticketDiff") {
     return aggregate.ticketDiff
+  }
+
+  if (metric === "elo") {
+    return aggregate.participants > 0 ? aggregate.elo / aggregate.participants : 0
   }
 
   if (metric === "impact") {
@@ -262,6 +299,9 @@ function getPerMatchMetricValue(metric: AnalyticsMetric, aggregate: AnalyticsAgg
   if (metric === "revives") {
     return aggregate.revives
   }
+
+  if (metric === "heals") return aggregate.heals
+  if (metric === "vehicle") return aggregate.vehicle
 
   return aggregate.participants
 }
@@ -291,6 +331,18 @@ function getCumulativeMetricValue(metric: AnalyticsMetric, state: SeriesState): 
     return state.revives / state.matches
   }
 
+  if (metric === "heals") {
+    return state.heals / state.matches
+  }
+
+  if (metric === "vehicle") {
+    return state.vehicle / state.matches
+  }
+
+  if (metric === "elo") {
+    return state.participants > 0 ? state.elo / state.participants : 0
+  }
+
   if (metric === "participants") {
     return state.participants / state.matches
   }
@@ -301,6 +353,10 @@ function getCumulativeMetricValue(metric: AnalyticsMetric, state: SeriesState): 
 
   if (metric === "ticketDiff") {
     return state.ticketDiffSamples > 0 ? state.ticketDiffTotal / state.ticketDiffSamples : null
+  }
+
+  if (metric === "kda") {
+    return state.deaths > 0 ? (state.kills + state.downs) / state.deaths : state.kills + state.downs
   }
 
   return state.deaths > 0 ? state.kills / state.deaths : state.kills
@@ -435,6 +491,28 @@ function buildComparisonSeries(
   }))
 }
 
+function SummaryStatCard({
+  label,
+  value,
+  icon: Icon,
+  className,
+}: {
+  label: string
+  value: string
+  icon: LucideIcon
+  className: string
+}) {
+  return (
+    <div className={className}>
+      <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-background/20">
+        <Icon className="h-4 w-4 text-christmas-snow" />
+      </div>
+      <p className="mt-2 text-[11px] text-muted-foreground">{label}</p>
+      <p className="mt-1 text-center text-2xl font-semibold text-christmas-snow">{value}</p>
+    </div>
+  )
+}
+
 export function EventsAnalyticsPanel({
   games,
   players,
@@ -514,12 +592,104 @@ export function EventsAnalyticsPanel({
         avgKills: getCumulativeMetricValue("kills", overallState) ?? 0,
         avgRevives: getCumulativeMetricValue("revives", overallState) ?? 0,
         avgTicketDiff: getCumulativeMetricValue("ticketDiff", overallState) ?? 0,
+        avgHeals: getCumulativeMetricValue("heals", overallState) ?? 0,
+        avgDowns: getCumulativeMetricValue("downs", overallState) ?? 0,
+        avgDeaths: getCumulativeMetricValue("deaths", overallState) ?? 0,
+        avgVehicle: getCumulativeMetricValue("vehicle", overallState) ?? 0,
         kd: getCumulativeMetricValue("kd", overallState) ?? 0,
+        kda: getCumulativeMetricValue("kda", overallState) ?? 0,
+        avgElo: getCumulativeMetricValue("elo", overallState) ?? 0,
       },
     }
   }, [breakdown, effectiveScope, games, metric, mode, selectedPlayerIds])
 
   const hasBaseline = analytics.series.length === 1 && analytics.chartData.length > 0
+  const summaryCards = [
+    {
+      key: "matches",
+      label: "Матчи",
+      value: String(analytics.summary.matches),
+      icon: Activity,
+      className: "rounded-xl border border-christmas-gold/20 bg-christmas-gold/10 p-3 text-center",
+    },
+    {
+      key: "wr",
+      label: "Win Rate",
+      value: `${analytics.summary.winRate.toFixed(1)}%`,
+      icon: getMetricIcon("win_rate"),
+      className: "rounded-xl border border-christmas-green/20 bg-christmas-green/10 p-3 text-center",
+    },
+    {
+      key: "ticketDiff",
+      label: "Ср. разница тикетов",
+      value: formatSignedNumber(analytics.summary.avgTicketDiff, 0),
+      icon: ArrowLeftRight,
+      className: "rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-3 text-center",
+    },
+    {
+      key: "revives",
+      label: "Ср. поднятий",
+      value: analytics.summary.avgRevives.toFixed(1),
+      icon: getMetricIcon("revives"),
+      className: "rounded-xl border border-sky-500/20 bg-sky-500/10 p-3 text-center",
+    },
+    {
+      key: "heals",
+      label: "Ср. хил",
+      value: analytics.summary.avgHeals.toFixed(1),
+      icon: getMetricIcon("heals"),
+      className: "rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-center",
+    },
+    {
+      key: "downs",
+      label: "Ср. ноки",
+      value: analytics.summary.avgDowns.toFixed(1),
+      icon: getMetricIcon("downs"),
+      className: "rounded-xl border border-orange-500/20 bg-orange-500/10 p-3 text-center",
+    },
+    {
+      key: "kills",
+      label: "Ср. убийства",
+      value: analytics.summary.avgKills.toFixed(1),
+      icon: getMetricIcon("kills"),
+      className: "rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-center",
+    },
+    {
+      key: "deaths",
+      label: "Ср. смерти",
+      value: analytics.summary.avgDeaths.toFixed(1),
+      icon: getMetricIcon("deaths"),
+      className: "rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-center",
+    },
+    {
+      key: "vehicle",
+      label: "Ср. техника",
+      value: analytics.summary.avgVehicle.toFixed(1),
+      icon: getMetricIcon("vehicle"),
+      className: "rounded-xl border border-blue-500/20 bg-blue-500/10 p-3 text-center",
+    },
+    {
+      key: "kd",
+      label: "Ср. KD",
+      value: analytics.summary.kd.toFixed(2),
+      icon: getMetricIcon("kd"),
+      className: "rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-center",
+    },
+    {
+      key: "kda",
+      label: "Ср. KDA",
+      value: analytics.summary.kda.toFixed(2),
+      icon: TrendingUp,
+      className: "rounded-xl border border-violet-500/20 bg-violet-500/10 p-3 text-center",
+    },
+    {
+      key: "elo",
+      label: "Ср. ELO",
+      value: analytics.summary.avgElo.toFixed(1),
+      icon: getMetricIcon("elo"),
+      className: "rounded-xl border border-slate-400/20 bg-slate-400/10 p-3 text-center",
+    },
+  ] as const
 
   return (
     <Card className="border-christmas-gold/20 bg-card/70">
@@ -594,49 +764,10 @@ export function EventsAnalyticsPanel({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-6">
-          <div className="rounded-xl border border-christmas-gold/20 bg-christmas-gold/10 p-3">
-            <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <Activity className="w-3.5 h-3.5 text-christmas-gold" />
-              Матчи
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-christmas-snow">{analytics.summary.matches}</p>
-          </div>
-          <div className="rounded-xl border border-christmas-green/20 bg-christmas-green/10 p-3">
-            <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <Shield className="w-3.5 h-3.5 text-christmas-green" />
-              WR
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-christmas-snow">{analytics.summary.winRate.toFixed(1)}%</p>
-          </div>
-          <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-3">
-            <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <Crosshair className="w-3.5 h-3.5 text-blue-300" />
-              Ср. убийства
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-christmas-snow">{analytics.summary.avgKills.toFixed(1)}</p>
-          </div>
-          <div className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-3">
-            <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <Heart className="w-3.5 h-3.5 text-orange-300" />
-              Ср. поднятия
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-christmas-snow">{analytics.summary.avgRevives.toFixed(1)}</p>
-          </div>
-          <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-3">
-            <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <Zap className="w-3.5 h-3.5 text-cyan-300" />
-              Ср. разрыв
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-christmas-snow">{formatSignedNumber(analytics.summary.avgTicketDiff, 0)}</p>
-          </div>
-          <div className="rounded-xl border border-christmas-red/20 bg-christmas-red/10 p-3">
-            <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <Skull className="w-3.5 h-3.5 text-christmas-red" />
-              K/D
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-christmas-snow">{analytics.summary.kd.toFixed(2)}</p>
-          </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
+          {summaryCards.map((card) => (
+            <SummaryStatCard key={card.key} label={card.label} value={card.value} icon={card.icon} className={card.className} />
+          ))}
         </div>
 
         {analytics.chartData.length === 0 || analytics.series.length === 0 ? (
