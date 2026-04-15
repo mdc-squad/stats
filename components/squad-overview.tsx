@@ -42,7 +42,10 @@ const METRIC_DEFS: MetricDef[] = [
 const CHART_METRICS = METRIC_DEFS.filter(
   (m): m is MetricDef & { key: ChartMetricKey } => m.key !== "games" && m.key !== "avgTbf" && m.key !== "avgRating",
 )
-const PLAYER_METRICS = METRIC_DEFS
+const PLAYER_METRICS: MetricDef[] = METRIC_DEFS.map((metric) => ({
+  ...metric,
+  label: metric.label.replace(/^Ср\.\s*/i, ""),
+}))
 
 function isVisibleSquadLabel(label: string) {
   const normalized = label.trim().toLowerCase()
@@ -71,7 +74,16 @@ function playerSquadLabel(player: PastGamePlayerStat, squadDomain: string[]) {
     .find((v): v is string => Boolean(v) && isVisibleSquadLabel(v)) ?? null
 }
 function matchMetric(match: SquadMatchSummary, metric: ChartMetricKey) { if (metric === "kd") return match.kd; if (metric === "kda") return match.kda; if (metric === "avgElo") return match.avgElo; if (metric === "avgTbf" || metric === "avgRating") return 0; const key = metric.replace("avg", "").toLowerCase() as keyof SquadMatchSummary; return match.players > 0 ? Number(match[key] ?? 0) / match.players : 0 }
-function playerMetric(player: SquadPlayerSummary, metric: SquadMetricKey) { if (metric === "games") return player.games; if (metric === "kd") return player.kd; if (metric === "kda") return player.kda; if (metric === "avgElo") return player.avgElo; if (metric === "avgTbf") return player.avgTbf; if (metric === "avgRating") return player.avgRating; const key = metric.replace("avg", "").toLowerCase() as keyof SquadPlayerSummary; return player.games > 0 ? Number(player[key] ?? 0) / player.games : 0 }
+function playerMetric(player: SquadPlayerSummary, metric: SquadMetricKey) {
+  if (metric === "games") return player.games
+  if (metric === "kd") return player.kd
+  if (metric === "kda") return player.kda
+  if (metric === "avgElo") return player.avgElo
+  if (metric === "avgTbf") return player.avgTbf
+  if (metric === "avgRating") return player.avgRating
+  const key = metric.replace("avg", "").toLowerCase() as keyof SquadPlayerSummary
+  return Number(player[key] ?? 0)
+}
 function MetricTile({ metric, value, compact = false }: { metric: MetricDef; value: number; compact?: boolean }) {
   const Icon = getMetricIcon(metric.icon)
   return <Tooltip><TooltipTrigger asChild><div className={cn("rounded-lg border border-border/50 bg-background/35 p-3 text-center", compact && "p-2")}><p className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground"><Icon className="h-3.5 w-3.5 text-christmas-gold" /><span className="truncate">{metric.label}</span></p><p className={cn("mt-2 font-semibold text-christmas-snow", compact ? "text-sm" : "text-lg")}>{fNum(value, metric.digits)}</p></div></TooltipTrigger><TooltipContent side="top" className="border border-border bg-card text-card-foreground">{metric.label}</TooltipContent></Tooltip>
@@ -79,7 +91,7 @@ function MetricTile({ metric, value, compact = false }: { metric: MetricDef; val
 
 function PlayerMetricValue({ metric, value }: { metric: MetricDef; value: number }) {
   const Icon = getMetricIcon(metric.icon)
-  return <Tooltip><TooltipTrigger asChild><div className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 py-1 text-center"><Icon className="h-3.5 w-3.5 text-christmas-gold" /><span className="text-[11px] font-medium text-christmas-snow">{fNum(value, metric.digits)}</span></div></TooltipTrigger><TooltipContent side="top" className="border border-border bg-card text-card-foreground">{metric.label}</TooltipContent></Tooltip>
+  return <Tooltip><TooltipTrigger asChild><div className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-md px-2 py-1 text-center"><Icon className="h-3.5 w-3.5 text-christmas-gold" /><span className="text-[11px] font-medium text-christmas-snow">{fNum(value, metric.digits)}</span></div></TooltipTrigger><TooltipContent side="top" className="border border-border bg-card text-card-foreground">{metric.label}</TooltipContent></Tooltip>
 }
 
 function RoleDonut({ slices }: { slices: SquadSummary["roleSlices"] }) {
@@ -151,8 +163,9 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
     const squads = [...bySquad.values()].map<SquadSummary>((squad) => {
       const playersRanked = [...squad.players.values()].map<SquadPlayerSummary>((p) => {
         const profile = playersById.get(p.player_id)
+        const totals = profile?.totals
         const leadLabels = getSquadLabels(profile?.team_leads ?? [], squadDomain).filter(isVisibleSquadLabel)
-        return { player_id: p.player_id, nickname: p.nickname, tag: p.tag || profile?.tag || "", steam_id: p.steam_id || profile?.steam_id || "", games: p.games, wins: p.wins, kills: p.kills, deaths: p.deaths, downs: p.downs, revives: p.revives, heals: p.heals, vehicle: p.vehicle, avgElo: p.games > 0 ? p.elo / p.games : profile?.totals.elo ?? 0, avgTbf: profile?.totals.tbf ?? 0, avgRating: profile?.totals.rating ?? 0, kd: ratio(p.kills, p.deaths), kda: ratio(p.kills + p.downs, p.deaths), popularRole: popular(p.roles) || profile?.favorites.role_1 || "", specialization: popular(p.specs) || profile?.favorites.specialization || "", isSquadLeader: leadLabels.includes(squad.label) }
+        return { player_id: p.player_id, nickname: p.nickname, tag: p.tag || profile?.tag || "", steam_id: p.steam_id || profile?.steam_id || "", games: totals?.events ?? p.games, wins: totals?.wins ?? p.wins, kills: totals?.kills ?? p.kills, deaths: totals?.deaths ?? p.deaths, downs: totals?.downs ?? p.downs, revives: totals?.revives ?? p.revives, heals: totals?.heals ?? p.heals, vehicle: totals?.vehicle ?? p.vehicle, avgElo: totals?.elo ?? (p.games > 0 ? p.elo / p.games : 0), avgTbf: totals?.tbf ?? 0, avgRating: totals?.rating ?? 0, kd: totals?.kd ?? ratio(p.kills, p.deaths), kda: totals?.kda ?? ratio(p.kills + p.downs, p.deaths), popularRole: profile?.favorites.role_1 || popular(p.roles) || "", specialization: profile?.favorites.specialization || popular(p.specs) || "", isSquadLeader: leadLabels.includes(squad.label) }
       }).sort((a, b) => b.avgElo - a.avgElo || b.games - a.games || a.nickname.localeCompare(b.nickname, "ru"))
       const recent = [...squad.matches].sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
       const avgTbf = playersRanked.length ? playersRanked.reduce((s, p) => s + p.avgTbf, 0) / playersRanked.length : 0
@@ -218,7 +231,7 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
 
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-christmas-snow">Игроки отряда</p>
-                  {squad.playersRanked.length === 0 ? <div className="rounded-lg border border-border/50 bg-background/35 px-3 py-2 text-[11px] text-muted-foreground">Пока нет игроков, закрепленных за этим цветом.</div> : <div className="space-y-2">{squad.playersRanked.map((player) => <button type="button" key={`${squad.label}-${player.player_id}`} onClick={() => onOpenPlayer?.(player.player_id)} className="w-full rounded-lg border border-border/50 bg-background/35 px-3 py-2 text-left transition-colors hover:border-christmas-gold/40 hover:bg-christmas-gold/10"><div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(360px,1.35fr)] lg:items-center"><div className="flex min-w-0 items-center gap-3"><PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-christmas-snow">{player.tag ? <span className="text-christmas-gold">{player.tag} </span> : null}{player.nickname}</p><p className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground"><Tooltip><TooltipTrigger asChild><span className="inline-flex items-center gap-1"><RoleIcon role={player.popularRole} className="h-4 w-4" /><span className="truncate">{player.popularRole || "роль не указана"}</span></span></TooltipTrigger><TooltipContent side="top" className="border border-border bg-card text-card-foreground">Популярная роль</TooltipContent></Tooltip><span className="truncate">• {player.specialization || "специализация не указана"}</span></p></div></div><div className="grid grid-cols-6 gap-1 sm:grid-cols-12">{PLAYER_METRICS.map((m) => <PlayerMetricValue key={m.key} metric={m} value={playerMetric(player, m.key)} />)}</div></div></button>)}</div>}
+                  {squad.playersRanked.length === 0 ? <div className="rounded-lg border border-border/50 bg-background/35 px-3 py-2 text-[11px] text-muted-foreground">Пока нет игроков, закрепленных за этим цветом.</div> : <div className="space-y-2">{squad.playersRanked.map((player) => <button type="button" key={`${squad.label}-${player.player_id}`} onClick={() => onOpenPlayer?.(player.player_id)} className="w-full rounded-lg border border-border/50 bg-background/35 px-3 py-2 text-left transition-colors hover:border-christmas-gold/40 hover:bg-christmas-gold/10"><div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(420px,1.45fr)] lg:items-center"><div className="flex min-w-0 items-center gap-3"><PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-christmas-snow">{player.tag ? <span className="text-christmas-gold">{player.tag} </span> : null}{player.nickname}</p><p className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground"><Tooltip><TooltipTrigger asChild><span className="inline-flex items-center gap-1"><RoleIcon role={player.popularRole} className="h-4 w-4" /><span className="truncate">{player.popularRole || "роль не указана"}</span></span></TooltipTrigger><TooltipContent side="top" className="border border-border bg-card text-card-foreground">Популярная роль</TooltipContent></Tooltip><span className="truncate">• {player.specialization || "специализация не указана"}</span></p></div></div><div className="grid grid-cols-6 gap-2 sm:grid-cols-12">{PLAYER_METRICS.map((m) => <PlayerMetricValue key={m.key} metric={m} value={playerMetric(player, m.key)} />)}</div></div></button>)}</div>}
                 </div>
               </CardContent>
             </Card>
