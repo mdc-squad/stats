@@ -23,6 +23,7 @@ type SquadMatchSummary = { eventId: string; startedAt: string; map: string; mode
 type SquadSummary = { label: string; games: number; wins: number; kills: number; deaths: number; downs: number; revives: number; heals: number; vehicle: number; mvpCount: number; avgRevives: number; avgHeals: number; avgDowns: number; avgKills: number; avgDeaths: number; avgVehicle: number; avgElo: number; avgTbf: number; avgRating: number; kd: number; kda: number; playersRanked: SquadPlayerSummary[]; leader: SquadPlayerSummary | null; roleSlices: Array<{ role: string; count: number; color: string }>; recent: SquadMatchSummary[]; bestMatch: SquadMatchSummary | null }
 
 const SQUAD_COLORS: Record<SquadToneKey, string> = { red: "#fb7185", blue: "#38bdf8", green: "#34d399", yellow: "#fbbf24", orange: "#fb923c", purple: "#a78bfa", pink: "#f472b6", cyan: "#22d3ee", brown: "#b45309", black: "#cbd5e1", white: "#f8fafc", neutral: "#94a3b8" }
+const SQUAD_ORDER: SquadToneKey[] = ["green", "red", "yellow", "blue", "purple", "orange", "brown", "black"]
 const ROLE_COLORS = ["#fbbf24", "#38bdf8", "#34d399", "#fb7185", "#a78bfa", "#f472b6", "#22d3ee", "#fb923c"]
 const METRIC_DEFS: MetricDef[] = [
   { key: "games", label: "Игр", icon: "events", digits: 0 },
@@ -52,6 +53,11 @@ function isVisibleSquadLabel(label: string) {
     normalized !== "не указан" &&
     !normalized.includes("без отряда")
   )
+}
+
+function squadOrderIndex(label: string) {
+  const index = SQUAD_ORDER.indexOf(getSquadToneKey(label))
+  return index === -1 ? SQUAD_ORDER.length : index
 }
 
 function fDate(value: string) { const d = new Date(value); return value && !Number.isNaN(d.getTime()) ? `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}` : "?" }
@@ -154,7 +160,7 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
       const avgTbf = playersRanked.length ? playersRanked.reduce((s, p) => s + p.avgTbf, 0) / playersRanked.length : 0
       const avgRating = playersRanked.length ? playersRanked.reduce((s, p) => s + p.avgRating, 0) / playersRanked.length : 0
       return { label: squad.label, games: squad.games, wins: squad.wins, kills: squad.kills, deaths: squad.deaths, downs: squad.downs, revives: squad.revives, heals: squad.heals, vehicle: squad.vehicle, mvpCount: squad.mvpCount, avgRevives: squad.games ? squad.revives / squad.games : 0, avgHeals: squad.games ? squad.heals / squad.games : 0, avgDowns: squad.games ? squad.downs / squad.games : 0, avgKills: squad.games ? squad.kills / squad.games : 0, avgDeaths: squad.games ? squad.deaths / squad.games : 0, avgVehicle: squad.games ? squad.vehicle / squad.games : 0, avgElo: squad.games ? squad.elo / squad.games : 0, avgTbf, avgRating, kd: ratio(squad.kills, squad.deaths), kda: ratio(squad.kills + squad.downs, squad.deaths), playersRanked, leader: playersRanked.find((p) => isSL(p.popularRole)) ?? playersRanked[0] ?? null, roleSlices: [...squad.roles.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru")).slice(0, 8).map(([role, count], i) => ({ role, count, color: ROLE_COLORS[i % ROLE_COLORS.length] })), recent: recent.slice(0, 10), bestMatch: [...squad.matches].sort((a, b) => b.avgElo - a.avgElo)[0] ?? null }
-    }).sort((a, b) => b.games - a.games || b.avgElo - a.avgElo || a.label.localeCompare(b.label, "ru"))
+    }).sort((a, b) => squadOrderIndex(a.label) - squadOrderIndex(b.label) || b.games - a.games || b.avgElo - a.avgElo || a.label.localeCompare(b.label, "ru"))
 
     const chartLines = squads.filter((s) => s.games > 0).map((s, i) => ({ label: s.label, key: `squad_${i}`, color: SQUAD_COLORS[getSquadToneKey(s.label)] }))
     const keyByLabel = new Map(chartLines.map((l) => [l.label, l.key]))
