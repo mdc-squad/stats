@@ -59,7 +59,11 @@ function fNum(value: number, digits = 1) { if (!Number.isFinite(value)) return "
 function ratio(a: number, b: number) { return b > 0 ? a / b : a }
 function popular(values: string[]) { const m = new Map<string, number>(); values.map((v) => v.trim()).filter(Boolean).forEach((v) => m.set(v, (m.get(v) ?? 0) + 1)); return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"))[0]?.[0] ?? "" }
 function resultLabel(isWin: boolean | null, result: string | null) { return result?.trim() || (isWin === true ? "Победа" : isWin === false ? "Поражение" : "Результат не указан") }
-function playerSquadLabel(player: PastGamePlayerStat) { return [player.squad_label, ...(player.squad_labels ?? [])].map((v) => v?.trim()).find((v): v is string => Boolean(v) && isVisibleSquadLabel(v)) ?? null }
+function playerSquadLabel(player: PastGamePlayerStat, squadDomain: string[]) {
+  return [player.squad_label, ...(player.squad_labels ?? [])]
+    .map((v) => (v ? getSquadLabels([v], squadDomain)[0]?.trim() : undefined))
+    .find((v): v is string => Boolean(v) && isVisibleSquadLabel(v)) ?? null
+}
 function matchMetric(match: SquadMatchSummary, metric: ChartMetricKey) { if (metric === "kd") return match.kd; if (metric === "kda") return match.kda; if (metric === "avgElo") return match.avgElo; if (metric === "avgTbf" || metric === "avgRating") return 0; const key = metric.replace("avg", "").toLowerCase() as keyof SquadMatchSummary; return match.players > 0 ? Number(match[key] ?? 0) / match.players : 0 }
 function playerMetric(player: SquadPlayerSummary, metric: SquadMetricKey) { if (metric === "games") return player.games; if (metric === "kd") return player.kd; if (metric === "kda") return player.kda; if (metric === "avgElo") return player.avgElo; if (metric === "avgTbf") return player.avgTbf; if (metric === "avgRating") return player.avgRating; const key = metric.replace("avg", "").toLowerCase() as keyof SquadPlayerSummary; return player.games > 0 ? Number(player[key] ?? 0) / player.games : 0 }
 function isSL(role: string) { return /(^|[^a-zа-я])(sl|squad|leader|лидер|сквад)/i.test(role.trim().toLowerCase()) }
@@ -103,13 +107,13 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
       if (!s.players.has(p.player_id)) s.players.set(p.player_id, { player_id: p.player_id, nickname: p.nickname, tag: p.tag, steam_id: p.steam_id, games: 0, wins: 0, kills: 0, deaths: 0, downs: 0, revives: 0, heals: 0, vehicle: 0, elo: 0, roles: [], specs: [] })
     }
 
-    squadDomain.map((x) => x.trim()).filter(isVisibleSquadLabel).forEach(ensure)
+    squadDomain.map((x) => getSquadLabels([x], squadDomain)[0]?.trim()).filter((x): x is string => Boolean(x) && isVisibleSquadLabel(x)).forEach(ensure)
     players.forEach((p) => getSquadLabels(p.teams ?? [], squadDomain).filter(isVisibleSquadLabel).forEach((label) => addRoster(label, p)))
 
     games.forEach((game) => {
       const grouped = new Map<string, PastGamePlayerStat[]>()
       game.players.forEach((p) => {
-        const label = playerSquadLabel(p)
+        const label = playerSquadLabel(p, squadDomain)
         if (!label) return
         ensure(label)
         if (!grouped.has(label)) grouped.set(label, [])

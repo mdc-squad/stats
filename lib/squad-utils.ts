@@ -14,6 +14,8 @@ export type SquadToneKey =
 
 export type SquadIdentifier = number | string | null | undefined
 
+const SQUAD_LABEL_ALIASES = new Map<string, string>([["rfd", "RED"]])
+
 function normalizeSquadToken(value: SquadIdentifier): string {
   if (typeof value === "number" && Number.isFinite(value)) {
     return String(value)
@@ -49,7 +51,17 @@ export function getSquadLabel(squadNo: SquadIdentifier, squadDomain: string[] = 
   }
 
   const byKey = new Map(domain.map((value) => [value.toLowerCase(), value]))
-  return byKey.get(normalized.toLowerCase()) ?? normalized
+  const directLabel = byKey.get(normalized.toLowerCase())
+  if (directLabel) {
+    return directLabel
+  }
+
+  const aliasLabel = SQUAD_LABEL_ALIASES.get(normalized.toLowerCase())
+  if (aliasLabel) {
+    return byKey.get(aliasLabel.toLowerCase()) ?? aliasLabel
+  }
+
+  return normalized
 }
 
 export function getSquadLabels(squadNos: SquadIdentifier[], squadDomain: string[] = []): string[] {
@@ -78,7 +90,7 @@ export function getFactionMatchup(
 }
 
 export function getSquadToneKey(label: string | null | undefined): SquadToneKey {
-  const normalized = (label ?? "").trim().toLowerCase()
+  const normalized = SQUAD_LABEL_ALIASES.get((label ?? "").trim().toLowerCase())?.toLowerCase() ?? (label ?? "").trim().toLowerCase()
 
   if (!normalized) return "neutral"
   if (normalized.includes("red") || normalized.includes("крас")) return "red"
