@@ -76,6 +76,7 @@ export interface Player {
   last_active_at: string
   tenure: string
   teams: SquadIdentifier[]
+  team_leads?: SquadIdentifier[]
   totals: {
     heals: number
     revives: number
@@ -1111,6 +1112,7 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
         last_active_at: aggregate.latestActivityAt || basePlayer?.last_active_at || "",
         tenure: basePlayer?.tenure ?? "",
         teams: basePlayer?.teams ?? [],
+        team_leads: basePlayer?.team_leads ?? [],
         totals: {
           heals: aggregate.heals,
           revives: aggregate.revives,
