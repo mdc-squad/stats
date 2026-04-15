@@ -2254,7 +2254,16 @@ export default function YearReviewPage() {
 
           {/* Squads Tab */}
           <TabsContent value="group" className="space-y-4">
-            <SquadOverview games={pastGames} players={data.players} squadDomain={data.dictionaries?.squads ?? []} />
+            <SquadOverview
+              games={pastGames}
+              players={data.players}
+              squadDomain={data.dictionaries?.squads ?? []}
+              onOpenGame={(eventId) => handleOpenGame(eventId, "")}
+              onOpenPlayer={(playerId) => {
+                setSelectedPlayersForChart([playerId])
+                setActiveTab("progress")
+              }}
+            />
           </TabsContent>
         </Tabs>
       </main>
