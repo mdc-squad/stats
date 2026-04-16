@@ -29,6 +29,7 @@ import { Snowfall } from "@/components/snowfall"
 import { SeasonalHeader } from "@/components/seasonal-header"
 import { OverallStatsPanel } from "@/components/overall-stats-panel"
 import { EventsExplorer } from "@/components/events-explorer"
+import { GamesCalendar } from "@/components/games-calendar"
 import {
   type MDCData,
   type Player,
@@ -2041,6 +2042,12 @@ export default function YearReviewPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="w-full flex flex-wrap justify-start gap-2 bg-transparent border-0 h-auto p-0">
             <TabsTrigger
+              value="calendar"
+              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-amber-500/30 bg-amber-500/10 text-christmas-snow data-[state=active]:bg-amber-500 data-[state=active]:border-amber-500 data-[state=active]:text-slate-950 hover:bg-amber-500/20 transition-all"
+            >
+              Календарь
+            </TabsTrigger>
+            <TabsTrigger
               value="leaderboards"
               className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-christmas-red/30 bg-christmas-red/10 text-christmas-snow data-[state=active]:bg-christmas-red data-[state=active]:border-christmas-red data-[state=active]:text-white hover:bg-christmas-red/20 transition-all"
             >
@@ -2077,6 +2084,10 @@ export default function YearReviewPage() {
               Отряды
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="calendar" className="space-y-4">
+            <GamesCalendar games={pastGames} onOpenGame={(eventId) => handleOpenGame(eventId, "")} />
+          </TabsContent>
 
           {/* Leaderboards Tab */}
           <TabsContent value="leaderboards" className="space-y-4">
