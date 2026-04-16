@@ -1112,6 +1112,16 @@ export default function YearReviewPage() {
     const protocolEvents = rawData?.events ?? data.events
     return getPastGames(protocolEvents, data.player_event_stats, data.players, data.dictionaries?.squads ?? [])
   }, [data, rawData])
+  const futureEvents = useMemo(
+    () =>
+      pastGames
+        .filter((game) => {
+          const parsed = new Date(game.started_at)
+          return !Number.isNaN(parsed.getTime()) && parsed.getTime() > Date.now()
+        })
+        .sort((left, right) => new Date(left.started_at).getTime() - new Date(right.started_at).getTime()),
+    [pastGames],
+  )
   const playerCardPastGames = useMemo(() => {
     if (!playerCardData) return []
     const protocolEvents = rawData?.events ?? playerCardData.events
@@ -1810,7 +1820,7 @@ export default function YearReviewPage() {
       <div className="fixed inset-0 z-0" style={{ background: seasonalTheme.overlayGradient }} />
 
       {seasonalTheme.showSnowfall && <Snowfall />}
-      <SeasonalHeader mdcPlayersCount={mdcRosterCount} gravePlayersCount={graveRosterCount} theme={seasonalTheme} />
+      <SeasonalHeader mdcPlayersCount={mdcRosterCount} gravePlayersCount={graveRosterCount} theme={seasonalTheme} futureEvents={futureEvents} />
 
       <main className="container mx-auto px-4 py-6 space-y-6 relative z-10">
         <section>
