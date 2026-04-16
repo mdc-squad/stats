@@ -113,12 +113,42 @@ const ROLE_ICON_ALIASES: Record<string, string> = {
   "\u043a\u0430\u0441\u0442\u0435\u0440": "cast",
 }
 
+const ROLE_DISPLAY_NAMES: Record<string, string> = {
+  "squad-leader": "\u0421\u043a\u0432\u0430\u0434\u043d\u043e\u0439",
+  medic: "\u041c\u0435\u0434\u0438\u043a",
+  grenadier: "\u0413\u0440\u0430\u043d\u0430\u0442\u043e\u043c\u0435\u0442\u0447\u0438\u043a",
+  rifleman: "\u0421\u0442\u0440\u0435\u043b\u043e\u043a",
+  lat: "LAT",
+  hat: "HAT",
+  "automatic-rifleman": "\u041b. \u043f\u0443\u043b\u0435\u043c\u0435\u0442",
+  "machine-gunner": "\u0422. \u043f\u0443\u043b\u0435\u043c\u0435\u0442",
+  marksman: "\u041c\u0430\u0440\u043a\u0441\u043c\u0435\u043d",
+  sniper: "\u0421\u043d\u0430\u0439\u043f\u0435\u0440",
+  scout: "\u0420\u0430\u0437\u0432\u0435\u0434\u0447\u0438\u043a",
+  raider: "\u0420\u0435\u0439\u0434\u0435\u0440",
+  "combat-engineer": "\u0418\u043d\u0436\u0435\u043d\u0435\u0440",
+  sapper: "\u0421\u0430\u043f\u0435\u0440",
+  "lead-crewman": "SL \u041a\u0440\u044e\u043c\u0435\u043d",
+  crewman: "\u041a\u0440\u044e\u043c\u0435\u043d",
+  "lead-pilot": "SL \u041f\u0438\u043b\u043e\u0442",
+  pilot: "\u041f\u0438\u043b\u043e\u0442",
+  unarmed: "\u0411\u0435\u0437 \u043a\u0438\u0442\u0430",
+  cast: "\u041a\u0430\u0441\u0442\u0435\u0440",
+}
+
 function normalizeRoleKey(value: string | null | undefined): string {
   return (value ?? "")
     .trim()
     .toLowerCase()
     .replace(/\u0451/g, "\u0435")
     .replace(/[^a-z0-9\u0430-\u044f]/gi, "")
+}
+
+export function formatRoleName(role: string | null | undefined): string {
+  const trimmed = (role ?? "").trim()
+  if (!trimmed) return ""
+  const iconKey = ROLE_ICON_ALIASES[normalizeRoleKey(trimmed)]
+  return iconKey ? ROLE_DISPLAY_NAMES[iconKey] ?? trimmed : trimmed
 }
 
 export function RoleIcon({ role, className }: RoleIconProps) {
