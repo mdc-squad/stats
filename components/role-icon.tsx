@@ -1,6 +1,6 @@
 "use client"
 
-import { Users, Video } from "lucide-react"
+import { Users } from "lucide-react"
 import { withBasePath } from "@/lib/base-path"
 import { cn } from "@/lib/utils"
 
@@ -33,6 +33,7 @@ const ROLE_ICON_PATHS: Record<string, string> = {
 
 const ROLE_ICON_ALIASES: Record<string, string> = {
   sl: "squad-leader",
+  сл: "squad-leader",
   squadleader: "squad-leader",
   squadlead: "squad-leader",
   sectionleader: "squad-leader",
@@ -41,28 +42,35 @@ const ROLE_ICON_ALIASES: Record<string, string> = {
   медик: "medic",
   medic: "medic",
   гп: "grenadier",
+  гранатомет: "grenadier",
   гранатометчик: "grenadier",
   grenadier: "grenadier",
   стрелок: "rifleman",
   rifleman: "rifleman",
   lat: "lat",
   лат: "lat",
-  lightantitank: "lat",
   легкийпт: "lat",
   легкийантитанк: "lat",
   легкаятруба: "lat",
+  lightantitank: "lat",
   hat: "hat",
   хат: "hat",
-  heavyantitank: "hat",
   тяжелыйпт: "hat",
   тяжелыйантитанк: "hat",
-  тандем: "hat",
   тяжелыйтандем: "hat",
+  тандем: "hat",
+  heavyantitank: "hat",
   пулеметчик: "machine-gunner",
-  machinegunner: "machine-gunner",
-  лпулемет: "automatic-rifleman",
-  automaticrifleman: "automatic-rifleman",
+  тяжелыйпулемет: "machine-gunner",
+  тяжелыйпулеметчик: "machine-gunner",
   тпулемет: "machine-gunner",
+  тпулеметчик: "machine-gunner",
+  machinegunner: "machine-gunner",
+  легкийпулемет: "automatic-rifleman",
+  легкийпулеметчик: "automatic-rifleman",
+  лпулемет: "automatic-rifleman",
+  лпулеметчик: "automatic-rifleman",
+  automaticrifleman: "automatic-rifleman",
   снайпер: "sniper",
   sniper: "sniper",
   марксмен: "marksman",
@@ -79,19 +87,23 @@ const ROLE_ICON_ALIASES: Record<string, string> = {
   саперподрывник: "sapper",
   sapper: "sapper",
   slкрюмен: "lead-crewman",
+  слкрюмен: "lead-crewman",
   leadcrewman: "lead-crewman",
   крюмен: "crewman",
   crewman: "crewman",
   slпилот: "lead-pilot",
+  слпилот: "lead-pilot",
   leadpilot: "lead-pilot",
   пилот: "pilot",
   pilot: "pilot",
   безкита: "unarmed",
+  безкит: "unarmed",
   unarmed: "unarmed",
   recruit: "unarmed",
   cast: "cast",
   caster: "cast",
   каст: "cast",
+  кастер: "cast",
 }
 
 function normalizeRoleKey(value: string | null | undefined): string {
