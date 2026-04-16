@@ -557,6 +557,7 @@ export default function YearReviewPage() {
   const [syncProgress, setSyncProgress] = useState<SyncProgressState | null>(null)
   const [, setLastSyncReport] = useState<SyncReport | null>(null)
   const rawDataRef = useRef<MDCData | null>(null)
+  const calendarSectionRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     rawDataRef.current = rawData
@@ -1465,6 +1466,9 @@ export default function YearReviewPage() {
       setActiveTab("calendar")
       setCalendarFocusEventId(eventId)
     })
+    window.setTimeout(() => {
+      calendarSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    }, 120)
   }, [])
 
   if (loading) {
@@ -2109,7 +2113,7 @@ export default function YearReviewPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="calendar" className="space-y-4">
+          <TabsContent value="calendar" className="space-y-4" ref={calendarSectionRef}>
             <GamesCalendar games={pastGames} onOpenGame={(eventId) => handleOpenGame(eventId, "")} focusedEventId={calendarFocusEventId} />
           </TabsContent>
 

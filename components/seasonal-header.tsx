@@ -330,6 +330,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
   )
   const tickerGroups = useMemo(() => groupTickerEvents(tickerEvents), [tickerEvents])
   const tickerItems = useMemo(() => tickerGroups.map(formatTickerEvent), [tickerGroups])
+  const tickerDurationSeconds = useMemo(() => Math.max(18, tickerGroups.length * 7), [tickerGroups.length])
 
   useEffect(() => {
     setReferenceDate(new Date())
@@ -732,26 +733,30 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
           <div className="container mx-auto px-4">
             <div className="relative h-9 overflow-hidden">
               <div
-                className="absolute left-full flex h-full items-center whitespace-nowrap text-xs font-semibold text-christmas-snow/90"
-                style={{ animation: "mdc-event-ticker 55s linear infinite" }}
+                className="absolute left-0 flex h-full min-w-full items-center whitespace-nowrap text-xs font-semibold text-christmas-snow/90"
+                style={{ animation: `mdc-event-ticker ${tickerDurationSeconds}s linear infinite` }}
               >
-                <span className="inline-flex items-center pr-4 text-christmas-gold">Ближайшие игры :</span>
-                {tickerItems.length === 1 ? <span className="text-christmas-gold/90">◆</span> : null}
-                {tickerGroups.map((group) => (
-                  <button
-                    key={group.key}
-                    type="button"
-                    onClick={() => onOpenCalendarEvent?.(group.primary)}
-                    className="inline-flex items-center text-left transition-colors hover:text-christmas-gold"
-                  >
-                    <span className="px-10">{formatTickerEvent(group)}</span>
-                    <span className="text-christmas-gold/90">◆</span>
-                  </button>
+                {[0, 1].map((copyIndex) => (
+                  <span key={copyIndex} className="inline-flex items-center" aria-hidden={copyIndex === 1}>
+                    <span className="inline-flex items-center pr-4 text-christmas-gold">Ближайшие игры :</span>
+                    {tickerItems.length === 1 ? <span className="text-christmas-gold/90">◆</span> : null}
+                    {tickerGroups.map((group) => (
+                      <button
+                        key={`${copyIndex}-${group.key}`}
+                        type="button"
+                        onClick={() => onOpenCalendarEvent?.(group.primary)}
+                        className="inline-flex items-center text-left transition-colors hover:text-christmas-gold"
+                      >
+                        <span className="px-10">{formatTickerEvent(group)}</span>
+                        <span className="text-christmas-gold/90">◆</span>
+                      </button>
+                    ))}
+                  </span>
                 ))}
               </div>
             </div>
           </div>
-          <style>{`@keyframes mdc-event-ticker { from { transform: translateX(0); } to { transform: translateX(calc(-100% - 100vw)); } }`}</style>
+          <style>{`@keyframes mdc-event-ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
         </div>
       ) : null}
     </header>
