@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import type { LucideIcon } from "lucide-react"
 import {
   CalendarDays,
@@ -95,6 +95,8 @@ const ANNIVERSARY_WINDOW_DAYS = 62
 const DEFAULT_ANTHEM_VOLUME = 20
 const SLIDE_INTERVAL_MS = 5000
 const SLIDE_FADE_MS = 280
+const TICKER_SPEED_PX_PER_SECOND = 90
+const TICKER_GAP_PX = 96
 
 const ICON_BY_THEME: Record<SeasonalThemeIcon, LucideIcon> = {
   tree: TreePine,
@@ -308,6 +310,8 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
   const ThemeIcon = ICON_BY_THEME[theme.icon] ?? Sparkles
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const fadeTimeoutRef = useRef<number | null>(null)
+  const tickerViewportRef = useRef<HTMLDivElement | null>(null)
+  const tickerTrackRef = useRef<HTMLDivElement | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [referenceDate, setReferenceDate] = useState<Date | null>(null)
   const [isCompactViewport, setIsCompactViewport] = useState(false)
@@ -315,6 +319,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
   const [activeSlideIndex, setActiveSlideIndex] = useState(0)
   const [isSlideVisible, setIsSlideVisible] = useState(true)
   const [volume, setVolume] = useState(DEFAULT_ANTHEM_VOLUME)
+  const [tickerMetrics, setTickerMetrics] = useState({ viewportWidth: 0, trackWidth: 0 })
 
   const coalitionPlayersCount = mdcPlayersCount + gravePlayersCount
   const tickerEvents = useMemo(
@@ -330,7 +335,49 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
   )
   const tickerGroups = useMemo(() => groupTickerEvents(tickerEvents), [tickerEvents])
   const tickerItems = useMemo(() => tickerGroups.map(formatTickerEvent), [tickerGroups])
-  const tickerDurationSeconds = useMemo(() => Math.max(18, tickerGroups.length * 7), [tickerGroups.length])
+  const tickerDurationSeconds = useMemo(() => {
+    const distance = tickerMetrics.viewportWidth + tickerMetrics.trackWidth + TICKER_GAP_PX
+    return distance > 0 ? Math.max(distance / TICKER_SPEED_PX_PER_SECOND, 12) : 18
+  }, [tickerMetrics.trackWidth, tickerMetrics.viewportWidth])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const measure = () => {
+      const viewportWidth = tickerViewportRef.current?.offsetWidth ?? 0
+      const trackWidth = tickerTrackRef.current?.scrollWidth ?? 0
+      setTickerMetrics((current) =>
+        current.viewportWidth === viewportWidth && current.trackWidth === trackWidth
+          ? current
+          : { viewportWidth, trackWidth },
+      )
+    }
+
+    measure()
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => {
+            measure()
+          })
+        : null
+
+    if (resizeObserver) {
+      if (tickerViewportRef.current) resizeObserver.observe(tickerViewportRef.current)
+      if (tickerTrackRef.current) resizeObserver.observe(tickerTrackRef.current)
+    } else {
+      window.addEventListener("resize", measure)
+    }
+
+    return () => {
+      resizeObserver?.disconnect()
+      if (!resizeObserver) {
+        window.removeEventListener("resize", measure)
+      }
+    }
+  }, [tickerItems])
 
   useEffect(() => {
     setReferenceDate(new Date())
@@ -731,32 +778,36 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
       {tickerItems.length > 0 ? (
         <div className="py-2">
           <div className="container mx-auto px-4">
-            <div className="relative h-9 overflow-hidden">
+            <div ref={tickerViewportRef} className="relative h-9 overflow-hidden">
               <div
+                ref={tickerTrackRef}
                 className="absolute left-0 flex h-full w-max items-center whitespace-nowrap text-xs font-semibold text-christmas-snow/90"
-                style={{ animation: `mdc-event-ticker ${tickerDurationSeconds}s linear infinite` }}
+                style={
+                  {
+                    animation: `mdc-event-ticker ${tickerDurationSeconds}s linear infinite`,
+                    visibility: tickerMetrics.viewportWidth > 0 && tickerMetrics.trackWidth > 0 ? "visible" : "hidden",
+                    "--ticker-start": `${tickerMetrics.viewportWidth}px`,
+                    "--ticker-end": `${-tickerMetrics.trackWidth - TICKER_GAP_PX}px`,
+                  } as CSSProperties
+                }
               >
-                {[0, 1].map((copyIndex) => (
-                  <span key={copyIndex} className="inline-flex items-center" aria-hidden={copyIndex === 1}>
-                    <span className="inline-flex items-center pr-4 text-christmas-gold">Ближайшие игры :</span>
-                    {tickerItems.length === 1 ? <span className="text-christmas-gold/90">◆</span> : null}
-                    {tickerGroups.map((group) => (
-                      <button
-                        key={`${copyIndex}-${group.key}`}
-                        type="button"
-                        onClick={() => onOpenCalendarEvent?.(group.primary)}
-                        className="inline-flex items-center text-left transition-colors hover:text-christmas-gold"
-                      >
-                        <span className="px-10">{formatTickerEvent(group)}</span>
-                        <span className="text-christmas-gold/90">◆</span>
-                      </button>
-                    ))}
-                  </span>
+                <span className="inline-flex items-center pr-4 text-christmas-gold">Ближайшие игры :</span>
+                {tickerItems.length === 1 ? <span className="text-christmas-gold/90">◆</span> : null}
+                {tickerGroups.map((group) => (
+                  <button
+                    key={group.key}
+                    type="button"
+                    onClick={() => onOpenCalendarEvent?.(group.primary)}
+                    className="inline-flex items-center text-left transition-colors hover:text-christmas-gold"
+                  >
+                    <span className="px-10">{formatTickerEvent(group)}</span>
+                    <span className="text-christmas-gold/90">◆</span>
+                  </button>
                 ))}
               </div>
             </div>
           </div>
-          <style>{`@keyframes mdc-event-ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
+          <style>{`@keyframes mdc-event-ticker { from { transform: translateX(var(--ticker-start)); } to { transform: translateX(var(--ticker-end)); } }`}</style>
         </div>
       ) : null}
     </header>
