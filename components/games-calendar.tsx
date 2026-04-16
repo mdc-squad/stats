@@ -125,6 +125,11 @@ function getEventTypeIcon(eventType: string | null | undefined): LucideIcon {
   return EVENT_TYPE_ICONS.find(([key]) => normalized.includes(key))?.[1] ?? CalendarDays
 }
 
+function isLectureEvent(eventType: string | null | undefined): boolean {
+  const normalized = normalizeText(eventType)
+  return normalized.includes("lecture") || normalized.includes("\u043b\u0435\u043a\u0446")
+}
+
 function tagIncludesClan(tag: string | null | undefined, clan: string): boolean {
   return (tag ?? "")
     .split(/[\s,;|/\\[\](){}<>.:_-]+/)
@@ -132,7 +137,8 @@ function tagIncludesClan(tag: string | null | undefined, clan: string): boolean 
 }
 
 function getRosterCounts(game: PastGameSummary) {
-  const mdc = game.players.filter((player) => tagIncludesClan(player.tag, "mdc")).length
+  const taggedMdc = game.players.filter((player) => tagIncludesClan(player.tag, "mdc")).length
+  const mdc = taggedMdc > 0 ? taggedMdc : game.mdc_players
   const grave = game.players.filter((player) => tagIncludesClan(player.tag, "grave")).length
   const formatPlayers =
     typeof game.team_size === "number" && Number.isFinite(game.team_size) && game.team_size > 0 ? game.team_size : game.players.length
@@ -146,7 +152,7 @@ function compactInfoItems(game: PastGameSummary): Array<{ key: string; icon: Luc
     game.event_type ? { key: "type", icon: EventIcon, value: game.event_type } : null,
     game.started_at ? { key: "time", icon: Clock, value: formatTime(game.started_at) } : null,
     getEventSizeLabel(game) ? { key: "format", icon: Users, value: getEventSizeLabel(game) } : null,
-    game.map ? { key: "map", icon: MapPin, value: game.map } : null,
+    game.map && !isLectureEvent(game.event_type) ? { key: "map", icon: MapPin, value: game.map } : null,
     game.mode ? { key: "mode", icon: Activity, value: game.mode } : null,
     matchup ? { key: "factions", icon: Swords, value: matchup } : null,
     ticketText(game) ? { key: "tickets", icon: ArrowLeftRight, value: ticketText(game) } : null,
@@ -189,13 +195,13 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
   const roster = getRosterCounts(primary)
   const matchup = primary.faction_matchup || [primary.faction_1, primary.faction_2].filter(Boolean).join(" vs ")
   return (
-    <div className="max-w-sm space-y-2 text-xs">
+    <div className="max-w-sm space-y-2 text-center text-xs">
       <div>
         <p className="font-semibold text-christmas-snow">{formatFullDate(primary.started_at)} в {formatTime(primary.started_at)}</p>
         <p className="text-muted-foreground">{primary.event_type || "Матч"}{isSideSwap ? " • смена сторон" : ""}</p>
       </div>
-      <div className="grid grid-cols-1 gap-1 text-muted-foreground">
-        <span>Карта: <span className="text-christmas-snow">{primary.map || "Не указана"}</span></span>
+      <div className="grid grid-cols-1 gap-1 text-center text-muted-foreground">
+        {!isLectureEvent(primary.event_type) ? <span>Карта: <span className="text-christmas-snow">{primary.map || "Не указана"}</span></span> : null}
         <span>Режим: <span className="text-christmas-snow">{primary.mode || "Не указан"}</span></span>
         <span>Оппонент: <span className="text-christmas-snow">{primary.opponent || "Не указан"}</span></span>
         {primary.opponent_strength ? <span>Сила соперника: <span className="text-christmas-snow">{primary.opponent_strength}</span></span> : null}
@@ -206,8 +212,8 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
         {metricItems(primary).map((metric) => {
           const Icon = metric.icon
           return (
-            <div key={metric.key} className="flex items-center justify-between gap-2 rounded-md border border-border/50 bg-background/35 px-2 py-1">
-              <span className="inline-flex min-w-0 items-center gap-1 text-muted-foreground"><Icon className="h-3 w-3 shrink-0 text-christmas-gold" />{metric.label}</span>
+            <div key={metric.key} className="flex flex-col items-center justify-center gap-1 rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center">
+              <span className="inline-flex min-w-0 items-center justify-center gap-1 text-muted-foreground"><Icon className="h-3 w-3 shrink-0 text-christmas-gold" />{metric.label}</span>
               <span className="font-medium text-christmas-snow">{metric.value}</span>
             </div>
           )
@@ -223,7 +229,7 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
         <div className="border-t border-border/60 pt-2">
           <p className="mb-1 text-muted-foreground">Матчи в группе: {games.length}</p>
           {games.map((game) => (
-            <p key={game.event_id} className="truncate text-muted-foreground">
+            <p key={game.event_id} className="truncate text-center text-muted-foreground">
               {game.faction_matchup || [game.faction_1, game.faction_2].filter(Boolean).join(" vs ") || game.event_id}
             </p>
           ))}
@@ -339,13 +345,13 @@ export function GamesCalendar({ games, onOpenGame }: GamesCalendarProps) {
                             {compactInfoItems(item.primary).map((info) => {
                               const Icon = info.icon
                               return (
-                                <div key={info.key} className="flex min-w-0 items-center gap-1.5 text-[10px]">
-                                  <Icon className="h-3 w-3 shrink-0" />
-                                  <span className={cn("truncate", info.key === "map" ? "font-medium text-christmas-snow" : "")}>{info.value}</span>
+                                <div key={info.key} className="flex min-w-0 items-center justify-center gap-1.5 text-center text-[11px]">
+                                  {info.key !== "type" ? <Icon className="h-3 w-3 shrink-0" /> : null}
+                                  <span className="truncate">{info.value}</span>
                                 </div>
                               )
                             })}
-                            {item.isSideSwap ? <div className="text-[10px] text-muted-foreground">2 стороны</div> : null}
+                            {item.isSideSwap ? <div className="text-center text-[11px] text-muted-foreground">2 стороны</div> : null}
                           </div>
                         </button>
                       </TooltipTrigger>

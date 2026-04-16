@@ -219,11 +219,16 @@ function formatTickerDate(value: string): string {
   return `${date} ${time}`
 }
 
+function isLectureEvent(eventType: string | null | undefined): boolean {
+  const normalized = (eventType ?? "").toLowerCase()
+  return normalized.includes("lecture") || normalized.includes("лекц")
+}
+
 function formatTickerEvent(event: PastGameSummary): string {
   return [
-    `⚔️ ${(event.event_type || "EVENT").toUpperCase()}`,
+    (event.event_type || "EVENT").toUpperCase(),
     formatTickerDate(event.started_at),
-    event.map,
+    !isLectureEvent(event.event_type) ? event.map : null,
     event.faction_matchup || [event.faction_1, event.faction_2].filter(Boolean).join(" vs "),
     event.opponent,
   ].filter(Boolean).join(" | ")
@@ -253,7 +258,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
         .slice(0, 12),
     [futureEvents],
   )
-  const tickerText = tickerEvents.map(formatTickerEvent).join("     •     ")
+  const tickerItems = tickerEvents.map(formatTickerEvent)
 
   useEffect(() => {
     setReferenceDate(new Date())
@@ -651,12 +656,22 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
           onPause={() => setIsPlaying(false)}
         />
       </div>
-      {tickerText ? (
+      {tickerItems.length > 0 ? (
         <div className="border-t border-christmas-gold/15 bg-background/45">
-          <div className="relative h-7 overflow-hidden">
-            <div className="absolute flex h-full min-w-full items-center whitespace-nowrap text-xs font-semibold text-christmas-snow/90" style={{ animation: "mdc-event-ticker 45s linear infinite" }}>
-              <span className="px-8">{tickerText}</span>
-              <span className="px-8" aria-hidden="true">{tickerText}</span>
+          <div className="container mx-auto px-4">
+            <div className="relative h-7 overflow-hidden">
+              <div className="absolute flex h-full min-w-full items-center whitespace-nowrap text-xs font-semibold text-christmas-snow/90" style={{ animation: "mdc-event-ticker 45s linear infinite" }}>
+                {[0, 1].map((copyIndex) => (
+                  <span key={copyIndex} className="inline-flex items-center" aria-hidden={copyIndex === 1}>
+                    {tickerItems.map((item, index) => (
+                      <span key={`${copyIndex}-${index}`} className="inline-flex items-center">
+                        <span className="px-10">{item}</span>
+                        {index < tickerItems.length - 1 ? <span className="text-christmas-gold/90">◆</span> : null}
+                      </span>
+                    ))}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
           <style>{`@keyframes mdc-event-ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
