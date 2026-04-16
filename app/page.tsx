@@ -540,7 +540,7 @@ export default function YearReviewPage() {
   const [selectedOpponents, setSelectedOpponents] = useState<string[]>([])
   const [selectedFactions, setSelectedFactions] = useState<string[]>([])
   const [selectedRoleMetric, setSelectedRoleMetric] = useState<RoleLeaderboardMetric>("kd")
-  const [activeTab, setActiveTab] = useState("leaderboards")
+  const [activeTab, setActiveTab] = useState("calendar")
   const [isCustomDateFromOpen, setIsCustomDateFromOpen] = useState(false)
   const [isCustomDateToOpen, setIsCustomDateToOpen] = useState(false)
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
@@ -551,6 +551,7 @@ export default function YearReviewPage() {
   const [expandedRecordRows, setExpandedRecordRows] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [calendarFocusEventId, setCalendarFocusEventId] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null)
   const [syncProgress, setSyncProgress] = useState<SyncProgressState | null>(null)
@@ -1459,6 +1460,13 @@ export default function YearReviewPage() {
     })
   }, [])
 
+  const handleOpenCalendarEvent = useCallback((eventId: string) => {
+    startTransition(() => {
+      setActiveTab("calendar")
+      setCalendarFocusEventId(eventId)
+    })
+  }, [])
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -1820,7 +1828,13 @@ export default function YearReviewPage() {
       <div className="fixed inset-0 z-0" style={{ background: seasonalTheme.overlayGradient }} />
 
       {seasonalTheme.showSnowfall && <Snowfall />}
-      <SeasonalHeader mdcPlayersCount={mdcRosterCount} gravePlayersCount={graveRosterCount} theme={seasonalTheme} futureEvents={futureEvents} />
+      <SeasonalHeader
+        mdcPlayersCount={mdcRosterCount}
+        gravePlayersCount={graveRosterCount}
+        theme={seasonalTheme}
+        futureEvents={futureEvents}
+        onOpenCalendarEvent={(event) => handleOpenCalendarEvent(event.event_id)}
+      />
 
       <main className="container mx-auto px-4 py-6 space-y-6 relative z-10">
         <section>
@@ -2096,7 +2110,7 @@ export default function YearReviewPage() {
           </TabsList>
 
           <TabsContent value="calendar" className="space-y-4">
-            <GamesCalendar games={pastGames} onOpenGame={(eventId) => handleOpenGame(eventId, "")} />
+            <GamesCalendar games={pastGames} onOpenGame={(eventId) => handleOpenGame(eventId, "")} focusedEventId={calendarFocusEventId} />
           </TabsContent>
 
           {/* Leaderboards Tab */}

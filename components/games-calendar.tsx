@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, type ComponentType } from "react"
+import { useEffect, useMemo, useState, type ComponentType } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,6 +13,7 @@ import { Activity, ArrowLeftRight, CalendarDays, ChevronLeft, ChevronRight, Cloc
 interface GamesCalendarProps {
   games: PastGameSummary[]
   onOpenGame: (eventId: string) => void
+  focusedEventId?: string | null
 }
 
 type CalendarGame = {
@@ -243,11 +244,19 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
   )
 }
 
-export function GamesCalendar({ games, onOpenGame }: GamesCalendarProps) {
+export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: GamesCalendarProps) {
   const [month, setMonth] = useState(() => {
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
+
+  useEffect(() => {
+    if (!focusedEventId) return
+    const focusedGame = games.find((game) => game.event_id === focusedEventId)
+    const focusedDate = focusedGame ? parseDate(focusedGame.started_at) : null
+    if (!focusedDate) return
+    setMonth(new Date(focusedDate.getFullYear(), focusedDate.getMonth(), 1))
+  }, [focusedEventId, games])
 
   const calendarDays = useMemo(() => buildCalendarDays(month), [month])
   const gamesByDay = useMemo(() => {
@@ -325,12 +334,11 @@ export function GamesCalendar({ games, onOpenGame }: GamesCalendarProps) {
                 key={dayKey}
                 className={cn(
                   "min-h-[150px] rounded-lg border border-border/50 bg-background/25 p-2",
-                  !isCurrentMonth && "opacity-45",
                   isToday && "border-christmas-gold/60 bg-christmas-gold/10",
                 )}
               >
                 <div className="mb-2 flex items-center justify-between">
-                  <span className={cn("text-sm font-semibold", isToday ? "text-christmas-gold" : "text-christmas-snow")}>{day.getDate()}</span>
+                  <span className={cn("text-sm font-semibold", isToday ? "text-christmas-gold" : isCurrentMonth ? "text-christmas-snow" : "text-muted-foreground")}>{day.getDate()}</span>
                   {dayGames.length > 0 ? <Badge variant="outline" className="border-border/60 px-1.5 py-0 text-[10px] text-muted-foreground">{dayGames.length}</Badge> : null}
                 </div>
                 <div className="space-y-1.5">
@@ -342,6 +350,7 @@ export function GamesCalendar({ games, onOpenGame }: GamesCalendarProps) {
                           onClick={() => onOpenGame(item.primary.event_id)}
                           className={cn(
                             "w-full rounded-md border px-2 py-1.5 text-left transition-colors hover:border-christmas-gold/60 hover:bg-christmas-gold/10",
+                            focusedEventId === item.primary.event_id && "border-christmas-gold/70 bg-christmas-gold/10",
                             resultTone(item.primary),
                           )}
                         >

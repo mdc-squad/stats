@@ -26,6 +26,7 @@ interface SeasonalHeaderProps {
   gravePlayersCount: number
   theme: SeasonalTheme
   futureEvents?: PastGameSummary[]
+  onOpenCalendarEvent?: (event: PastGameSummary) => void
 }
 
 type TickerEventGroup = {
@@ -303,7 +304,7 @@ function formatTickerEvent(group: TickerEventGroup): string {
   ].filter(Boolean).join(" | ")
 }
 
-export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futureEvents = [] }: SeasonalHeaderProps) {
+export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futureEvents = [], onOpenCalendarEvent }: SeasonalHeaderProps) {
   const ThemeIcon = ICON_BY_THEME[theme.icon] ?? Sparkles
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const fadeTimeoutRef = useRef<number | null>(null)
@@ -327,7 +328,8 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
         .slice(0, 24),
     [futureEvents],
   )
-  const tickerItems = useMemo(() => groupTickerEvents(tickerEvents).map(formatTickerEvent), [tickerEvents])
+  const tickerGroups = useMemo(() => groupTickerEvents(tickerEvents), [tickerEvents])
+  const tickerItems = useMemo(() => tickerGroups.map(formatTickerEvent), [tickerGroups])
 
   useEffect(() => {
     setReferenceDate(new Date())
@@ -726,23 +728,30 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
         />
       </div>
       {tickerItems.length > 0 ? (
-        <div className="border-t border-christmas-gold/15 py-2">
+        <div className="py-2">
           <div className="container mx-auto px-4">
             <div className="relative h-9 overflow-hidden">
               <div
-                className="absolute flex h-full items-center whitespace-nowrap text-xs font-semibold text-christmas-snow/90"
+                className="absolute left-full flex h-full items-center whitespace-nowrap text-xs font-semibold text-christmas-snow/90"
                 style={{ animation: "mdc-event-ticker 55s linear infinite" }}
               >
-                {tickerItems.map((item, index) => (
-                  <span key={index} className="inline-flex items-center">
-                    <span className="px-10">{item}</span>
+                <span className="inline-flex items-center pr-4 text-christmas-gold">Ближайшие игры :</span>
+                {tickerItems.length === 1 ? <span className="text-christmas-gold/90">◆</span> : null}
+                {tickerGroups.map((group) => (
+                  <button
+                    key={group.key}
+                    type="button"
+                    onClick={() => onOpenCalendarEvent?.(group.primary)}
+                    className="inline-flex items-center text-left transition-colors hover:text-christmas-gold"
+                  >
+                    <span className="px-10">{formatTickerEvent(group)}</span>
                     <span className="text-christmas-gold/90">◆</span>
-                  </span>
+                  </button>
                 ))}
               </div>
             </div>
           </div>
-          <style>{`@keyframes mdc-event-ticker { from { transform: translateX(100%); } to { transform: translateX(-100%); } }`}</style>
+          <style>{`@keyframes mdc-event-ticker { from { transform: translateX(0); } to { transform: translateX(calc(-100% - 100vw)); } }`}</style>
         </div>
       ) : null}
     </header>
