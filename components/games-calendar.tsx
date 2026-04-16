@@ -137,8 +137,7 @@ function tagIncludesClan(tag: string | null | undefined, clan: string): boolean 
 }
 
 function getRosterCounts(game: PastGameSummary) {
-  const taggedMdc = game.players.filter((player) => tagIncludesClan(player.tag, "mdc")).length
-  const mdc = taggedMdc > 0 ? taggedMdc : game.mdc_players
+  const mdc = game.players.filter((player) => tagIncludesClan(player.tag, "mdc")).length
   const grave = game.players.filter((player) => tagIncludesClan(player.tag, "grave")).length
   const formatPlayers =
     typeof game.team_size === "number" && Number.isFinite(game.team_size) && game.team_size > 0 ? game.team_size : game.players.length

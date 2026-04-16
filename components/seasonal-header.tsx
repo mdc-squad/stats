@@ -28,6 +28,13 @@ interface SeasonalHeaderProps {
   futureEvents?: PastGameSummary[]
 }
 
+type TickerEventGroup = {
+  key: string
+  primary: PastGameSummary
+  events: PastGameSummary[]
+  isSideSwap: boolean
+}
+
 interface ClanTimelineInfo {
   ageLabel: string
   celebrationLabel: string | null
@@ -224,13 +231,75 @@ function isLectureEvent(eventType: string | null | undefined): boolean {
   return normalized.includes("lecture") || normalized.includes("лекц")
 }
 
-function formatTickerEvent(event: PastGameSummary): string {
+function normalizeTickerText(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase()
+}
+
+function minuteKey(value: string): string {
+  const parsed = parseEventDate(value)
+  if (!parsed) return value || "unknown"
+  parsed.setSeconds(0, 0)
+  return parsed.toISOString()
+}
+
+function tickerFactionSetKey(event: PastGameSummary): string {
+  return [normalizeTickerText(event.faction_1), normalizeTickerText(event.faction_2)].sort().join(" vs ")
+}
+
+function tickerGroupKey(event: PastGameSummary): string {
   return [
-    (event.event_type || "EVENT").toUpperCase(),
-    formatTickerDate(event.started_at),
-    !isLectureEvent(event.event_type) ? event.map : null,
-    event.faction_matchup || [event.faction_1, event.faction_2].filter(Boolean).join(" vs "),
-    event.opponent,
+    minuteKey(event.started_at),
+    normalizeTickerText(event.event_type),
+    normalizeTickerText(event.map),
+    normalizeTickerText(event.mode),
+    normalizeTickerText(event.opponent),
+    tickerFactionSetKey(event),
+  ].join("|")
+}
+
+function isTickerSideSwapGroup(events: PastGameSummary[]): boolean {
+  if (events.length < 2) return false
+  const first = events[0]
+  return events.some(
+    (event) =>
+      normalizeTickerText(event.faction_1) === normalizeTickerText(first.faction_2) &&
+      normalizeTickerText(event.faction_2) === normalizeTickerText(first.faction_1),
+  )
+}
+
+function groupTickerEvents(events: PastGameSummary[]): TickerEventGroup[] {
+  const grouped = new Map<string, PastGameSummary[]>()
+
+  events.forEach((event) => {
+    const key = tickerGroupKey(event)
+    if (!grouped.has(key)) {
+      grouped.set(key, [])
+    }
+    grouped.get(key)!.push(event)
+  })
+
+  return [...grouped.entries()]
+    .map(([key, groupedEvents]) => {
+      const sortedEvents = [...groupedEvents].sort((left, right) => left.event_id.localeCompare(right.event_id, "ru"))
+      return {
+        key,
+        primary: sortedEvents[0]!,
+        events: sortedEvents,
+        isSideSwap: isTickerSideSwapGroup(sortedEvents),
+      }
+    })
+    .sort((left, right) => (parseEventDate(left.primary.started_at)?.getTime() ?? 0) - (parseEventDate(right.primary.started_at)?.getTime() ?? 0))
+}
+
+function formatTickerEvent(group: TickerEventGroup): string {
+  const { primary, isSideSwap } = group
+  return [
+    (primary.event_type || "EVENT").toUpperCase(),
+    formatTickerDate(primary.started_at),
+    !isLectureEvent(primary.event_type) ? primary.map : null,
+    primary.faction_matchup || [primary.faction_1, primary.faction_2].filter(Boolean).join(" vs "),
+    primary.opponent,
+    isSideSwap ? "смена сторон" : null,
   ].filter(Boolean).join(" | ")
 }
 
@@ -255,10 +324,10 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
           return parsed ? parsed.getTime() > Date.now() : false
         })
         .sort((left, right) => (parseEventDate(left.started_at)?.getTime() ?? 0) - (parseEventDate(right.started_at)?.getTime() ?? 0))
-        .slice(0, 12),
+        .slice(0, 24),
     [futureEvents],
   )
-  const tickerItems = tickerEvents.map(formatTickerEvent)
+  const tickerItems = useMemo(() => groupTickerEvents(tickerEvents).map(formatTickerEvent), [tickerEvents])
 
   useEffect(() => {
     setReferenceDate(new Date())
@@ -657,21 +726,23 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
         />
       </div>
       {tickerItems.length > 0 ? (
-        <div className="border-t border-christmas-gold/15 bg-background/45">
+        <div className="border-t border-christmas-gold/15 bg-background/45 py-2">
           <div className="container mx-auto px-4">
-            <div className="relative h-7 overflow-hidden">
+            <div className="overflow-hidden rounded-lg border border-christmas-gold/20 bg-background/40 shadow-lg shadow-black/10">
+              <div className="relative h-9 overflow-hidden">
               <div className="absolute flex h-full min-w-full items-center whitespace-nowrap text-xs font-semibold text-christmas-snow/90" style={{ animation: "mdc-event-ticker 45s linear infinite" }}>
                 {[0, 1].map((copyIndex) => (
                   <span key={copyIndex} className="inline-flex items-center" aria-hidden={copyIndex === 1}>
                     {tickerItems.map((item, index) => (
                       <span key={`${copyIndex}-${index}`} className="inline-flex items-center">
                         <span className="px-10">{item}</span>
-                        {index < tickerItems.length - 1 ? <span className="text-christmas-gold/90">◆</span> : null}
+                        <span className="text-christmas-gold/90">◆</span>
                       </span>
                     ))}
                   </span>
                 ))}
               </div>
+            </div>
             </div>
           </div>
           <style>{`@keyframes mdc-event-ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
