@@ -1,13 +1,14 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, type ComponentType } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { PastGameSummary } from "@/lib/data-utils"
+import { getMetricIcon } from "@/lib/app-icons"
+import { getEventSizeLabel, type PastGameSummary } from "@/lib/data-utils"
 import { cn } from "@/lib/utils"
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Swords, Users } from "lucide-react"
+import { Activity, ArrowLeftRight, CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Shield, Swords, Trophy, Users, type LucideIcon } from "lucide-react"
 
 interface GamesCalendarProps {
   games: PastGameSummary[]
@@ -22,6 +23,14 @@ type CalendarGame = {
 }
 
 const WEEK_DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+const EVENT_TYPE_ICONS: Array<[string, LucideIcon]> = [
+  ["skirmish", Swords],
+  ["training", Shield],
+  ["турнир", Trophy],
+  ["tournament", Trophy],
+  ["матч", Swords],
+  ["match", Swords],
+]
 
 function parseDate(value: string): Date | null {
   const parsed = new Date(value)
@@ -108,7 +117,56 @@ function resultTone(game: PastGameSummary): string {
 function ticketText(game: PastGameSummary): string {
   if (game.score !== null) return `${game.score > 0 ? "+" : ""}${game.score}`
   if (game.tickets_1 !== null && game.tickets_2 !== null) return `${game.tickets_1}:${game.tickets_2}`
-  return "н/д"
+  return ""
+}
+
+function getEventTypeIcon(eventType: string | null | undefined): LucideIcon {
+  const normalized = normalizeText(eventType)
+  return EVENT_TYPE_ICONS.find(([key]) => normalized.includes(key))?.[1] ?? CalendarDays
+}
+
+function tagIncludesClan(tag: string | null | undefined, clan: string): boolean {
+  return (tag ?? "")
+    .split(/[\s,;|/\\[\](){}<>.:_-]+/)
+    .some((part) => part.trim().toLowerCase() === clan)
+}
+
+function getRosterCounts(game: PastGameSummary) {
+  const mdc = game.players.filter((player) => tagIncludesClan(player.tag, "mdc")).length
+  const grave = game.players.filter((player) => tagIncludesClan(player.tag, "grave")).length
+  const formatPlayers =
+    typeof game.team_size === "number" && Number.isFinite(game.team_size) && game.team_size > 0 ? game.team_size : game.players.length
+  return { mdc, grave, merc: Math.max(formatPlayers - mdc - grave, 0), total: formatPlayers }
+}
+
+function compactInfoItems(game: PastGameSummary): Array<{ key: string; icon: LucideIcon; value: string }> {
+  const EventIcon = getEventTypeIcon(game.event_type)
+  const matchup = game.faction_matchup || [game.faction_1, game.faction_2].filter(Boolean).join(" vs ")
+  const items = [
+    game.event_type ? { key: "type", icon: EventIcon, value: game.event_type } : null,
+    game.started_at ? { key: "time", icon: Clock, value: formatTime(game.started_at) } : null,
+    getEventSizeLabel(game) ? { key: "format", icon: Users, value: getEventSizeLabel(game) } : null,
+    game.map ? { key: "map", icon: MapPin, value: game.map } : null,
+    game.mode ? { key: "mode", icon: Activity, value: game.mode } : null,
+    matchup ? { key: "factions", icon: Swords, value: matchup } : null,
+    ticketText(game) ? { key: "tickets", icon: ArrowLeftRight, value: ticketText(game) } : null,
+  ]
+  return items.filter((item): item is { key: string; icon: LucideIcon; value: string } => Boolean(item))
+}
+
+function metricItems(game: PastGameSummary): Array<{ key: string; icon: ComponentType<{ className?: string }>; label: string; value: string }> {
+  return [
+    { key: "tickets", icon: ArrowLeftRight, label: "Тикеты", value: ticketText(game) },
+    { key: "kills", icon: getMetricIcon("kills"), label: "Убийства", value: String(game.totalKills) },
+    { key: "deaths", icon: getMetricIcon("deaths"), label: "Смерти", value: String(game.totalDeaths) },
+    { key: "downs", icon: getMetricIcon("downs"), label: "Ноки", value: String(game.totalDowns) },
+    { key: "revives", icon: getMetricIcon("revives"), label: "Поднятия", value: String(game.totalRevives) },
+    { key: "heals", icon: getMetricIcon("heals"), label: "Хил", value: String(game.totalHeals) },
+    { key: "vehicle", icon: getMetricIcon("vehicle"), label: "Техника", value: String(game.totalVehicle) },
+    { key: "kd", icon: getMetricIcon("kd"), label: "KD", value: game.avgKd.toFixed(2) },
+    { key: "kda", icon: getMetricIcon("kda"), label: "KDA", value: game.avgKda.toFixed(2) },
+    { key: "elo", icon: getMetricIcon("elo"), label: "ELO", value: game.avgElo.toFixed(1) },
+  ].filter((item) => item.value !== "")
 }
 
 function buildCalendarDays(month: Date): Date[] {
@@ -128,6 +186,8 @@ function buildCalendarDays(month: Date): Date[] {
 
 function CalendarGameTooltip({ item }: { item: CalendarGame }) {
   const { primary, games, isSideSwap } = item
+  const roster = getRosterCounts(primary)
+  const matchup = primary.faction_matchup || [primary.faction_1, primary.faction_2].filter(Boolean).join(" vs ")
   return (
     <div className="max-w-sm space-y-2 text-xs">
       <div>
@@ -138,10 +198,26 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
         <span>Карта: <span className="text-christmas-snow">{primary.map || "Не указана"}</span></span>
         <span>Режим: <span className="text-christmas-snow">{primary.mode || "Не указан"}</span></span>
         <span>Оппонент: <span className="text-christmas-snow">{primary.opponent || "Не указан"}</span></span>
-        <span>Фракции: <span className="text-christmas-snow">{primary.faction_matchup || [primary.faction_1, primary.faction_2].filter(Boolean).join(" vs ") || "Не указаны"}</span></span>
+        {primary.opponent_strength ? <span>Сила соперника: <span className="text-christmas-snow">{primary.opponent_strength}</span></span> : null}
+        <span>Фракции: <span className="text-christmas-snow">{matchup || "Не указаны"}</span></span>
         <span>Результат: <span className="text-christmas-snow">{resultLabel(primary)}</span></span>
-        <span>Тикеты: <span className="text-christmas-snow">{ticketText(primary)}</span></span>
-        <span>Игроков MDC: <span className="text-christmas-snow">{primary.mdc_players}</span></span>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        {metricItems(primary).map((metric) => {
+          const Icon = metric.icon
+          return (
+            <div key={metric.key} className="flex items-center justify-between gap-2 rounded-md border border-border/50 bg-background/35 px-2 py-1">
+              <span className="inline-flex min-w-0 items-center gap-1 text-muted-foreground"><Icon className="h-3 w-3 shrink-0 text-christmas-gold" />{metric.label}</span>
+              <span className="font-medium text-christmas-snow">{metric.value}</span>
+            </div>
+          )
+        })}
+      </div>
+      <div className="grid grid-cols-4 gap-1.5">
+        <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">MDC</p><p className="font-semibold text-christmas-snow">{roster.mdc}</p></div>
+        <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">GRAVE</p><p className="font-semibold text-christmas-snow">{roster.grave}</p></div>
+        <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">Мерки</p><p className="font-semibold text-christmas-snow">{roster.merc}</p></div>
+        <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">Формат</p><p className="font-semibold text-christmas-snow">{roster.total}</p></div>
       </div>
       {games.length > 1 ? (
         <div className="border-t border-border/60 pt-2">
@@ -209,9 +285,8 @@ export function GamesCalendar({ games, onOpenGame }: GamesCalendarProps) {
         <div>
           <CardTitle className="flex items-center gap-2 text-base text-christmas-snow">
             <CalendarDays className="h-4 w-4 text-christmas-gold" />
-            Календарь игр
+            Календарь событий
           </CardTitle>
-          <p className="mt-1 text-sm text-muted-foreground">Прошедшие и будущие игры по дням месяца.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" size="sm" className="border-christmas-gold/20 bg-background/50" onClick={() => goToMonth(-1)}>
@@ -260,15 +335,17 @@ export function GamesCalendar({ games, onOpenGame }: GamesCalendarProps) {
                             resultTone(item.primary),
                           )}
                         >
-                          <div className="flex min-w-0 items-center gap-1.5">
-                            <Clock className="h-3 w-3 shrink-0" />
-                            <span className="text-[11px] font-semibold">{formatTime(item.primary.started_at)}</span>
-                            {item.isSideSwap ? <span className="text-[10px] text-muted-foreground">2 стороны</span> : null}
-                          </div>
-                          <p className="mt-0.5 truncate text-xs font-medium text-christmas-snow">{item.primary.map || "Карта не указана"}</p>
-                          <div className="mt-1 flex min-w-0 items-center gap-2 text-[10px] text-muted-foreground">
-                            <span className="inline-flex min-w-0 items-center gap-1"><Swords className="h-3 w-3 shrink-0" /><span className="truncate">{item.primary.opponent || "Оппонент"}</span></span>
-                            <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{item.primary.mdc_players}</span>
+                          <div className="space-y-1">
+                            {compactInfoItems(item.primary).map((info) => {
+                              const Icon = info.icon
+                              return (
+                                <div key={info.key} className="flex min-w-0 items-center gap-1.5 text-[10px]">
+                                  <Icon className="h-3 w-3 shrink-0" />
+                                  <span className={cn("truncate", info.key === "map" ? "font-medium text-christmas-snow" : "")}>{info.value}</span>
+                                </div>
+                              )
+                            })}
+                            {item.isSideSwap ? <div className="text-[10px] text-muted-foreground">2 стороны</div> : null}
                           </div>
                         </button>
                       </TooltipTrigger>

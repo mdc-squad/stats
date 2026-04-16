@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { Slider } from "@/components/ui/slider"
 import type { SeasonalTheme, SeasonalThemeIcon } from "@/lib/seasonal-theme"
+import type { PastGameSummary } from "@/lib/data-utils"
 import { withBasePath } from "@/lib/base-path"
 import { cn } from "@/lib/utils"
 
@@ -24,6 +25,7 @@ interface SeasonalHeaderProps {
   mdcPlayersCount: number
   gravePlayersCount: number
   theme: SeasonalTheme
+  futureEvents?: PastGameSummary[]
 }
 
 interface ClanTimelineInfo {
@@ -204,7 +206,30 @@ function HeaderStat({
   )
 }
 
-export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: SeasonalHeaderProps) {
+function parseEventDate(value: string): Date | null {
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function formatTickerDate(value: string): string {
+  const parsed = parseEventDate(value)
+  if (!parsed) return ""
+  const date = parsed.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" })
+  const time = parsed.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
+  return `${date} ${time}`
+}
+
+function formatTickerEvent(event: PastGameSummary): string {
+  return [
+    `⚔️ ${(event.event_type || "EVENT").toUpperCase()}`,
+    formatTickerDate(event.started_at),
+    event.map,
+    event.faction_matchup || [event.faction_1, event.faction_2].filter(Boolean).join(" vs "),
+    event.opponent,
+  ].filter(Boolean).join(" | ")
+}
+
+export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futureEvents = [] }: SeasonalHeaderProps) {
   const ThemeIcon = ICON_BY_THEME[theme.icon] ?? Sparkles
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const fadeTimeoutRef = useRef<number | null>(null)
@@ -217,6 +242,18 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
   const [volume, setVolume] = useState(DEFAULT_ANTHEM_VOLUME)
 
   const coalitionPlayersCount = mdcPlayersCount + gravePlayersCount
+  const tickerEvents = useMemo(
+    () =>
+      [...futureEvents]
+        .filter((event) => {
+          const parsed = parseEventDate(event.started_at)
+          return parsed ? parsed.getTime() > Date.now() : false
+        })
+        .sort((left, right) => (parseEventDate(left.started_at)?.getTime() ?? 0) - (parseEventDate(right.started_at)?.getTime() ?? 0))
+        .slice(0, 12),
+    [futureEvents],
+  )
+  const tickerText = tickerEvents.map(formatTickerEvent).join("     •     ")
 
   useEffect(() => {
     setReferenceDate(new Date())
@@ -614,6 +651,17 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme }: Se
           onPause={() => setIsPlaying(false)}
         />
       </div>
+      {tickerText ? (
+        <div className="border-t border-christmas-gold/15 bg-background/45">
+          <div className="relative h-7 overflow-hidden">
+            <div className="absolute flex h-full min-w-full items-center whitespace-nowrap text-xs font-semibold text-christmas-snow/90" style={{ animation: "mdc-event-ticker 45s linear infinite" }}>
+              <span className="px-8">{tickerText}</span>
+              <span className="px-8" aria-hidden="true">{tickerText}</span>
+            </div>
+          </div>
+          <style>{`@keyframes mdc-event-ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
+        </div>
+      ) : null}
     </header>
   )
 }
