@@ -733,16 +733,11 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
           <div className="container mx-auto px-4">
             <div className="relative h-9 overflow-hidden">
               <div
-                className="absolute left-0 flex h-full min-w-full items-center whitespace-nowrap text-xs font-semibold text-christmas-snow/90"
+                className="absolute left-0 flex h-full w-max items-center whitespace-nowrap text-xs font-semibold text-christmas-snow/90"
                 style={{ animation: `mdc-event-ticker ${tickerDurationSeconds}s linear infinite` }}
               >
                 {[0, 1].map((copyIndex) => (
-                  <span
-                    key={copyIndex}
-                    className="inline-flex items-center"
-                    aria-hidden={copyIndex === 1}
-                    style={copyIndex === 1 ? { paddingLeft: "100vw" } : undefined}
-                  >
+                  <span key={copyIndex} className="inline-flex items-center" aria-hidden={copyIndex === 1}>
                     <span className="inline-flex items-center pr-4 text-christmas-gold">Ближайшие игры :</span>
                     {tickerItems.length === 1 ? <span className="text-christmas-gold/90">◆</span> : null}
                     {tickerGroups.map((group) => (
