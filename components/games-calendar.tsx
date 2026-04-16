@@ -130,10 +130,15 @@ function isLectureEvent(eventType: string | null | undefined): boolean {
   return normalized.includes("lecture") || normalized.includes("\u043b\u0435\u043a\u0446")
 }
 
+function normalizeClanTag(value: string | null | undefined): string {
+  return (value ?? "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^a-z0-9а-я]/gi, "")
+}
+
 function tagIncludesClan(tag: string | null | undefined, clan: string): boolean {
-  return (tag ?? "")
-    .split(/[\s,;|/\\[\](){}<>.:_-]+/)
-    .some((part) => part.trim().toLowerCase() === clan)
+  return normalizeClanTag(tag).includes(clan)
 }
 
 function getRosterCounts(game: PastGameSummary) {
