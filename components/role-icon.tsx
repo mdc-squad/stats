@@ -43,6 +43,7 @@ const ROLE_ICON_ALIASES: Record<string, string> = {
   medic: "medic",
   "\u043c\u0435\u0434\u0438\u043a": "medic",
   gp: "grenadier",
+  gl: "grenadier",
   "\u0433\u043f": "grenadier",
   "\u0433\u0440\u0430\u043d\u0430\u0442\u043e\u043c\u0435\u0442": "grenadier",
   "\u0433\u0440\u0430\u043d\u0430\u0442\u043e\u043c\u0435\u0442\u0447\u0438\u043a": "grenadier",
@@ -86,6 +87,7 @@ const ROLE_ICON_ALIASES: Record<string, string> = {
   "\u0440\u0435\u0439\u0434\u0435\u0440": "raider",
   combatengineer: "combat-engineer",
   engineer: "combat-engineer",
+  eng: "combat-engineer",
   "\u0438\u043d\u0436\u0435\u043d\u0435\u0440": "combat-engineer",
   "\u0431\u043e\u0435\u0432\u043e\u0439\u0438\u043d\u0436\u0435\u043d\u0435\u0440": "combat-engineer",
   sapper: "sapper",
@@ -96,6 +98,7 @@ const ROLE_ICON_ALIASES: Record<string, string> = {
   "sl\u043a\u0440\u044e\u043c\u0435\u043d": "lead-crewman",
   "\u0441\u043b\u043a\u0440\u044e\u043c\u0435\u043d": "lead-crewman",
   crewman: "crewman",
+  cr: "crewman",
   "\u043a\u0440\u044e\u043c\u0435\u043d": "crewman",
   slpilot: "lead-pilot",
   leadpilot: "lead-pilot",
@@ -105,6 +108,7 @@ const ROLE_ICON_ALIASES: Record<string, string> = {
   "\u043f\u0438\u043b\u043e\u0442": "pilot",
   unarmed: "unarmed",
   recruit: "unarmed",
+  x: "unarmed",
   "\u0431\u0435\u0437\u043a\u0438\u0442\u0430": "unarmed",
   "\u0431\u0435\u0437\u043a\u0438\u0442": "unarmed",
   cast: "cast",
@@ -116,7 +120,7 @@ const ROLE_ICON_ALIASES: Record<string, string> = {
 const ROLE_DISPLAY_NAMES: Record<string, string> = {
   "squad-leader": "\u0421\u043a\u0432\u0430\u0434\u043d\u043e\u0439",
   medic: "\u041c\u0435\u0434\u0438\u043a",
-  grenadier: "\u0413\u0440\u0430\u043d\u0430\u0442\u043e\u043c\u0435\u0442\u0447\u0438\u043a",
+  grenadier: "\u0413\u041f",
   rifleman: "\u0421\u0442\u0440\u0435\u043b\u043e\u043a",
   lat: "LAT",
   hat: "HAT",
@@ -137,6 +141,7 @@ const ROLE_DISPLAY_NAMES: Record<string, string> = {
 }
 
 function normalizeRoleKey(value: string | null | undefined): string {
+  if ((value ?? "").trim() === "\u274c") return "x"
   return (value ?? "")
     .trim()
     .toLowerCase()
