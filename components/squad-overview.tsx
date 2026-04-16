@@ -24,6 +24,8 @@ type SquadPlayerSummary = { player_id: string; nickname: string; tag: string; st
 type SquadMatchSummary = { eventId: string; startedAt: string; map: string; mode: string | null; opponent: string | null; faction: string | null; result: string | null; isWin: boolean | null; players: number; kills: number; deaths: number; downs: number; revives: number; heals: number; vehicle: number; avgElo: number; kd: number; kda: number; isMvp: boolean }
 type DistributionSlice = { label: string; count: number; color: string }
 type SquadSummary = { label: string; games: number; wins: number; kills: number; deaths: number; downs: number; revives: number; heals: number; vehicle: number; mvpCount: number; avgRevives: number; avgHeals: number; avgDowns: number; avgKills: number; avgDeaths: number; avgVehicle: number; avgElo: number; avgTbf: number; avgRating: number; kd: number; kda: number; playersRanked: SquadPlayerSummary[]; leader: SquadPlayerSummary | null; roleSlices: DistributionSlice[]; specializationSlices: DistributionSlice[]; recent: SquadMatchSummary[]; allMatches: SquadMatchSummary[]; bestMatch: SquadMatchSummary | null }
+type ChartValueEntry = { key: string; name: string; color: string; value: number | null }
+type LockedChartValues = { label: string; eventLabel?: string; entries: ChartValueEntry[] }
 
 const SQUAD_COLORS: Record<SquadToneKey, string> = { red: "#fb7185", blue: "#38bdf8", green: "#34d399", yellow: "#fbbf24", orange: "#fb923c", purple: "#a78bfa", pink: "#f472b6", cyan: "#22d3ee", brown: "#b45309", black: "#cbd5e1", white: "#f8fafc", neutral: "#94a3b8" }
 const SQUAD_ORDER: SquadToneKey[] = ["green", "red", "yellow", "blue", "purple", "orange", "brown", "black"]
@@ -113,7 +115,12 @@ function playerMetric(player: SquadPlayerSummary, metric: SquadMetricKey) {
   if (metric === "avgTbf") return player.avgTbf
   if (metric === "avgRating") return player.avgRating
   const key = metric.replace("avg", "").toLowerCase() as keyof SquadPlayerSummary
-  return Number(player[key] ?? 0)
+  return player.games > 0 ? Number(player[key] ?? 0) / player.games : 0
+}
+function playerMetricDigits(metric: SquadMetricKey) {
+  if (metric === "games" || metric === "avgElo" || metric === "avgTbf" || metric === "avgRating") return 0
+  if (metric === "kd" || metric === "kda") return 2
+  return 1
 }
 function MetricTile({ metric, value, compact = false }: { metric: MetricDef; value: number; compact?: boolean }) {
   const Icon = getMetricIcon(metric.icon)
@@ -122,7 +129,7 @@ function MetricTile({ metric, value, compact = false }: { metric: MetricDef; val
 
 function PlayerMetricValue({ metric, value }: { metric: MetricDef; value: number }) {
   const Icon = getMetricIcon(metric.icon)
-  return <Tooltip><TooltipTrigger asChild><div className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-md px-2 py-1 text-center"><Icon className="h-3.5 w-3.5 text-christmas-gold" /><span className="text-[11px] font-medium text-christmas-snow">{fNum(value, 0)}</span></div></TooltipTrigger><TooltipContent side="top" className="border border-border bg-card text-card-foreground">{metric.label}</TooltipContent></Tooltip>
+  return <Tooltip><TooltipTrigger asChild><div className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-md px-2 py-1 text-center"><Icon className="h-3.5 w-3.5 text-christmas-gold" /><span className="text-[11px] font-medium text-christmas-snow">{fNum(value, playerMetricDigits(metric.key))}</span></div></TooltipTrigger><TooltipContent side="top" className="border border-border bg-card text-card-foreground">{metric.label}</TooltipContent></Tooltip>
 }
 
 function DistributionDonut({ slices, emptyText, iconType = "role" }: { slices: DistributionSlice[]; emptyText: string; iconType?: "role" | "specialization" }) {
@@ -138,8 +145,47 @@ function SquadChartTooltip({ active, payload, label }: { active?: boolean; paylo
   return <div className="max-h-80 min-w-[220px] overflow-y-auto rounded-lg border border-border bg-card/95 p-3 text-xs shadow-xl"><p className="mb-2 font-semibold text-christmas-snow">{label}</p><div className="space-y-1">{rows.map((x) => <div key={x.name} className="grid grid-cols-[1fr_auto] items-center gap-3"><span className="flex min-w-0 items-center gap-2 text-muted-foreground"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: x.color }} /><span className="truncate">{x.name}</span></span><span className="font-medium text-christmas-snow">{fNum(Number(x.value), 1)}</span></div>)}</div></div>
 }
 
+function chartMetricDigits(metric: ChartMetricKey) {
+  if (metric === "kd" || metric === "kda") return 2
+  if (metric === "mvpCount") return 0
+  return 1
+}
+
+function formatChartMetric(metric: ChartMetricKey, value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "РЅ/Рґ"
+  return fNum(value, chartMetricDigits(metric))
+}
+
+function formatChartDelta(metric: ChartMetricKey, value: number) {
+  const formatted = fNum(Math.abs(value), chartMetricDigits(metric))
+  return `${value > 0 ? "+" : value < 0 ? "-" : ""}${formatted}`
+}
+
+function getSortedChartEntries(payload: Array<{ dataKey?: string | number; name?: string | number; color?: string; value?: number | string | null }>): ChartValueEntry[] {
+  return payload
+    .map((entry) => {
+      const value = typeof entry.value === "number" ? entry.value : typeof entry.value === "string" ? Number(entry.value) : null
+      return { key: String(entry.dataKey ?? entry.name ?? ""), name: String(entry.name ?? ""), color: entry.color ?? "var(--muted-foreground)", value }
+    })
+    .filter((entry) => entry.key && entry.name && entry.value !== null && Number.isFinite(entry.value))
+    .sort((a, b) => Number(b.value) - Number(a.value))
+}
+
+function ChartValuesPanel({ title, metric, values, onClear }: { title: string; metric: ChartMetricKey; values: LockedChartValues; onClear?: () => void }) {
+  return <div className="rounded-xl border border-border/50 bg-background/35 p-3 text-sm"><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><p className="font-medium text-christmas-snow">{title}: {values.label}{values.eventLabel ? ` вЂў ${values.eventLabel}` : ""}</p>{onClear ? <button type="button" className="rounded-md border border-border/60 px-2 py-1 text-xs text-muted-foreground hover:bg-background/70 hover:text-christmas-snow" onClick={onClear}>РЎРЅСЏС‚СЊ С„РёРєСЃР°С†РёСЋ</button> : null}</div><div className={values.entries.length > 8 ? "grid grid-cols-1 gap-1.5 sm:grid-cols-2" : "space-y-1.5"}>{values.entries.map((entry) => <div key={entry.key} className="flex items-center gap-2 text-xs"><span className="flex min-w-0 items-center gap-2 text-muted-foreground"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} /><span className="truncate text-christmas-snow">{entry.name}</span></span><span className="shrink-0 font-medium text-christmas-snow">{formatChartMetric(metric, entry.value)}</span></div>)}</div></div>
+}
+
+function ChartDynamicsPanel({ metric, left, right }: { metric: ChartMetricKey; left: LockedChartValues; right: LockedChartValues }) {
+  const leftByKey = new Map(left.entries.map((entry) => [entry.key, entry]))
+  const dynamics = right.entries.map((rightEntry) => { const leftEntry = leftByKey.get(rightEntry.key); if (!leftEntry || leftEntry.value === null || rightEntry.value === null) return null; return { key: rightEntry.key, name: rightEntry.name, color: rightEntry.color, from: leftEntry.value, to: rightEntry.value, delta: rightEntry.value - leftEntry.value } }).filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)).sort((a, b) => b.delta - a.delta)
+  if (dynamics.length === 0) return null
+  return <div className="rounded-xl border border-christmas-gold/20 bg-christmas-gold/10 p-3 text-sm"><div className="mb-2 space-y-1"><p className="font-medium text-christmas-snow">Р”РёРЅР°РјРёРєР° РёР·РјРµРЅРµРЅРёСЏ</p><p className="text-xs text-muted-foreground">{left.label}{left.eventLabel ? ` вЂў ${left.eventLabel}` : ""} в†’ {right.label}{right.eventLabel ? ` вЂў ${right.eventLabel}` : ""}</p></div><div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">{dynamics.map((entry) => <div key={entry.key} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} /><span className="text-christmas-snow">{entry.name}</span><span className="text-muted-foreground">{formatChartMetric(metric, entry.from)} в†’ {formatChartMetric(metric, entry.to)}</span><span className={entry.delta >= 0 ? "font-medium text-christmas-green" : "font-medium text-christmas-red"}>{formatChartDelta(metric, entry.delta)}</span></div>)}</div></div>
+}
+
 export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenPlayer }: SquadOverviewProps) {
   const [chartMetric, setChartMetric] = useState<ChartMetricKey>("avgElo")
+  const [hiddenSquadLabels, setHiddenSquadLabels] = useState<Set<string>>(() => new Set())
+  const [lockedValues, setLockedValues] = useState<LockedChartValues[]>([])
   const { squads, chartData, chartLines } = useMemo(() => {
     const playersById = new Map(players.map((p) => [p.player_id, p]))
     type MP = Omit<SquadPlayerSummary, "avgElo" | "avgTbf" | "avgRating" | "kd" | "kda" | "popularRole" | "specialization"> & { elo: number; roles: string[]; specs: string[] }
@@ -212,13 +258,24 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
       const key = keyByLabel.get(s.label)
       if (!key) return
       let mvpTotal = 0
-      s.allMatches.slice().reverse().forEach((m) => { if (!rows.has(m.eventId)) rows.set(m.eventId, { eventId: m.eventId, date: fDate(m.startedAt), fullDate: m.startedAt }); if (chartMetric === "mvpCount") mvpTotal += m.isMvp ? 1 : 0; rows.get(m.eventId)![key] = chartMetric === "mvpCount" ? mvpTotal : matchMetric(m, chartMetric) })
+      s.allMatches.slice().reverse().forEach((m) => { if (!rows.has(m.eventId)) rows.set(m.eventId, { eventId: m.eventId, date: fDate(m.startedAt), fullDate: m.startedAt, eventLabel: m.map }); if (chartMetric === "mvpCount") mvpTotal += m.isMvp ? 1 : 0; rows.get(m.eventId)![key] = chartMetric === "mvpCount" ? mvpTotal : matchMetric(m, chartMetric) })
     })
     const chartData = [...rows.values()].sort((a, b) => new Date(String(a.fullDate)).getTime() - new Date(String(b.fullDate)).getTime())
     return { squads, chartData, chartLines }
   }, [chartMetric, games, players, squadDomain])
 
   const selectedChartMetric = CHART_METRICS.find((m) => m.key === chartMetric) ?? CHART_METRICS[0]
+  const visibleChartLines = chartLines.filter((line) => !hiddenSquadLabels.has(line.label))
+  const toggleChartSquad = (label: string) => { setHiddenSquadLabels((current) => { const next = new Set(current); if (next.has(label)) next.delete(label); else next.add(label); return next }); setLockedValues([]) }
+  const handleChartMetricChange = (value: ChartMetricKey) => { setChartMetric(value); setLockedValues([]) }
+  const handleChartClick = (state: unknown) => {
+    const chartState = state as { activeLabel?: string | number; activePayload?: Array<{ dataKey?: string | number; name?: string | number; color?: string; value?: number | string | null; payload?: { eventLabel?: string } }> } | null | undefined
+    if (!chartState?.activePayload?.length) return
+    const entries = getSortedChartEntries(chartState.activePayload.filter((entry) => visibleChartLines.some((line) => line.key === String(entry.dataKey))))
+    if (entries.length === 0) return
+    const point = chartState.activePayload[0]?.payload
+    setLockedValues((current) => [...current, { label: String(chartState.activeLabel ?? ""), eventLabel: point?.eventLabel ? String(point.eventLabel) : undefined, entries }].slice(-2))
+  }
   if (squads.length === 0) return <Card className="border-border/50 bg-card/60"><CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base text-christmas-snow"><Shield className="h-4 w-4 text-christmas-gold" />Отряды по цветам</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Нет доступных отрядов для текущего среза.</CardContent></Card>
 
   return (
@@ -274,8 +331,20 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
       </div>
 
       <Card className="border-christmas-gold/20 bg-card/60">
-        <CardHeader className="gap-3 pb-3 md:flex-row md:items-center md:justify-between"><div><CardTitle className="flex items-center gap-2 text-base text-christmas-snow"><Swords className="h-4 w-4 text-christmas-gold" />Сравнение отрядов</CardTitle></div><Select value={chartMetric} onValueChange={(v) => setChartMetric(v as ChartMetricKey)}><SelectTrigger className="w-full border-christmas-gold/20 bg-background/50 text-christmas-snow md:w-[190px]"><SelectValue /></SelectTrigger><SelectContent>{CHART_METRICS.map((m) => <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>)}</SelectContent></Select></CardHeader>
-        <CardContent><div className="h-[360px] w-full"><ResponsiveContainer width="100%" height="100%"><LineChart data={chartData} margin={{ top: 12, right: 16, left: 0, bottom: 8 }}><CartesianGrid stroke="rgba(148, 163, 184, 0.18)" strokeDasharray="3 3" /><XAxis dataKey="date" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickMargin={8} /><YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} width={42} /><RechartsTooltip content={<SquadChartTooltip />} />{chartLines.map((line) => <Line key={line.key} type="monotone" dataKey={line.key} name={line.label} stroke={line.color} strokeWidth={2.5} dot={false} activeDot={{ r: 5, stroke: line.color, fill: line.color }} connectNulls />)}</LineChart></ResponsiveContainer></div><div className="mt-3 flex flex-wrap gap-2">{chartLines.map((line) => <Badge key={line.key} variant="outline" className="border-border/60 text-muted-foreground"><span className="mr-2 h-2 w-2 rounded-full" style={{ backgroundColor: line.color }} />{line.label}</Badge>)}</div><p className="mt-2 text-[11px] text-muted-foreground">Параметр: {selectedChartMetric.label}</p></CardContent>
+        <CardHeader className="gap-3 pb-3 md:flex-row md:items-center md:justify-between"><div><CardTitle className="flex items-center gap-2 text-base text-christmas-snow"><Swords className="h-4 w-4 text-christmas-gold" />Сравнение отрядов</CardTitle></div><Select value={chartMetric} onValueChange={(v) => handleChartMetricChange(v as ChartMetricKey)}><SelectTrigger className="w-full border-christmas-gold/20 bg-background/50 text-christmas-snow md:w-[190px]"><SelectValue /></SelectTrigger><SelectContent>{CHART_METRICS.map((m) => <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>)}</SelectContent></Select></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => { setHiddenSquadLabels(new Set()); setLockedValues([]) }} className="rounded-md border border-christmas-gold/30 px-2 py-1 text-xs text-christmas-gold hover:bg-christmas-gold/10">Все отряды</button>
+            {chartLines.map((line) => {
+              const hidden = hiddenSquadLabels.has(line.label)
+              return <button key={line.key} type="button" onClick={() => toggleChartSquad(line.label)} className={cn("inline-flex items-center gap-2 rounded-md border px-2 py-1 text-xs transition-colors", hidden ? "border-border/50 text-muted-foreground opacity-55" : "border-border/60 bg-background/30 text-christmas-snow hover:border-christmas-gold/40")}><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: line.color }} />{line.label}</button>
+            })}
+          </div>
+          <div className="h-[360px] w-full"><ResponsiveContainer width="100%" height="100%"><LineChart data={chartData} margin={{ top: 12, right: 16, left: 0, bottom: 8 }} onClick={handleChartClick}><CartesianGrid stroke="rgba(148, 163, 184, 0.18)" strokeDasharray="3 3" /><XAxis dataKey="date" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickMargin={8} /><YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} width={42} /><RechartsTooltip content={<SquadChartTooltip />} wrapperStyle={{ pointerEvents: "auto" }} />{visibleChartLines.map((line) => <Line key={line.key} type="monotone" dataKey={line.key} name={line.label} stroke={line.color} strokeWidth={2.5} dot={false} activeDot={{ r: 5, stroke: line.color, fill: line.color }} connectNulls />)}</LineChart></ResponsiveContainer></div>
+          <p className="text-[11px] text-muted-foreground">Параметр: {selectedChartMetric.label}. Клик по графику фиксирует до двух точек для сравнения.</p>
+          {lockedValues.length > 0 ? <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">{lockedValues.map((values, index) => <ChartValuesPanel key={`${values.label}-${values.eventLabel ?? ""}-${index}`} title={`Фиксация ${index + 1}`} metric={chartMetric} values={values} onClear={() => setLockedValues((current) => current.filter((_, currentIndex) => currentIndex !== index))} />)}</div> : null}
+          {lockedValues.length === 2 ? <ChartDynamicsPanel metric={chartMetric} left={lockedValues[0]!} right={lockedValues[1]!} /> : null}
+        </CardContent>
       </Card>
     </div>
   )
