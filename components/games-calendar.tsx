@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ComponentType } from "react"
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,7 +8,21 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { getMetricIcon } from "@/lib/app-icons"
 import { getEventSizeLabel, type PastGameSummary } from "@/lib/data-utils"
 import { cn } from "@/lib/utils"
-import { Activity, ArrowLeftRight, CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Shield, Swords, Trophy, Users, type LucideIcon } from "lucide-react"
+import {
+  ArrowLeftRight,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Crosshair,
+  Flag,
+  MapPin,
+  Shield,
+  Swords,
+  Trophy,
+  Users,
+  type LucideIcon,
+} from "lucide-react"
 
 interface GamesCalendarProps {
   games: PastGameSummary[]
@@ -107,11 +121,39 @@ function resultLabel(game: PastGameSummary): string {
   return "Без результата"
 }
 
-function resultTone(game: PastGameSummary): string {
+function isPlannedGame(game: PastGameSummary): boolean {
   const parsed = parseDate(game.started_at)
-  if (parsed && parsed.getTime() > Date.now()) return "border-sky-400/40 bg-sky-400/10 text-sky-200"
-  if (game.is_win === true) return "border-christmas-green/40 bg-christmas-green/10 text-christmas-green"
-  if (game.is_win === false) return "border-christmas-red/40 bg-christmas-red/10 text-christmas-red"
+  return Boolean(parsed && parsed.getTime() > Date.now())
+}
+
+function gameTicketDiff(game: PastGameSummary): number | null {
+  if (game.score !== null) return game.score
+  if (game.tickets_1 !== null && game.tickets_2 !== null) return game.tickets_1 - game.tickets_2
+  return null
+}
+
+function aggregateTicketDiff(games: PastGameSummary[]): number | null {
+  const diffs = games.map(gameTicketDiff).filter((value): value is number => value !== null)
+  return diffs.length > 0 ? diffs.reduce((sum, value) => sum + value, 0) : null
+}
+
+function isCalendarItemFocused(item: CalendarGame, focusedEventId: string | null): boolean {
+  return Boolean(focusedEventId && item.games.some((game) => game.event_id === focusedEventId))
+}
+
+function resultTone(item: CalendarGame): string {
+  if (isPlannedGame(item.primary)) return "border-sky-400/40 bg-sky-400/10 text-sky-200"
+
+  if (item.isSideSwap) {
+    const diff = aggregateTicketDiff(item.games)
+    if (diff !== null) {
+      if (diff > 0) return "border-christmas-green/40 bg-christmas-green/10 text-christmas-green"
+      if (diff < 0) return "border-christmas-red/40 bg-christmas-red/10 text-christmas-red"
+    }
+  }
+
+  if (item.primary.is_win === true) return "border-christmas-green/40 bg-christmas-green/10 text-christmas-green"
+  if (item.primary.is_win === false) return "border-christmas-red/40 bg-christmas-red/10 text-christmas-red"
   return "border-border/60 bg-background/50 text-muted-foreground"
 }
 
@@ -128,7 +170,7 @@ function getEventTypeIcon(eventType: string | null | undefined): LucideIcon {
 
 function isLectureEvent(eventType: string | null | undefined): boolean {
   const normalized = normalizeText(eventType)
-  return normalized.includes("lecture") || normalized.includes("\u043b\u0435\u043a\u0446")
+  return normalized.includes("lecture") || normalized.includes("лекц")
 }
 
 function normalizeClanTag(value: string | null | undefined): string {
@@ -150,19 +192,23 @@ function getRosterCounts(game: PastGameSummary) {
   return { mdc, grave, merc: Math.max(formatPlayers - mdc - grave, 0), total: formatPlayers }
 }
 
-function compactInfoItems(game: PastGameSummary): Array<{ key: string; icon: LucideIcon; value: string }> {
-  const EventIcon = getEventTypeIcon(game.event_type)
+function compactInfoItems(item: CalendarGame): Array<{ key: string; icon: LucideIcon; value: string }> {
+  const game = item.primary
+  const eventIcon = getEventTypeIcon(game.event_type)
   const matchup = game.faction_matchup || [game.faction_1, game.faction_2].filter(Boolean).join(" vs ")
+  const ticketValue = item.isSideSwap ? aggregateTicketDiff(item.games) : gameTicketDiff(game)
+
   const items = [
-    game.event_type ? { key: "type", icon: EventIcon, value: game.event_type } : null,
+    game.event_type ? { key: "type", icon: eventIcon, value: game.event_type } : null,
     game.started_at ? { key: "time", icon: Clock, value: formatTime(game.started_at) } : null,
     getEventSizeLabel(game) ? { key: "format", icon: Users, value: getEventSizeLabel(game) } : null,
     game.map && !isLectureEvent(game.event_type) ? { key: "map", icon: MapPin, value: game.map } : null,
-    game.mode ? { key: "mode", icon: Activity, value: game.mode } : null,
-    matchup ? { key: "factions", icon: Swords, value: matchup } : null,
-    ticketText(game) ? { key: "tickets", icon: ArrowLeftRight, value: ticketText(game) } : null,
+    game.mode ? { key: "mode", icon: Crosshair, value: game.mode } : null,
+    matchup ? { key: "factions", icon: Flag, value: matchup } : null,
+    ticketValue !== null ? { key: "tickets", icon: ArrowLeftRight, value: `${ticketValue > 0 ? "+" : ""}${ticketValue}` } : null,
   ]
-  return items.filter((item): item is { key: string; icon: LucideIcon; value: string } => Boolean(item))
+
+  return items.filter((entry): entry is { key: string; icon: LucideIcon; value: string } => Boolean(entry))
 }
 
 function metricItems(game: PastGameSummary): Array<{ key: string; icon: ComponentType<{ className?: string }>; label: string; value: string }> {
@@ -197,39 +243,84 @@ function buildCalendarDays(month: Date): Date[] {
 
 function CalendarGameTooltip({ item }: { item: CalendarGame }) {
   const { primary, games, isSideSwap } = item
-  const roster = getRosterCounts(primary)
-  const matchup = primary.faction_matchup || [primary.faction_1, primary.faction_2].filter(Boolean).join(" vs ")
+  const [selectedGameIndex, setSelectedGameIndex] = useState(0)
+  const selectedGame = games[Math.min(selectedGameIndex, games.length - 1)] ?? primary
+  const roster = getRosterCounts(selectedGame)
+  const matchup = selectedGame.faction_matchup || [selectedGame.faction_1, selectedGame.faction_2].filter(Boolean).join(" vs ")
+  const planned = isPlannedGame(primary)
+  const aggregateDiff = aggregateTicketDiff(games)
+
+  useEffect(() => {
+    setSelectedGameIndex(0)
+  }, [item.key])
+
+  useEffect(() => {
+    if (planned || games.length < 2) return
+    const intervalId = window.setInterval(() => {
+      setSelectedGameIndex((current) => (current + 1) % games.length)
+    }, 5000)
+    return () => window.clearInterval(intervalId)
+  }, [games.length, planned])
+
   return (
     <div className="max-w-sm space-y-2 text-center text-xs">
       <div>
         <p className="font-semibold text-christmas-snow">{formatFullDate(primary.started_at)} в {formatTime(primary.started_at)}</p>
-        <p className="text-muted-foreground">{primary.event_type || "Матч"}{isSideSwap ? " • смена сторон" : ""}</p>
+        <p className="text-muted-foreground">
+          {primary.event_type || "Матч"}
+          {isSideSwap ? " • 2 игры со сменой сторон" : games.length > 1 ? ` • ${games.length} игры` : ""}
+        </p>
       </div>
+      {games.length > 1 ? (
+        <div className="flex flex-wrap justify-center gap-1">
+          {games.map((game, index) => (
+            <button
+              key={game.event_id}
+              type="button"
+              onClick={() => setSelectedGameIndex(index)}
+              className={cn(
+                "rounded-md border px-2 py-0.5 text-[11px] transition-colors",
+                index === selectedGameIndex
+                  ? "border-christmas-gold/60 bg-christmas-gold/10 text-christmas-snow"
+                  : "border-border/60 bg-background/35 text-muted-foreground hover:border-christmas-gold/40 hover:text-christmas-snow",
+              )}
+            >
+              {`Игра ${index + 1}`}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 gap-1 text-center text-muted-foreground">
-        {!isLectureEvent(primary.event_type) ? <span>Карта: <span className="text-christmas-snow">{primary.map || "Не указана"}</span></span> : null}
-        <span>Режим: <span className="text-christmas-snow">{primary.mode || "Не указан"}</span></span>
-        <span>Оппонент: <span className="text-christmas-snow">{primary.opponent || "Не указан"}</span></span>
-        {primary.opponent_strength ? <span>Сила соперника: <span className="text-christmas-snow">{primary.opponent_strength}</span></span> : null}
+        {!isLectureEvent(selectedGame.event_type) ? <span>Карта: <span className="text-christmas-snow">{selectedGame.map || "Не указана"}</span></span> : null}
+        <span>Формат: <span className="text-christmas-snow">{getEventSizeLabel(selectedGame) || "Не указан"}</span></span>
+        <span>Режим: <span className="text-christmas-snow">{selectedGame.mode || "Не указан"}</span></span>
+        <span>Оппонент: <span className="text-christmas-snow">{selectedGame.opponent || "Не указан"}</span></span>
+        {selectedGame.opponent_strength ? <span>Сила соперника: <span className="text-christmas-snow">{selectedGame.opponent_strength}</span></span> : null}
         <span>Фракции: <span className="text-christmas-snow">{matchup || "Не указаны"}</span></span>
-        <span>Результат: <span className="text-christmas-snow">{resultLabel(primary)}</span></span>
+        <span>Результат: <span className="text-christmas-snow">{resultLabel(selectedGame)}</span></span>
+        {isSideSwap && aggregateDiff !== null ? <span>Общая разница тикетов: <span className="text-christmas-snow">{aggregateDiff > 0 ? "+" : ""}{aggregateDiff}</span></span> : null}
       </div>
-      <div className="grid grid-cols-2 gap-1.5">
-        {metricItems(primary).map((metric) => {
-          const Icon = metric.icon
-          return (
-            <div key={metric.key} className="flex flex-col items-center justify-center gap-1 rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center">
-              <span className="inline-flex min-w-0 items-center justify-center gap-1 text-muted-foreground"><Icon className="h-3 w-3 shrink-0 text-christmas-gold" />{metric.label}</span>
-              <span className="font-medium text-christmas-snow">{metric.value}</span>
-            </div>
-          )
-        })}
-      </div>
-      <div className="grid grid-cols-4 gap-1.5">
-        <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">MDC</p><p className="font-semibold text-christmas-snow">{roster.mdc}</p></div>
-        <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">GRAVE</p><p className="font-semibold text-christmas-snow">{roster.grave}</p></div>
-        <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">Мерки</p><p className="font-semibold text-christmas-snow">{roster.merc}</p></div>
-        <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">Формат</p><p className="font-semibold text-christmas-snow">{roster.total}</p></div>
-      </div>
+      {!planned ? (
+        <>
+          <div className="grid grid-cols-2 gap-1.5">
+            {metricItems(selectedGame).map((metric) => {
+              const Icon = metric.icon
+              return (
+                <div key={metric.key} className="flex flex-col items-center justify-center gap-1 rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center">
+                  <span className="inline-flex min-w-0 items-center justify-center gap-1 text-muted-foreground"><Icon className="h-3 w-3 shrink-0 text-christmas-gold" />{metric.label}</span>
+                  <span className="font-medium text-christmas-snow">{metric.value}</span>
+                </div>
+              )
+            })}
+          </div>
+          <div className="grid grid-cols-4 gap-1.5">
+            <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">MDC</p><p className="font-semibold text-christmas-snow">{roster.mdc}</p></div>
+            <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">GRAVE</p><p className="font-semibold text-christmas-snow">{roster.grave}</p></div>
+            <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">Мерки</p><p className="font-semibold text-christmas-snow">{roster.merc}</p></div>
+            <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">Формат</p><p className="font-semibold text-christmas-snow">{roster.total}</p></div>
+          </div>
+        </>
+      ) : null}
       {games.length > 1 ? (
         <div className="border-t border-border/60 pt-2">
           <p className="mb-1 text-muted-foreground">Матчи в группе: {games.length}</p>
@@ -249,6 +340,7 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
+  const focusedButtonRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
     if (!focusedEventId) return
@@ -258,9 +350,18 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
     setMonth(new Date(focusedDate.getFullYear(), focusedDate.getMonth(), 1))
   }, [focusedEventId, games])
 
+  useEffect(() => {
+    if (!focusedEventId) return
+    const timeoutId = window.setTimeout(() => {
+      focusedButtonRef.current?.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" })
+    }, 180)
+    return () => window.clearTimeout(timeoutId)
+  }, [focusedEventId, month])
+
   const calendarDays = useMemo(() => buildCalendarDays(month), [month])
   const gamesByDay = useMemo(() => {
     const grouped = new Map<string, PastGameSummary[]>()
+
     games.forEach((game) => {
       const parsed = parseDate(game.started_at)
       if (!parsed) return
@@ -272,11 +373,13 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
     const result = new Map<string, CalendarGame[]>()
     grouped.forEach((dayGames, dayKey) => {
       const groups = new Map<string, PastGameSummary[]>()
+
       dayGames.forEach((game) => {
         const key = calendarGroupKey(game)
         if (!groups.has(key)) groups.set(key, [])
         groups.get(key)!.push(game)
       })
+
       result.set(
         dayKey,
         [...groups.entries()]
@@ -291,12 +394,15 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
           .sort((a, b) => (parseDate(a.primary.started_at)?.getTime() ?? 0) - (parseDate(b.primary.started_at)?.getTime() ?? 0)),
       )
     })
+
     return result
   }, [games])
 
   const goToMonth = (offset: number) => {
     setMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1))
   }
+
+  const monthInputValue = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`
 
   return (
     <Card className="border-christmas-gold/20 bg-card/60">
@@ -307,11 +413,24 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
             Календарь событий
           </CardTitle>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" className="border-christmas-gold/20 bg-background/50" onClick={() => goToMonth(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="min-w-[180px] text-center text-sm font-semibold text-christmas-snow">{formatMonthTitle(month)}</div>
+          <input
+            type="month"
+            value={monthInputValue}
+            onChange={(event) => {
+              const [yearValue, monthValue] = event.target.value.split("-")
+              const year = Number(yearValue)
+              const monthIndex = Number(monthValue) - 1
+              if (Number.isFinite(year) && Number.isFinite(monthIndex) && monthIndex >= 0) {
+                setMonth(new Date(year, monthIndex, 1))
+              }
+            }}
+            className="rounded-md border border-christmas-gold/20 bg-background/50 px-2 py-1 text-sm text-christmas-snow"
+          />
           <Button type="button" variant="outline" size="sm" className="border-christmas-gold/20 bg-background/50" onClick={() => goToMonth(1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -325,57 +444,59 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
             </div>
             <div className="grid grid-cols-7 gap-2">
               {calendarDays.map((day) => {
-            const dayKey = formatDayKey(day)
-            const dayGames = gamesByDay.get(dayKey) ?? []
-            const isCurrentMonth = day.getMonth() === month.getMonth()
-            const isToday = dayKey === formatDayKey(new Date())
-            return (
-              <div
-                key={dayKey}
-                className={cn(
-                  "min-h-[150px] rounded-lg border border-border/50 bg-background/25 p-2",
-                  isToday && "border-christmas-gold/60 bg-christmas-gold/10",
-                )}
-              >
-                <div className="mb-2 flex items-center justify-between">
-                  <span className={cn("text-sm font-semibold", isToday ? "text-christmas-gold" : isCurrentMonth ? "text-christmas-snow" : "text-muted-foreground")}>{day.getDate()}</span>
-                  {dayGames.length > 0 ? <Badge variant="outline" className="border-border/60 px-1.5 py-0 text-[10px] text-muted-foreground">{dayGames.length}</Badge> : null}
-                </div>
-                <div className="space-y-1.5">
-                  {dayGames.map((item) => (
-                    <Tooltip key={item.key}>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          onClick={() => onOpenGame(item.primary.event_id)}
-                          className={cn(
-                            "w-full rounded-md border px-2 py-1.5 text-left transition-colors hover:border-christmas-gold/60 hover:bg-christmas-gold/10",
-                            focusedEventId === item.primary.event_id && "border-christmas-gold/70 bg-christmas-gold/10",
-                            resultTone(item.primary),
-                          )}
-                        >
-                          <div className="space-y-1">
-                            {compactInfoItems(item.primary).map((info) => {
-                              const Icon = info.icon
-                              return (
-                                <div key={info.key} className="flex min-w-0 items-center justify-center gap-1.5 text-center text-[11px]">
-                                  {info.key !== "type" ? <Icon className="h-3 w-3 shrink-0" /> : null}
-                                  <span className="truncate">{info.value}</span>
-                                </div>
-                              )
-                            })}
-                            {item.isSideSwap ? <div className="text-center text-[11px] text-muted-foreground">2 стороны</div> : null}
-                          </div>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="border border-border bg-card text-card-foreground">
-                        <CalendarGameTooltip item={item} />
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
-                </div>
-              </div>
-            )
+                const dayKey = formatDayKey(day)
+                const dayGames = gamesByDay.get(dayKey) ?? []
+                const isCurrentMonth = day.getMonth() === month.getMonth()
+                const isToday = dayKey === formatDayKey(new Date())
+
+                return (
+                  <div
+                    key={dayKey}
+                    className={cn(
+                      "min-h-[150px] rounded-lg border border-border/50 bg-background/25 p-2",
+                      isToday && "border-christmas-gold/60 bg-christmas-gold/10",
+                    )}
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className={cn("text-sm font-semibold", isToday ? "text-christmas-gold" : isCurrentMonth ? "text-christmas-snow" : "text-muted-foreground")}>{day.getDate()}</span>
+                      {dayGames.length > 0 ? <Badge variant="outline" className="border-border/60 px-1.5 py-0 text-[10px] text-muted-foreground">{dayGames.length}</Badge> : null}
+                    </div>
+                    <div className="space-y-1.5">
+                      {dayGames.map((item) => (
+                        <Tooltip key={item.key}>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={() => onOpenGame(item.primary.event_id)}
+                              ref={isCalendarItemFocused(item, focusedEventId) ? focusedButtonRef : null}
+                              className={cn(
+                                "w-full rounded-md border px-2 py-1.5 text-left transition-colors hover:border-christmas-gold/60 hover:bg-christmas-gold/10",
+                                isCalendarItemFocused(item, focusedEventId) && "border-christmas-gold/70 bg-christmas-gold/10",
+                                resultTone(item),
+                              )}
+                            >
+                              <div className="space-y-1">
+                                {compactInfoItems(item).map((info) => {
+                                  const Icon = info.icon
+                                  return (
+                                    <div key={info.key} className="flex min-w-0 items-center justify-center gap-1.5 text-center text-[11px]">
+                                      {info.key !== "type" ? <Icon className="h-3 w-3 shrink-0" /> : null}
+                                      <span className="truncate">{info.value}</span>
+                                    </div>
+                                  )
+                                })}
+                                {item.isSideSwap ? <div className="text-center text-[11px] text-muted-foreground">2 игры со сменой сторон</div> : item.games.length > 1 ? <div className="text-center text-[11px] text-muted-foreground">{`${item.games.length} игры`}</div> : null}
+                              </div>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="border border-border bg-card text-card-foreground">
+                            <CalendarGameTooltip item={item} />
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
+                  </div>
+                )
               })}
             </div>
           </div>

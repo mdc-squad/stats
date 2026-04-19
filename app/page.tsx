@@ -1467,7 +1467,7 @@ export default function YearReviewPage() {
       setCalendarFocusEventId(eventId)
     })
     window.setTimeout(() => {
-      calendarSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      calendarSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
     }, 120)
   }, [])
 
@@ -1940,7 +1940,7 @@ export default function YearReviewPage() {
                 />
               </div>
               <div className="space-y-2">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Фракция MDC</p>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Фракция</p>
                 <MultiValueFilter
                   options={factionOptions}
                   selected={selectedFactions}
