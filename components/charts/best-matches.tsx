@@ -118,6 +118,10 @@ export function BestMatches({
 
   const canExpand = sortedMatches.length > DEFAULT_COLLAPSED_COUNT
   const visibleRecords = showAll ? sortedMatches : sortedMatches.slice(0, DEFAULT_COLLAPSED_COUNT)
+  const topRecord = sortedMatches[0]
+  const topSummary = topRecord
+    ? `ТОП 1: ${topRecord.tag ? `${topRecord.tag} ` : ""}${topRecord.nickname} - ${getMetricLabel(metric)}: ${getMetricValue(topRecord, metric)}`
+    : null
 
   return (
     <div className="relative">
@@ -129,7 +133,11 @@ export function BestMatches({
               <span className="truncate">{title}</span>
             </CardTitle>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              {showAll ? `Игроков в топе: ${sortedMatches.length}` : `Показано: ${visibleRecords.length} из ${sortedMatches.length}`}
+              {isCollapsed && topSummary
+                ? topSummary
+                : showAll
+                ? `Игроков в топе: ${sortedMatches.length}`
+                : `Показано: ${visibleRecords.length} из ${sortedMatches.length}`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -176,7 +184,10 @@ export function BestMatches({
                           <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <p className="truncate text-sm font-medium text-christmas-snow">{match.nickname}</p>
+                                <p className="truncate text-sm font-medium text-christmas-snow">
+                                  {match.tag ? <span className="text-christmas-gold">{match.tag} </span> : null}
+                                  {match.nickname}
+                                </p>
                               </div>
                               <p className="mt-1 truncate text-xs text-muted-foreground">
                                 {match.map} • {match.role} • {match.kills}K / {match.deaths}D / {match.downs}Н

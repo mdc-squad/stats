@@ -21,7 +21,7 @@ import { getMetricIcon } from "@/lib/app-icons"
 import { getEventSizeLabel, type PastGameSummary, type Player } from "@/lib/data-utils"
 import { getSquadToneClasses, isSelectableSquadLabel } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
-import { ArrowLeftRight, Filter, Play, Search, Shield, Users, Video } from "lucide-react"
+import { ArrowLeftRight, ClipboardList, Filter, MessageCircle, Play, Search, Trophy, Users, UserX, Video } from "lucide-react"
 
 interface EventsExplorerProps {
   games: PastGameSummary[]
@@ -641,6 +641,7 @@ export function EventsExplorer({
                 const isFocused = focusTarget?.eventId === game.event_id
                 const isPlanned = isPlannedGame(game)
                 const recordingUrl = normalizeExternalUrl(game.cast_url)
+                const discordUrl = normalizeExternalUrl(game.discord_url)
                 const cardToneStyle = getCollapsedGameToneStyle(game)
                 const { date, time } = formatMatchDateParts(game.started_at)
                 const matchup = game.faction_matchup || [game.faction_1, game.faction_2].filter(Boolean).join(" vs ")
@@ -725,6 +726,11 @@ export function EventsExplorer({
                 const reserveLabel =
                   game.reservePlayers.length > 0
                     ? game.reservePlayers.map((player) => (player.tag ? `${player.tag} ${player.nickname}` : player.nickname)).join(", ")
+                    : "нет"
+                const absentPlayers = game.absentPlayers ?? []
+                const absentLabel =
+                  absentPlayers.length > 0
+                    ? absentPlayers.map((player) => (player.tag ? `${player.tag} ${player.nickname}` : player.nickname)).join(", ")
                     : "нет"
                 const casterLabel =
                   game.casters.length > 0
@@ -813,14 +819,22 @@ export function EventsExplorer({
                               </span>
                             </div>
 
+                            {absentPlayers.length > 0 ? (
+                              <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
+                                <UserX className="h-3.5 w-3.5 text-christmas-red" />
+                                <span className="text-muted-foreground">Явка Нет</span>
+                                <span className="font-semibold text-christmas-snow">{absentLabel}</span>
+                              </div>
+                            ) : null}
+
                             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
-                              <Users className="h-3.5 w-3.5 text-christmas-snow" />
+                              <ClipboardList className="h-3.5 w-3.5 text-christmas-snow" />
                               <span className="text-muted-foreground">Резерв</span>
                               <span className="font-semibold text-christmas-snow">{reserveLabel}</span>
                             </div>
 
                             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
-                              <Shield className="h-3.5 w-3.5 text-christmas-snow" />
+                              <Trophy className="h-3.5 w-3.5 text-christmas-gold" />
                               <span className="text-muted-foreground">MVP</span>
                               <span className="font-semibold text-christmas-snow">{mvpLabel}</span>
                             </div>
@@ -849,6 +863,23 @@ export function EventsExplorer({
                                 <span className="font-medium text-muted-foreground">нет</span>
                               )}
                             </div>
+
+                            {discordUrl ? (
+                              <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
+                                <MessageCircle className="h-3.5 w-3.5 text-christmas-snow" />
+                                <span className="text-muted-foreground">Discord</span>
+                                <a
+                                  href={discordUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(event) => event.stopPropagation()}
+                                  className="font-semibold text-christmas-gold underline-offset-4 hover:text-christmas-snow hover:underline"
+                                  title={discordUrl}
+                                >
+                                  {getLinkHostLabel(discordUrl)}
+                                </a>
+                              </div>
+                            ) : null}
                           </div>
 
                           <ScrollArea className="rounded-lg border border-border/50 bg-background/30">

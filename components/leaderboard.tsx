@@ -63,6 +63,12 @@ export function Leaderboard({
 
   const canExpand = players.length > collapsedCount
   const visiblePlayers = showAll ? players : players.slice(0, collapsedCount)
+  const topPlayer = players[0]
+  const topValue = topPlayer?.totals[stat]
+  const topSummary =
+    topPlayer && typeof topValue === "number" && Number.isFinite(topValue)
+      ? `ТОП 1: ${topPlayer.tag ? `${topPlayer.tag} ` : ""}${topPlayer.nickname} - ${formatValue ? formatValue(topValue) : topValue}`
+      : null
 
   return (
     <div className="relative">
@@ -81,7 +87,11 @@ export function Leaderboard({
               <span className="truncate">{title}</span>
             </CardTitle>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              {showAll ? `Игроков в топе: ${players.length}` : `Показано: ${visiblePlayers.length} из ${players.length}`}
+              {isCollapsed && topSummary
+                ? topSummary
+                : showAll
+                ? `Игроков в топе: ${players.length}`
+                : `Показано: ${visiblePlayers.length} из ${players.length}`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -132,7 +142,10 @@ export function Leaderboard({
                         <div className="min-w-0 flex-1">
                           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1">
                             <div className="min-w-0">
-                              <p className="font-medium text-sm truncate text-christmas-snow">{player.nickname}</p>
+                              <p className="font-medium text-sm truncate text-christmas-snow">
+                                {player.tag ? <span className="text-christmas-gold">{player.tag} </span> : null}
+                                {player.nickname}
+                              </p>
                               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                                 <p className="text-xs text-muted-foreground">{secondaryLine}</p>
                                 {achievements.length > 0 && (

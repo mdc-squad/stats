@@ -260,6 +260,22 @@ function isReservePlayerEventEntry(stat: Pick<PlayerEventStat, "enter">): boolea
   return isReserveEntryState(stat.enter)
 }
 
+function isAbsentEntryState(value: string | null | undefined): boolean {
+  const normalized = normalizeEntryState(value)
+  return (
+    normalized === "нет" ||
+    normalized === "no" ||
+    normalized === "absent" ||
+    normalized.includes("неяв") ||
+    normalized.includes("не яв") ||
+    normalized.includes("не приш")
+  )
+}
+
+function isAbsentPlayerEventEntry(stat: Pick<PlayerEventStat, "enter">): boolean {
+  return isAbsentEntryState(stat.enter)
+}
+
 function normalizeTextToken(value: string | null | undefined): string {
   return (value ?? "")
     .trim()
@@ -977,7 +993,7 @@ function derivePlayersFromStats(basePlayers: Player[], playerStats: PlayerEventS
   >()
 
   playerStats.forEach((stat) => {
-    if (isReservePlayerEventEntry(stat)) {
+    if (isReservePlayerEventEntry(stat) || isAbsentPlayerEventEntry(stat)) {
       return
     }
 
@@ -1634,6 +1650,7 @@ export function getSLStats(playerStats: PlayerEventStat[], events: GameEvent[], 
       return {
         player_id: playerId,
         nickname: player?.nickname || "Unknown",
+        tag: player?.tag || "",
         steam_id: player?.steam_id || "",
         slGames: d.games,
         slKills: d.kills,
@@ -1678,6 +1695,7 @@ export function getTopByRole(
       return {
         player_id: playerId,
         nickname: player?.nickname || "Unknown",
+        tag: player?.tag || "",
         steam_id: player?.steam_id || "",
         kills: entry.kills,
         deaths: entry.deaths,
@@ -1906,6 +1924,7 @@ export interface PastGameSummary {
   avgElo: number
   players: PastGamePlayerStat[]
   reservePlayers: PastGameStaffPlayer[]
+  absentPlayers: PastGameStaffPlayer[]
   casters: PastGameStaffPlayer[]
   topPerformer: PastGamePlayerStat | null
 }
@@ -2157,7 +2176,7 @@ function aggregatePlayerEventStats(playerStats: PlayerEventStat[]): AggregatedPl
   >()
 
   playerStats.forEach((stat) => {
-    if (isReservePlayerEventEntry(stat)) {
+    if (isReservePlayerEventEntry(stat) || isAbsentPlayerEventEntry(stat)) {
       return
     }
 
@@ -2284,6 +2303,7 @@ export function getPastGames(
     target.set(stat.player_id, buildStaffPlayer(stat))
   }
   const reservePlayersByEvent = new Map<string, Map<string, PastGameStaffPlayer>>()
+  const absentPlayersByEvent = new Map<string, Map<string, PastGameStaffPlayer>>()
   const castersByEvent = new Map<string, Map<string, PastGameStaffPlayer>>()
 
   playerStats.forEach((stat) => {
@@ -2297,6 +2317,14 @@ export function getPastGames(
         reservePlayersByEvent.set(normalizedEventId, new Map())
       }
       addStaffPlayer(reservePlayersByEvent.get(normalizedEventId)!, stat)
+      return
+    }
+
+    if (isAbsentPlayerEventEntry(stat)) {
+      if (!absentPlayersByEvent.has(normalizedEventId)) {
+        absentPlayersByEvent.set(normalizedEventId, new Map())
+      }
+      addStaffPlayer(absentPlayersByEvent.get(normalizedEventId)!, stat)
       return
     }
 
@@ -2426,6 +2454,7 @@ export function getPastGames(
             : 0,
         players: rankedPlayers,
         reservePlayers: Array.from(reservePlayersByEvent.get(eventKey)?.values() ?? []),
+        absentPlayers: Array.from(absentPlayersByEvent.get(eventKey)?.values() ?? []),
         casters,
         topPerformer: rankedPlayers[0] ?? null,
       }
