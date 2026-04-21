@@ -428,8 +428,7 @@ function useDataTabFilters(rawData: MDCData | null, enabled: boolean, includeTag
   const selectedRawTags = useMemo(() => {
     if (!includeTags) return []
     const optionByValue = new Map(tagOptions.map((option) => [option.value, option.rawTags]))
-    const sourceValues = effectiveSelectedTags.length > 0 ? effectiveSelectedTags : tagOptions.map((option) => option.value)
-    return Array.from(new Set(sourceValues.flatMap((value) => optionByValue.get(value) ?? [])))
+    return Array.from(new Set(effectiveSelectedTags.flatMap((value) => optionByValue.get(value) ?? [])))
   }, [effectiveSelectedTags, includeTags, tagOptions])
 
   const tagFilteredData = useMemo(() => {
@@ -645,6 +644,70 @@ function DataTabFilterCard({ filters }: { filters: DataTabFilters }) {
             </label>
           </div>
         ) : null}
+      </CardContent>
+    </Card>
+  )
+}
+
+function DateOnlyFilterCard({ filters }: { filters: DataTabFilters }) {
+  return (
+    <Card className="border-christmas-gold/20 bg-card/60">
+      <CardContent className="space-y-3 pt-4">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-sm font-medium text-christmas-snow">Фильтр по дате</p>
+            <p className="text-xs text-muted-foreground">{filters.summaryLabel}</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10"
+            onClick={filters.reset}
+            disabled={!filters.hasFilters}
+          >
+            Сбросить фильтр
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="space-y-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
+            <Select value={filters.selectedPeriod} onValueChange={(value) => filters.setSelectedPeriod(value as StatsPeriod)}>
+              <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
+                <SelectValue placeholder="Период" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATS_PERIOD_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {filters.selectedPeriod === "custom" ? (
+            <>
+              <label className="space-y-2">
+                <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
+                <Input
+                  value={filters.customDateFrom}
+                  onChange={(event) => filters.setCustomDateFrom(event.target.value)}
+                  type="date"
+                  className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
+                <Input
+                  value={filters.customDateTo}
+                  onChange={(event) => filters.setCustomDateTo(event.target.value)}
+                  type="date"
+                  className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                />
+              </label>
+            </>
+          ) : null}
+        </div>
       </CardContent>
     </Card>
   )
@@ -1141,11 +1204,10 @@ export default function YearReviewPage() {
 
   const selectedRawTags = useMemo(() => {
     const optionByValue = new Map(tagOptions.map((option) => [option.value, option.rawTags]))
-    const sourceValues = effectiveSelectedTags.length > 0 ? effectiveSelectedTags : tagOptions.map((option) => option.value)
 
     return Array.from(
       new Set(
-        sourceValues.flatMap((value) => optionByValue.get(value) ?? []),
+        effectiveSelectedTags.flatMap((value) => optionByValue.get(value) ?? []),
       ),
     )
   }, [effectiveSelectedTags, tagOptions])
@@ -1208,10 +1270,12 @@ export default function YearReviewPage() {
   const roleFilters = useDataTabFilters(rawData, activeTab === "roles", true)
   const recordFilters = useDataTabFilters(rawData, activeTab === "records", true)
   const playerFilters = useDataTabFilters(rawData, activeTab === "progress", false)
+  const groupFilters = useDataTabFilters(rawData, activeTab === "group", false)
   const leaderboardData = leaderboardFilters.data ?? data
   const roleData = roleFilters.data ?? data
   const recordData = recordFilters.data ?? data
   const playerData = playerFilters.data ?? data
+  const groupData = groupFilters.data ?? data
 
   const competitiveData = useMemo(() => {
     if (!data) return null
@@ -1451,6 +1515,11 @@ export default function YearReviewPage() {
     const protocolEvents = rawData?.events ?? data.events
     return getPastGames(protocolEvents, data.player_event_stats, data.players, data.dictionaries?.squads ?? [])
   }, [data, rawData])
+  const groupPastGames = useMemo(() => {
+    if (!groupData) return []
+    const protocolEvents = rawData?.events ?? groupData.events
+    return getPastGames(protocolEvents, groupData.player_event_stats, groupData.players, groupData.dictionaries?.squads ?? [])
+  }, [groupData, rawData])
   const futureEvents = useMemo(
     () =>
       pastGames
@@ -2642,10 +2711,11 @@ export default function YearReviewPage() {
 
           {/* Squads Tab */}
           <TabsContent value="group" className="space-y-4">
+            <DateOnlyFilterCard filters={groupFilters} />
             <SquadOverview
-              games={pastGames}
-              players={data.players}
-              squadDomain={data.dictionaries?.squads ?? []}
+              games={groupPastGames}
+              players={groupData?.players ?? data.players}
+              squadDomain={groupData?.dictionaries?.squads ?? data.dictionaries?.squads ?? []}
               onOpenGame={(eventId) => handleOpenGame(eventId, "")}
               onOpenPlayer={(playerId) => {
                 setSelectedPlayersForChart([playerId])

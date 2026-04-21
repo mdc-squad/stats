@@ -13,6 +13,7 @@ import { PlayerAvatar } from "@/components/player-avatar"
 import { PlayerSelector } from "@/components/player-selector"
 import { RoleIcon } from "@/components/role-icon"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { getSpecializationLabel, SpecializationIcon } from "@/components/specialization-icon"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -22,6 +23,113 @@ import { getEventSizeLabel, type PastGameSummary, type Player } from "@/lib/data
 import { getSquadToneClasses, isSelectableSquadLabel } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
 import { ArrowLeftRight, ClipboardList, Filter, MessageCircle, Play, Search, Trophy, Users, UserX, Video } from "lucide-react"
+
+type GamesPeriod = "all" | "7d" | "30d" | "90d" | "180d" | "365d" | "custom"
+type GamesTagOption = MultiValueFilterOption & {
+  rawTags: string[]
+}
+
+const DEFAULT_GAMES_TAG_TOKENS = ["mdc", "grave"]
+const HIDDEN_GAMES_TAG_TOKENS = ["ветеран", "неактив"]
+const MDC_GAMES_TAG_VALUE = "__tag_group__mdc"
+
+const GAMES_PERIOD_OPTIONS: Array<{ value: GamesPeriod; label: string }> = [
+  { value: "all", label: "За всё время" },
+  { value: "7d", label: "7 дней" },
+  { value: "30d", label: "30 дней" },
+  { value: "90d", label: "90 дней" },
+  { value: "180d", label: "180 дней" },
+  { value: "365d", label: "365 дней" },
+  { value: "custom", label: "Произвольно" },
+]
+
+function buildGamesDateRange(period: GamesPeriod, fromValue: string, toValue: string): { from?: Date; to?: Date } {
+  if (period === "custom") {
+    const from = fromValue ? new Date(`${fromValue}T00:00:00`) : undefined
+    const to = toValue ? new Date(`${toValue}T23:59:59.999`) : undefined
+    return {
+      from: from && !Number.isNaN(from.getTime()) ? from : undefined,
+      to: to && !Number.isNaN(to.getTime()) ? to : undefined,
+    }
+  }
+
+  if (period === "all") return {}
+
+  const days = Number(period.replace("d", ""))
+  const to = new Date()
+  to.setHours(23, 59, 59, 999)
+  const from = new Date(to)
+  from.setDate(from.getDate() - (days - 1))
+  from.setHours(0, 0, 0, 0)
+  return { from, to }
+}
+
+function normalizeTagLabel(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase()
+}
+
+function matchesGamesTagToken(value: string, token: string): boolean {
+  return normalizeTagLabel(value).replaceAll("ё", "е").includes(token)
+}
+
+function isDefaultGamesTag(value: string): boolean {
+  return DEFAULT_GAMES_TAG_TOKENS.some((token) => matchesGamesTagToken(value, token))
+}
+
+function isHiddenGamesTag(value: string): boolean {
+  return HIDDEN_GAMES_TAG_TOKENS.some((token) => matchesGamesTagToken(value, token))
+}
+
+function isMdcGamesTag(value: string): boolean {
+  return normalizeTagLabel(value).includes("mdc")
+}
+
+function buildGamesTagOptions(players: Player[], games: PastGameSummary[]): GamesTagOption[] {
+  const tags = new Set<string>()
+
+  players.forEach((player) => {
+    const tag = player.tag?.trim()
+    if (tag) {
+      tags.add(tag)
+    }
+  })
+
+  games.forEach((game) => {
+    game.players.forEach((player) => {
+      const tag = player.tag?.trim()
+      if (tag) {
+        tags.add(tag)
+      }
+    })
+  })
+
+  const values = Array.from(tags)
+    .filter((tag) => !isHiddenGamesTag(tag))
+    .sort((left, right) => left.localeCompare(right, "ru"))
+
+  const mdcTags = values.filter(isMdcGamesTag)
+  const otherTags = values.filter((tag) => !isMdcGamesTag(tag))
+  const options: GamesTagOption[] = []
+
+  if (mdcTags.length > 0) {
+    options.push({
+      value: MDC_GAMES_TAG_VALUE,
+      label: "Mdc",
+      rawTags: mdcTags,
+      meta: mdcTags.length > 1 ? `${mdcTags.length} вариантов` : undefined,
+    })
+  }
+
+  otherTags.forEach((tag) => {
+    options.push({
+      value: tag,
+      label: tag,
+      rawTags: [tag],
+    })
+  })
+
+  return options
+}
 
 interface EventsExplorerProps {
   games: PastGameSummary[]
@@ -294,9 +402,11 @@ export function EventsExplorer({
   const [opponentFilters, setOpponentFilters] = useState<string[]>([])
   const [factionFilters, setFactionFilters] = useState<string[]>([])
   const [squadFilters, setSquadFilters] = useState<string[]>([])
+  const [selectedPeriod, setSelectedPeriod] = useState<GamesPeriod>("all")
+  const [customDateFrom, setCustomDateFrom] = useState("")
+  const [customDateTo, setCustomDateTo] = useState("")
+  const [selectedTags, setSelectedTags] = useState<string[] | null>(null)
   const [matchPlayerIds, setMatchPlayerIds] = useState<string[]>([])
-  const [dateFrom, setDateFrom] = useState("")
-  const [dateTo, setDateTo] = useState("")
   const [expandedGames, setExpandedGames] = useState<string[]>([])
   const deferredQuery = useDeferredValue(query.trim().toLowerCase())
 
@@ -355,20 +465,39 @@ export function EventsExplorer({
       .map((value) => ({ value, label: value }))
   }, [games, squadDomain])
 
+  const tagOptions = useMemo<GamesTagOption[]>(() => buildGamesTagOptions(players, games), [games, players])
+
+  const defaultSelectedTags = useMemo(
+    () => tagOptions.filter((option) => option.rawTags.some(isDefaultGamesTag)).map((option) => option.value),
+    [tagOptions],
+  )
+
+  const effectiveSelectedTags = selectedTags ?? defaultSelectedTags
+
+  const selectedRawTags = useMemo(() => {
+    const optionByValue = new Map(tagOptions.map((option) => [option.value, option.rawTags]))
+    return Array.from(new Set(effectiveSelectedTags.flatMap((value) => optionByValue.get(value) ?? [])))
+  }, [effectiveSelectedTags, tagOptions])
+
+  const periodRange = useMemo(
+    () => buildGamesDateRange(selectedPeriod, customDateFrom, customDateTo),
+    [customDateFrom, customDateTo, selectedPeriod],
+  )
+
   const filteredGames = useMemo(() => {
     return games.filter((game) => {
       if (isPlannedGame(game)) return false
-      if (dateFrom || dateTo) {
+      if (periodRange.from || periodRange.to) {
         const gameTime = new Date(game.started_at).getTime()
         if (Number.isNaN(gameTime)) return false
 
-        if (dateFrom) {
-          const fromTime = new Date(`${dateFrom}T00:00:00`).getTime()
+        if (periodRange.from) {
+          const fromTime = periodRange.from.getTime()
           if (!Number.isNaN(fromTime) && gameTime < fromTime) return false
         }
 
-        if (dateTo) {
-          const toTime = new Date(`${dateTo}T23:59:59.999`).getTime()
+        if (periodRange.to) {
+          const toTime = periodRange.to.getTime()
           if (!Number.isNaN(toTime) && gameTime > toTime) return false
         }
       }
@@ -378,6 +507,9 @@ export function EventsExplorer({
       if (opponentFilters.length > 0 && (!game.opponent || !opponentFilters.includes(game.opponent))) return false
       if (factionFilters.length > 0 && (!game.faction_1 || !factionFilters.includes(game.faction_1))) return false
       if (squadFilters.length > 0 && !game.players.some((player) => player.squad_labels.some((label) => squadFilters.includes(label)))) {
+        return false
+      }
+      if (selectedRawTags.length > 0 && !game.players.some((player) => selectedRawTags.includes(player.tag?.trim() ?? ""))) {
         return false
       }
 
@@ -407,14 +539,15 @@ export function EventsExplorer({
       return haystack.includes(deferredQuery)
     })
   }, [
-    dateFrom,
-    dateTo,
     deferredQuery,
     factionFilters,
     games,
     mapFilters,
     matchPlayerIds,
     opponentFilters,
+    periodRange.from,
+    periodRange.to,
+    selectedRawTags,
     squadFilters,
     typeFilters,
   ])
@@ -468,14 +601,16 @@ export function EventsExplorer({
 
   const clearFilters = () => {
     setQuery("")
+    setSelectedPeriod("all")
+    setCustomDateFrom("")
+    setCustomDateTo("")
+    setSelectedTags(null)
     setTypeFilters([])
     setMapFilters([])
     setOpponentFilters([])
     setFactionFilters([])
     setSquadFilters([])
     setMatchPlayerIds([])
-    setDateFrom("")
-    setDateTo("")
   }
 
   const getRoleTooltipLabel = (player: PastGameSummary["players"][number]) => {
@@ -506,7 +641,7 @@ export function EventsExplorer({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.5fr)_repeat(5,minmax(0,0.8fr))]">
+          <div className="grid grid-cols-1 gap-3 2xl:grid-cols-[minmax(0,1.45fr)_repeat(7,minmax(0,0.82fr))]">
             <div className="space-y-2">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Поиск</p>
               <div className="relative">
@@ -518,6 +653,34 @@ export function EventsExplorer({
                   className="border-christmas-gold/20 bg-background/50 pl-9 text-christmas-snow"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
+              <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as GamesPeriod)}>
+                <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
+                  <SelectValue placeholder="Период" />
+                </SelectTrigger>
+                <SelectContent>
+                  {GAMES_PERIOD_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Тег</p>
+              <MultiValueFilter
+                options={tagOptions}
+                selected={effectiveSelectedTags}
+                onSelectionChange={setSelectedTags}
+                placeholder="Все теги"
+                searchPlaceholder="Поиск по тегам..."
+                allLabel="Выбрать все теги"
+              />
             </div>
 
             <div className="space-y-2">
@@ -574,14 +737,25 @@ export function EventsExplorer({
                 searchPlaceholder="Поиск по цветам и отрядам..."
               />
             </div>
+
+            <div className="space-y-2 2xl:col-span-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Участники матча</p>
+              <PlayerSelector
+                players={filterablePlayers}
+                selected={matchPlayerIds}
+                onSelectionChange={setMatchPlayerIds}
+                placeholder="Фильтр по игрокам..."
+              />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          {selectedPeriod === "custom" ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:max-w-xl">
             <label className="space-y-2">
               <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
               <Input
-                value={dateFrom}
-                onChange={(event) => setDateFrom(event.target.value)}
+                value={customDateFrom}
+                onChange={(event) => setCustomDateFrom(event.target.value)}
                 type="date"
                 className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
               />
@@ -589,15 +763,16 @@ export function EventsExplorer({
             <label className="space-y-2">
               <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
               <Input
-                value={dateTo}
-                onChange={(event) => setDateTo(event.target.value)}
+                value={customDateTo}
+                onChange={(event) => setCustomDateTo(event.target.value)}
                 type="date"
                 className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
               />
             </label>
-          </div>
+            </div>
+          ) : null}
 
-          <div className="space-y-2">
+          <div className="hidden">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Участники матча</p>
             <PlayerSelector
               players={filterablePlayers}
