@@ -24,6 +24,7 @@ type LeaderboardItem = {
   helper: string
   steamId?: string
   nickname?: string
+  tag?: string
 }
 
 type LeaderboardCardConfig = {
@@ -118,7 +119,10 @@ function SliceLeaderboardCard({
                   <PlayerAvatar steamId={item.steamId} nickname={item.nickname || item.label} size="sm" />
                 ) : null}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-christmas-snow">{item.label}</p>
+                  <p className="truncate text-sm font-medium text-christmas-snow">
+                    {item.tag ? <span className="mr-1 text-christmas-snow">{item.tag}</span> : null}
+                    {item.label}
+                  </p>
                   <p className="truncate text-[11px] text-muted-foreground">{item.subtitle}</p>
                 </div>
                 <div className="min-w-[132px] text-right">
@@ -180,6 +184,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
       {
         player_id: string
         nickname: string
+        tag: string
         steam_id: string
         opponent: string
         matches: number
@@ -295,6 +300,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           playerOpponentMap.set(playerKey, {
             player_id: player.player_id,
             nickname: player.nickname,
+            tag: player.tag,
             steam_id: player.steam_id,
             opponent: game.opponent!,
             matches: 0,
@@ -392,6 +398,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
       {
         player_id: string
         nickname: string
+        tag: string
         steam_id: string
         matches: number
         resolvedMatches: number
@@ -412,6 +419,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
         strongPlayerMap.set(entry.player_id, {
           player_id: entry.player_id,
           nickname: entry.nickname,
+          tag: entry.tag,
           steam_id: entry.steam_id,
           matches: 0,
           resolvedMatches: 0,
@@ -512,6 +520,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           helper: entry.avgHeals.toFixed(1),
           steamId: entry.steam_id,
           nickname: entry.nickname,
+          tag: entry.tag,
         })),
       killerOpponents: playerOpponentRows
         .sort((left, right) => {
@@ -531,6 +540,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           helper: entry.kd.toFixed(2),
           steamId: entry.steam_id,
           nickname: entry.nickname,
+          tag: entry.tag,
         })),
       strongMatchPlayers: strongPlayerRows
         .sort((left, right) => {
@@ -549,6 +559,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           helper: entry.kd.toFixed(2),
           steamId: entry.steam_id,
           nickname: entry.nickname,
+          tag: entry.tag,
         })),
       matchCount: relevantGames.length,
     }

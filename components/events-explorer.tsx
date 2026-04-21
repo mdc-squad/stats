@@ -569,6 +569,19 @@ export function EventsExplorer({
     return [focusedGame, ...filteredGames]
   }, [filteredGames, focusedGame])
 
+  const analyticsPlayers = useMemo(() => {
+    const playerIds = new Set<string>()
+    filteredGames.forEach((game) => {
+      game.players.forEach((player) => {
+        playerIds.add(player.player_id)
+      })
+    })
+
+    return players
+      .filter((player) => playerIds.has(player.player_id) && player.totals?.events > 0)
+      .sort((left, right) => left.nickname.localeCompare(right.nickname, "ru"))
+  }, [filteredGames, players])
+
   const getVisiblePlayersForGame = (game: PastGameSummary) => {
     if (selectedRawTags.length === 0) {
       return game.players
@@ -1291,7 +1304,7 @@ export function EventsExplorer({
         <TabsContent value="analytics" className="mt-0">
           <EventsAnalyticsPanel
             games={filteredGames}
-            players={filterablePlayers}
+            players={analyticsPlayers}
             selectedPlayerIds={selectedPlayerIds}
             onSelectedPlayerIdsChange={onSelectedPlayersChange}
           />
