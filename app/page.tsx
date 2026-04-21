@@ -427,19 +427,17 @@ function useDataSliceFilters(rawData: MDCData | null, includeTags = true) {
     })
   }, [includeTags, selectedTags, tagOptions])
 
-  const isDefaultTagSelection = !includeTags || haveSameStringSet(effectiveSelectedTags, defaultSelectedTags)
-
   const selectedRawTags = useMemo(() => {
-    if (!includeTags || isDefaultTagSelection) return []
+    if (!includeTags) return []
     const optionByValue = new Map(tagOptions.map((option) => [option.value, option.rawTags]))
     const sourceValues = effectiveSelectedTags.length > 0 ? effectiveSelectedTags : tagOptions.map((option) => option.value)
     return Array.from(new Set(sourceValues.flatMap((value) => optionByValue.get(value) ?? [])))
-  }, [effectiveSelectedTags, includeTags, isDefaultTagSelection, tagOptions])
+  }, [effectiveSelectedTags, includeTags, tagOptions])
 
   const tagFilteredData = useMemo(() => {
     if (!dateFilteredData) return null
-    return includeTags && !isDefaultTagSelection ? filterDataByTags(dateFilteredData, selectedRawTags) : dateFilteredData
-  }, [dateFilteredData, includeTags, isDefaultTagSelection, selectedRawTags])
+    return includeTags ? filterDataByTags(dateFilteredData, selectedRawTags) : dateFilteredData
+  }, [dateFilteredData, includeTags, selectedRawTags])
 
   const eventTypeOptions = useMemo<MultiValueFilterOption[]>(
     () =>
@@ -480,6 +478,7 @@ function useDataSliceFilters(rawData: MDCData | null, includeTags = true) {
     })
   }, [selectedEventTypes, selectedFactions, selectedMaps, selectedOpponents, tagFilteredData])
 
+  const isDefaultTagSelection = !includeTags || haveSameStringSet(effectiveSelectedTags, defaultSelectedTags)
   const hasFilters = Boolean(
     !isDefaultTagSelection ||
       selectedEventTypes.length ||
