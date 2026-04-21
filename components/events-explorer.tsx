@@ -295,6 +295,8 @@ export function EventsExplorer({
   const [factionFilters, setFactionFilters] = useState<string[]>([])
   const [squadFilters, setSquadFilters] = useState<string[]>([])
   const [matchPlayerIds, setMatchPlayerIds] = useState<string[]>([])
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
   const [expandedGames, setExpandedGames] = useState<string[]>([])
   const deferredQuery = useDeferredValue(query.trim().toLowerCase())
 
@@ -356,6 +358,21 @@ export function EventsExplorer({
   const filteredGames = useMemo(() => {
     return games.filter((game) => {
       if (isPlannedGame(game)) return false
+      if (dateFrom || dateTo) {
+        const gameTime = new Date(game.started_at).getTime()
+        if (Number.isNaN(gameTime)) return false
+
+        if (dateFrom) {
+          const fromTime = new Date(`${dateFrom}T00:00:00`).getTime()
+          if (!Number.isNaN(fromTime) && gameTime < fromTime) return false
+        }
+
+        if (dateTo) {
+          const toTime = new Date(`${dateTo}T23:59:59.999`).getTime()
+          if (!Number.isNaN(toTime) && gameTime > toTime) return false
+        }
+      }
+
       if (typeFilters.length > 0 && !typeFilters.includes(game.event_type)) return false
       if (mapFilters.length > 0 && !mapFilters.includes(game.map)) return false
       if (opponentFilters.length > 0 && (!game.opponent || !opponentFilters.includes(game.opponent))) return false
@@ -390,6 +407,8 @@ export function EventsExplorer({
       return haystack.includes(deferredQuery)
     })
   }, [
+    dateFrom,
+    dateTo,
     deferredQuery,
     factionFilters,
     games,
@@ -455,6 +474,8 @@ export function EventsExplorer({
     setFactionFilters([])
     setSquadFilters([])
     setMatchPlayerIds([])
+    setDateFrom("")
+    setDateTo("")
   }
 
   const getRoleTooltipLabel = (player: PastGameSummary["players"][number]) => {
@@ -553,6 +574,27 @@ export function EventsExplorer({
                 searchPlaceholder="Поиск по цветам и отрядам..."
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            <label className="space-y-2">
+              <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
+              <Input
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+                type="date"
+                className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
+              <Input
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+                type="date"
+                className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+              />
+            </label>
           </div>
 
           <div className="space-y-2">
