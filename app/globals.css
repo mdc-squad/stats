@@ -135,6 +135,20 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  input[type="date"] {
+    color-scheme: dark;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 1;
+    filter: brightness(0) saturate(100%) invert(84%) sepia(37%) saturate(706%) hue-rotate(350deg) brightness(101%) contrast(93%);
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    filter: brightness(0) saturate(100%) invert(87%) sepia(34%) saturate(960%) hue-rotate(343deg) brightness(102%) contrast(96%);
+  }
 }
 
 /* Snowfall animation */
