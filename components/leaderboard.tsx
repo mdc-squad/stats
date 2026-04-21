@@ -67,7 +67,7 @@ export function Leaderboard({
   const topValue = topPlayer?.totals[stat]
   const topSummary =
     topPlayer && typeof topValue === "number" && Number.isFinite(topValue)
-      ? `ТОП 1: ${topPlayer.tag ? `${topPlayer.tag} ` : ""}${topPlayer.nickname} - ${formatValue ? formatValue(topValue) : topValue}`
+      ? `${topPlayer.tag ? `${topPlayer.tag} ` : ""}${topPlayer.nickname} - ${formatValue ? formatValue(topValue) : topValue}`
       : null
 
   return (
@@ -86,7 +86,14 @@ export function Leaderboard({
               {icon}
               <span className="truncate">{title}</span>
             </CardTitle>
-            <p className="mt-1 text-[10px] text-muted-foreground">
+            <p
+              className={cn(
+                "mt-1",
+                isCollapsed && topSummary
+                  ? "truncate text-sm font-medium uppercase tracking-wider text-christmas-snow"
+                  : "text-[10px] text-muted-foreground",
+              )}
+            >
               {isCollapsed && topSummary
                 ? topSummary
                 : showAll
@@ -143,8 +150,7 @@ export function Leaderboard({
                           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1">
                             <div className="min-w-0">
                               <p className="font-medium text-sm truncate text-christmas-snow">
-                                {player.tag ? <span className="text-christmas-gold">{player.tag} </span> : null}
-                                {player.nickname}
+                                {player.tag ? `${player.tag} ` : ""}{player.nickname}
                               </p>
                               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                                 <p className="text-xs text-muted-foreground">{secondaryLine}</p>

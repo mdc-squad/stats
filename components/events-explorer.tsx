@@ -822,15 +822,15 @@ export function EventsExplorer({
                             {absentPlayers.length > 0 ? (
                               <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
                                 <UserX className="h-3.5 w-3.5 text-christmas-red" />
-                                <span className="text-muted-foreground">Явка Нет</span>
-                                <span className="font-semibold text-christmas-snow">{absentLabel}</span>
+                                <span className="text-muted-foreground">Неявка</span>
+                                <span className="block max-h-16 max-w-[420px] overflow-y-auto pr-1 font-semibold leading-relaxed text-christmas-snow">{absentLabel}</span>
                               </div>
                             ) : null}
 
                             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
                               <ClipboardList className="h-3.5 w-3.5 text-christmas-snow" />
                               <span className="text-muted-foreground">Резерв</span>
-                              <span className="font-semibold text-christmas-snow">{reserveLabel}</span>
+                              <span className="block max-h-16 max-w-[420px] overflow-y-auto pr-1 font-semibold leading-relaxed text-christmas-snow">{reserveLabel}</span>
                             </div>
 
                             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">

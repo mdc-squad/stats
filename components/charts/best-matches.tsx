@@ -120,7 +120,7 @@ export function BestMatches({
   const visibleRecords = showAll ? sortedMatches : sortedMatches.slice(0, DEFAULT_COLLAPSED_COUNT)
   const topRecord = sortedMatches[0]
   const topSummary = topRecord
-    ? `ТОП 1: ${topRecord.tag ? `${topRecord.tag} ` : ""}${topRecord.nickname} - ${getMetricLabel(metric)}: ${getMetricValue(topRecord, metric)}`
+    ? `${topRecord.tag ? `${topRecord.tag} ` : ""}${topRecord.nickname} - ${getMetricLabel(metric)}: ${getMetricValue(topRecord, metric)}`
     : null
 
   return (
@@ -132,7 +132,14 @@ export function BestMatches({
               <TitleIcon className="w-4 h-4" />
               <span className="truncate">{title}</span>
             </CardTitle>
-            <p className="mt-1 text-[10px] text-muted-foreground">
+            <p
+              className={cn(
+                "mt-1",
+                isCollapsed && topSummary
+                  ? "truncate text-sm font-medium uppercase tracking-wider text-christmas-snow"
+                  : "text-[10px] text-muted-foreground",
+              )}
+            >
               {isCollapsed && topSummary
                 ? topSummary
                 : showAll
@@ -185,8 +192,7 @@ export function BestMatches({
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
                                 <p className="truncate text-sm font-medium text-christmas-snow">
-                                  {match.tag ? <span className="text-christmas-gold">{match.tag} </span> : null}
-                                  {match.nickname}
+                                  {match.tag ? `${match.tag} ` : ""}{match.nickname}
                                 </p>
                               </div>
                               <p className="mt-1 truncate text-xs text-muted-foreground">
