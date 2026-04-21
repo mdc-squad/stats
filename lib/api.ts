@@ -679,6 +679,7 @@ function buildFallbackEventsFromPlayerStats(playerStats: PlayerEventStat[]): Gam
           opponent: factions.opponent,
           cast_url: null,
           tactics_url: null,
+          discord_url: null,
         },
         uniquePlayers: new Set<string>(),
       }
@@ -805,6 +806,7 @@ function normalizeEvent(raw: UnknownRecord): GameEvent {
     opponent: toNullableString(raw.opponent),
     cast_url: extractLink(raw.cast_url),
     tactics_url: extractLink(raw.tactics_url),
+    discord_url: extractLink(raw.discord_url ?? raw.discordUrl),
   }
 }
 

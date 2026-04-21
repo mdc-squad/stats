@@ -14,8 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Crosshair,
   Flag,
+  Gamepad2,
   MapPin,
   Shield,
   Swords,
@@ -38,6 +38,36 @@ type CalendarGame = {
 }
 
 const WEEK_DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+const MONTH_NAMES = [
+  "Январь",
+  "Февраль",
+  "Март",
+  "Апрель",
+  "Май",
+  "Июнь",
+  "Июль",
+  "Август",
+  "Сентябрь",
+  "Октябрь",
+  "Ноябрь",
+  "Декабрь",
+]
+const WEEKEND_HOLIDAYS_BY_MONTH_DAY: Record<string, string> = {
+  "01-01": "Новый год",
+  "01-02": "Новогодние каникулы",
+  "01-03": "Новогодние каникулы",
+  "01-04": "Новогодние каникулы",
+  "01-05": "Новогодние каникулы",
+  "01-06": "Новогодние каникулы",
+  "01-07": "Рождество Христово",
+  "01-08": "Новогодние каникулы",
+  "02-23": "День защитника Отечества",
+  "03-08": "Международный женский день",
+  "05-01": "Праздник Весны и Труда",
+  "05-09": "День Победы",
+  "06-12": "День России",
+  "11-04": "День народного единства",
+}
 const EVENT_TYPE_ICONS: Array<[string, LucideIcon]> = [
   ["skirmish", Swords],
   ["training", Shield],
@@ -75,6 +105,20 @@ function formatFullDate(value: string): string {
   const parsed = parseDate(value)
   if (!parsed) return "Дата не указана"
   return parsed.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" })
+}
+
+function formatMonthDayKey(date: Date): string {
+  return `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+}
+
+function isWeekend(date: Date): boolean {
+  const day = date.getDay()
+  return day === 0 || day === 6
+}
+
+function getWeekendHolidayName(date: Date): string | null {
+  if (!isWeekend(date)) return null
+  return WEEKEND_HOLIDAYS_BY_MONTH_DAY[formatMonthDayKey(date)] ?? null
 }
 
 function minuteKey(value: string): string {
@@ -157,6 +201,17 @@ function resultTone(item: CalendarGame): string {
   return "border-border/60 bg-background/50 text-muted-foreground"
 }
 
+function selectedGameTone(game: PastGameSummary): string {
+  if (isPlannedGame(game)) return "border-sky-400/40 bg-sky-400/10"
+  if (game.is_win === true) return "border-christmas-green/40 bg-christmas-green/10"
+  if (game.is_win === false) return "border-christmas-red/40 bg-christmas-red/10"
+  return "border-border/60 bg-background/50"
+}
+
+function matchupLabel(game: PastGameSummary): string {
+  return game.faction_matchup || [game.faction_1, game.faction_2].filter(Boolean).join(" vs ") || game.event_id
+}
+
 function ticketText(game: PastGameSummary): string {
   if (game.score !== null) return `${game.score > 0 ? "+" : ""}${game.score}`
   if (game.tickets_1 !== null && game.tickets_2 !== null) return `${game.tickets_1}:${game.tickets_2}`
@@ -203,7 +258,7 @@ function compactInfoItems(item: CalendarGame): Array<{ key: string; icon: Lucide
     game.started_at ? { key: "time", icon: Clock, value: formatTime(game.started_at) } : null,
     getEventSizeLabel(game) ? { key: "format", icon: Users, value: getEventSizeLabel(game) } : null,
     game.map && !isLectureEvent(game.event_type) ? { key: "map", icon: MapPin, value: game.map } : null,
-    game.mode ? { key: "mode", icon: Crosshair, value: game.mode } : null,
+    game.mode ? { key: "mode", icon: Gamepad2, value: game.mode } : null,
     matchup ? { key: "factions", icon: Flag, value: matchup } : null,
     ticketValue !== null ? { key: "tickets", icon: ArrowLeftRight, value: `${ticketValue > 0 ? "+" : ""}${ticketValue}` } : null,
   ]
@@ -244,6 +299,7 @@ function buildCalendarDays(month: Date): Date[] {
 function CalendarGameTooltip({ item }: { item: CalendarGame }) {
   const { primary, games, isSideSwap } = item
   const [selectedGameIndex, setSelectedGameIndex] = useState(0)
+  const [manualSelection, setManualSelection] = useState(false)
   const selectedGame = games[Math.min(selectedGameIndex, games.length - 1)] ?? primary
   const roster = getRosterCounts(selectedGame)
   const matchup = selectedGame.faction_matchup || [selectedGame.faction_1, selectedGame.faction_2].filter(Boolean).join(" vs ")
@@ -252,18 +308,19 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
 
   useEffect(() => {
     setSelectedGameIndex(0)
+    setManualSelection(false)
   }, [item.key])
 
   useEffect(() => {
-    if (planned || games.length < 2) return
+    if (planned || manualSelection || games.length < 2) return
     const intervalId = window.setInterval(() => {
       setSelectedGameIndex((current) => (current + 1) % games.length)
-    }, 5000)
+    }, 3000)
     return () => window.clearInterval(intervalId)
-  }, [games.length, planned])
+  }, [games.length, manualSelection, planned])
 
   return (
-    <div className="max-w-sm space-y-2 text-center text-xs">
+    <div className={cn("max-w-sm space-y-2 rounded-lg border p-2 text-center text-xs", selectedGameTone(selectedGame))}>
       <div>
         <p className="font-semibold text-christmas-snow">{formatFullDate(primary.started_at)} в {formatTime(primary.started_at)}</p>
         <p className="text-muted-foreground">
@@ -277,7 +334,10 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
             <button
               key={game.event_id}
               type="button"
-              onClick={() => setSelectedGameIndex(index)}
+              onClick={() => {
+                setSelectedGameIndex(index)
+                setManualSelection(true)
+              }}
               className={cn(
                 "rounded-md border px-2 py-0.5 text-[11px] transition-colors",
                 index === selectedGameIndex
@@ -285,7 +345,7 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
                   : "border-border/60 bg-background/35 text-muted-foreground hover:border-christmas-gold/40 hover:text-christmas-snow",
               )}
             >
-              {`Игра ${index + 1}`}
+              {`${index + 1}. ${matchupLabel(game)}`}
             </button>
           ))}
         </div>
@@ -300,6 +360,16 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
         <span>Результат: <span className="text-christmas-snow">{resultLabel(selectedGame)}</span></span>
         {isSideSwap && aggregateDiff !== null ? <span>Общая разница тикетов: <span className="text-christmas-snow">{aggregateDiff > 0 ? "+" : ""}{aggregateDiff}</span></span> : null}
       </div>
+      {selectedGame.discord_url ? (
+        <a
+          href={selectedGame.discord_url}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex w-full items-center justify-center rounded-md border border-christmas-gold/40 bg-christmas-gold/10 px-3 py-1.5 text-xs font-semibold uppercase text-christmas-snow transition-colors hover:bg-christmas-gold/20"
+        >
+          {planned ? "Регистрация" : "Discord"}
+        </a>
+      ) : null}
       {!planned ? (
         <>
           <div className="grid grid-cols-2 gap-1.5">
@@ -313,11 +383,10 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
               )
             })}
           </div>
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5">
             <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">MDC</p><p className="font-semibold text-christmas-snow">{roster.mdc}</p></div>
             <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">GRAVE</p><p className="font-semibold text-christmas-snow">{roster.grave}</p></div>
             <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">Мерки</p><p className="font-semibold text-christmas-snow">{roster.merc}</p></div>
-            <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">Формат</p><p className="font-semibold text-christmas-snow">{roster.total}</p></div>
           </div>
         </>
       ) : null}
@@ -340,6 +409,8 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false)
+  const [pickerYear, setPickerYear] = useState(() => new Date().getFullYear())
   const focusedButtonRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
@@ -402,8 +473,6 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
     setMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1))
   }
 
-  const monthInputValue = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`
-
   return (
     <Card className="border-christmas-gold/20 bg-card/60">
       <CardHeader className="gap-3 md:flex-row md:items-center md:justify-between">
@@ -417,20 +486,49 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
           <Button type="button" variant="outline" size="sm" className="border-christmas-gold/20 bg-background/50" onClick={() => goToMonth(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div className="min-w-[180px] text-center text-sm font-semibold text-christmas-snow">{formatMonthTitle(month)}</div>
-          <input
-            type="month"
-            value={monthInputValue}
-            onChange={(event) => {
-              const [yearValue, monthValue] = event.target.value.split("-")
-              const year = Number(yearValue)
-              const monthIndex = Number(monthValue) - 1
-              if (Number.isFinite(year) && Number.isFinite(monthIndex) && monthIndex >= 0) {
-                setMonth(new Date(year, monthIndex, 1))
-              }
-            }}
-            className="rounded-md border border-christmas-gold/20 bg-background/50 px-2 py-1 text-sm text-christmas-snow"
-          />
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setPickerYear(month.getFullYear())
+                setMonthPickerOpen((open) => !open)
+              }}
+              className="min-w-[180px] rounded-md border border-christmas-gold/20 bg-background/50 px-3 py-1.5 text-center text-sm font-semibold text-christmas-snow hover:bg-christmas-gold/10"
+            >
+              {formatMonthTitle(month)}
+            </button>
+            {monthPickerOpen ? (
+              <div className="absolute right-0 top-full z-30 mt-2 w-[280px] rounded-lg border border-christmas-gold/20 bg-card/95 p-3 shadow-xl shadow-black/30">
+                <div className="mb-3 flex items-center justify-between">
+                  <Button type="button" variant="outline" size="sm" className="border-christmas-gold/20 bg-background/50" onClick={() => setPickerYear((year) => year - 1)}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-semibold text-christmas-snow">{pickerYear}</span>
+                  <Button type="button" variant="outline" size="sm" className="border-christmas-gold/20 bg-background/50" onClick={() => setPickerYear((year) => year + 1)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {MONTH_NAMES.map((name, index) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => {
+                        setMonth(new Date(pickerYear, index, 1))
+                        setMonthPickerOpen(false)
+                      }}
+                      className={cn(
+                        "rounded-md border border-border/50 bg-background/35 px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:border-christmas-gold/40 hover:text-christmas-snow",
+                        pickerYear === month.getFullYear() && index === month.getMonth() && "border-christmas-gold/60 bg-christmas-gold/10 text-christmas-snow",
+                      )}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
           <Button type="button" variant="outline" size="sm" className="border-christmas-gold/20 bg-background/50" onClick={() => goToMonth(1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -439,8 +537,8 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
       <CardContent className="space-y-3">
         <div className="overflow-x-auto pb-1">
           <div className="min-w-[920px] space-y-3">
-            <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              {WEEK_DAYS.map((day) => <div key={day} className="py-1">{day}</div>)}
+            <div className="sticky top-0 z-10 grid grid-cols-7 gap-1 bg-card/95 text-center text-sm font-bold uppercase tracking-wider text-christmas-gold backdrop-blur">
+              {WEEK_DAYS.map((day) => <div key={day} className="py-1.5">{day}</div>)}
             </div>
             <div className="grid grid-cols-7 gap-2">
               {calendarDays.map((day) => {
@@ -448,12 +546,22 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                 const dayGames = gamesByDay.get(dayKey) ?? []
                 const isCurrentMonth = day.getMonth() === month.getMonth()
                 const isToday = dayKey === formatDayKey(new Date())
+                const holidayName = getWeekendHolidayName(day)
+                const weekend = isWeekend(day)
 
                 return (
                   <div
                     key={dayKey}
+                    style={
+                      weekend
+                        ? {
+                            backgroundImage:
+                              "repeating-linear-gradient(135deg, rgba(234,179,8,0.08) 0, rgba(234,179,8,0.08) 6px, rgba(255,255,255,0.015) 6px, rgba(255,255,255,0.015) 12px)",
+                          }
+                        : undefined
+                    }
                     className={cn(
-                      "min-h-[150px] rounded-lg border border-border/50 bg-background/25 p-2",
+                      "flex min-h-[150px] flex-col rounded-lg border border-border/50 bg-background/25 p-2",
                       isToday && "border-christmas-gold/60 bg-christmas-gold/10",
                     )}
                   >
@@ -461,7 +569,7 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                       <span className={cn("text-sm font-semibold", isToday ? "text-christmas-gold" : isCurrentMonth ? "text-christmas-snow" : "text-muted-foreground")}>{day.getDate()}</span>
                       {dayGames.length > 0 ? <Badge variant="outline" className="border-border/60 px-1.5 py-0 text-[10px] text-muted-foreground">{dayGames.length}</Badge> : null}
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="flex-1 space-y-1.5">
                       {dayGames.map((item) => (
                         <Tooltip key={item.key}>
                           <TooltipTrigger asChild>
@@ -471,20 +579,46 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                               ref={isCalendarItemFocused(item, focusedEventId) ? focusedButtonRef : null}
                               className={cn(
                                 "w-full rounded-md border px-2 py-1.5 text-left transition-colors hover:border-christmas-gold/60 hover:bg-christmas-gold/10",
-                                isCalendarItemFocused(item, focusedEventId) && "border-christmas-gold/70 bg-christmas-gold/10",
                                 resultTone(item),
+                                isCalendarItemFocused(item, focusedEventId) && "ring-2 ring-christmas-gold/80 ring-offset-1 ring-offset-background",
                               )}
                             >
-                              <div className="space-y-1">
-                                {compactInfoItems(item).map((info) => {
-                                  const Icon = info.icon
-                                  return (
-                                    <div key={info.key} className="flex min-w-0 items-center justify-center gap-1.5 text-center text-[11px]">
-                                      {info.key !== "type" ? <Icon className="h-3 w-3 shrink-0" /> : null}
-                                      <span className="truncate">{info.value}</span>
-                                    </div>
-                                  )
-                                })}
+                              <div className="space-y-1 text-center text-[11px]">
+                                <div className="flex min-w-0 items-center justify-center gap-1.5">
+                                  <span className="truncate">{item.primary.event_type}</span>
+                                  <Clock className="h-3 w-3 shrink-0" />
+                                  <span className="truncate">{formatTime(item.primary.started_at)}</span>
+                                  {getEventSizeLabel(item.primary) ? <span className="truncate">{getEventSizeLabel(item.primary)}</span> : null}
+                                </div>
+                                <div className="flex min-w-0 items-center justify-center gap-1.5">
+                                  <MapPin className="h-3 w-3 shrink-0" />
+                                  <span className="truncate">{item.primary.map}</span>
+                                  {item.primary.mode ? (
+                                    <>
+                                      <Gamepad2 className="h-3 w-3 shrink-0" />
+                                      <span className="truncate">{item.primary.mode}</span>
+                                    </>
+                                  ) : null}
+                                </div>
+                                <div className="flex min-w-0 items-center justify-center gap-1.5">
+                                  <Flag className="h-3 w-3 shrink-0" />
+                                  <span className="truncate">{matchupLabel(item.primary)}</span>
+                                </div>
+                                {isPlannedGame(item.primary) && item.primary.discord_url ? (
+                                  <a
+                                    href={item.primary.discord_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(event) => event.stopPropagation()}
+                                    className="mt-1 inline-flex w-full items-center justify-center rounded-md border border-sky-300/35 bg-sky-400/10 px-2 py-1 text-[10px] font-semibold uppercase text-sky-100 hover:bg-sky-400/20"
+                                  >
+                                    Регистрация
+                                  </a>
+                                ) : aggregateTicketDiff(item.games) !== null ? (
+                                  <div className="mt-1 rounded-md border border-christmas-gold/25 bg-background/35 px-2 py-1 text-center text-sm font-bold text-christmas-snow">
+                                    {`${aggregateTicketDiff(item.games)! > 0 ? "+" : ""}${aggregateTicketDiff(item.games)}`}
+                                  </div>
+                                ) : null}
                                 {item.isSideSwap ? <div className="text-center text-[11px] text-muted-foreground">2 игры со сменой сторон</div> : item.games.length > 1 ? <div className="text-center text-[11px] text-muted-foreground">{`${item.games.length} игры`}</div> : null}
                               </div>
                             </button>
@@ -495,6 +629,7 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                         </Tooltip>
                       ))}
                     </div>
+                    {holidayName ? <div className="mt-2 truncate text-center text-[10px] font-medium text-christmas-gold/80">{holidayName}</div> : null}
                   </div>
                 )
               })}

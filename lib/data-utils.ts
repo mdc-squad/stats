@@ -40,6 +40,7 @@ export interface GameEvent {
   opponent: string | null
   cast_url: string | null
   tactics_url: string | null
+  discord_url: string | null
 }
 
 export interface PlayerEventStat {
@@ -1888,6 +1889,7 @@ export interface PastGameSummary {
   score: number | null
   cast_url: string | null
   tactics_url: string | null
+  discord_url: string | null
   participants: number
   mdc_players: number
   ally_players: number | null
@@ -2398,6 +2400,7 @@ export function getPastGames(
         score: event?.score ?? null,
         cast_url: event?.cast_url ?? null,
         tactics_url: event?.tactics_url ?? null,
+        discord_url: event?.discord_url ?? null,
         participants: rankedPlayers.length,
         mdc_players: rankedPlayers.length,
         ally_players: event?.ally_players ?? null,
