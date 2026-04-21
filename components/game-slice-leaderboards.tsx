@@ -76,6 +76,8 @@ function SliceLeaderboardCard({
   isExpanded: boolean
   onToggle: () => void
 }) {
+  const topItem = items[0]
+
   return (
     <Card className="border-border/50 bg-card/60">
       <CardHeader className="pb-3">
@@ -85,7 +87,9 @@ function SliceLeaderboardCard({
               <Icon className="w-4 h-4 text-christmas-gold" />
               {title}
             </CardTitle>
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
+            <p className={cn("text-sm", !isExpanded && topItem ? "font-medium text-christmas-snow" : "text-muted-foreground")}>
+              {!isExpanded && topItem ? `${topItem.label} - ${topItem.metricLabel}: ${topItem.metric}` : subtitle}
+            </p>
           </div>
           <button
             type="button"
