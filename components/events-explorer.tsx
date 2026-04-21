@@ -355,6 +355,7 @@ export function EventsExplorer({
 
   const filteredGames = useMemo(() => {
     return games.filter((game) => {
+      if (isPlannedGame(game)) return false
       if (typeFilters.length > 0 && !typeFilters.includes(game.event_type)) return false
       if (mapFilters.length > 0 && !mapFilters.includes(game.map)) return false
       if (opponentFilters.length > 0 && (!game.opponent || !opponentFilters.includes(game.opponent))) return false
@@ -399,6 +400,8 @@ export function EventsExplorer({
     typeFilters,
   ])
 
+  const matchGamesCount = useMemo(() => games.filter((game) => !isPlannedGame(game)).length, [games])
+
   const focusedGame = useMemo(() => {
     if (!focusTarget) return null
     return games.find((game) => game.event_id === focusTarget.eventId) ?? null
@@ -406,6 +409,7 @@ export function EventsExplorer({
 
   const visibleGames = useMemo(() => {
     if (!focusedGame) return filteredGames
+    if (isPlannedGame(focusedGame)) return filteredGames
     if (filteredGames.some((game) => game.event_id === focusedGame.event_id)) {
       return filteredGames
     }
@@ -564,7 +568,7 @@ export function EventsExplorer({
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
               Показано {filteredGames.length}
-              {focusedGameHiddenByFilters ? " + 1 открытая игра" : ""} из {games.length}
+              {focusedGameHiddenByFilters ? " + 1 открытая игра" : ""} из {matchGamesCount}
             </p>
             <Button
               type="button"
