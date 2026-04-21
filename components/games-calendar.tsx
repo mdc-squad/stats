@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties, type MouseEvent } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -37,6 +37,7 @@ type CalendarGame = {
 }
 
 const WEEK_DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+const WEEKDAY_GUIDE_OFFSET = 32
 const MONTH_NAMES = [
   "Январь",
   "Февраль",
@@ -479,6 +480,8 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
   const [monthPickerOpen, setMonthPickerOpen] = useState(false)
   const [pickerYear, setPickerYear] = useState(() => new Date().getFullYear())
   const focusedButtonRef = useRef<HTMLButtonElement | null>(null)
+  const weekRefs = useRef<Array<HTMLDivElement | null>>([])
+  const [weekdayGuide, setWeekdayGuide] = useState({ weekIndex: 0, top: 0 })
 
   useEffect(() => {
     if (!focusedEventId) return
@@ -504,6 +507,67 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
     }
     return weeks
   }, [calendarDays])
+  const moveWeekdayGuideToWeek = useCallback(
+    (weekIndex: number) => {
+      const clampedWeekIndex = Math.min(Math.max(weekIndex, 0), Math.max(calendarWeeks.length - 1, 0))
+      const weekNode = weekRefs.current[clampedWeekIndex]
+      const top = weekNode ? Math.max(0, weekNode.offsetTop - WEEKDAY_GUIDE_OFFSET) : 0
+
+      setWeekdayGuide((current) => {
+        if (current.weekIndex === clampedWeekIndex && current.top === top) return current
+        return { weekIndex: clampedWeekIndex, top }
+      })
+    },
+    [calendarWeeks.length],
+  )
+
+  useEffect(() => {
+    weekRefs.current = weekRefs.current.slice(0, calendarWeeks.length)
+    const frameId = window.requestAnimationFrame(() => moveWeekdayGuideToWeek(0))
+    return () => window.cancelAnimationFrame(frameId)
+  }, [calendarWeeks.length, moveWeekdayGuideToWeek])
+
+  useEffect(() => {
+    const updateFromScroll = () => {
+      const focusY = window.innerHeight * 0.45
+      let bestWeekIndex = 0
+      let bestDistance = Number.POSITIVE_INFINITY
+
+      weekRefs.current.forEach((weekNode, weekIndex) => {
+        if (!weekNode) return
+        const rect = weekNode.getBoundingClientRect()
+        if (rect.bottom < 0 || rect.top > window.innerHeight) return
+        const distance = rect.top <= focusY && rect.bottom >= focusY
+          ? 0
+          : Math.min(Math.abs(rect.top - focusY), Math.abs(rect.bottom - focusY))
+        if (distance < bestDistance) {
+          bestDistance = distance
+          bestWeekIndex = weekIndex
+        }
+      })
+
+      if (bestDistance !== Number.POSITIVE_INFINITY) {
+        moveWeekdayGuideToWeek(bestWeekIndex)
+      }
+    }
+
+    updateFromScroll()
+    window.addEventListener("scroll", updateFromScroll, { passive: true })
+    window.addEventListener("resize", updateFromScroll)
+    return () => {
+      window.removeEventListener("scroll", updateFromScroll)
+      window.removeEventListener("resize", updateFromScroll)
+    }
+  }, [moveWeekdayGuideToWeek])
+
+  const handleCalendarMouseMove = (event: MouseEvent<HTMLDivElement>) => {
+    const weekNode = (event.target as HTMLElement).closest<HTMLElement>("[data-calendar-week-index]")
+    const weekIndex = Number(weekNode?.dataset.calendarWeekIndex)
+    if (Number.isFinite(weekIndex)) {
+      moveWeekdayGuideToWeek(weekIndex)
+    }
+  }
+
   const gamesByDay = useMemo(() => {
     const grouped = new Map<string, PastGameSummary[]>()
 
@@ -610,13 +674,26 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="overflow-x-auto pb-1">
-          <div className="min-w-[920px] space-y-3">
-            {calendarWeeks.map((week, weekIndex) => (
-              <div key={`week-${weekIndex}`} className="space-y-2">
-                <div className="grid grid-cols-7 gap-1 text-center text-sm font-bold uppercase tracking-wider text-christmas-gold">
-                  {WEEK_DAYS.map((day) => <div key={`${weekIndex}-${day}`} className="py-1.5">{day}</div>)}
-                </div>
-                <div className="grid grid-cols-7 gap-2">
+          <div className="relative min-w-[920px] pt-8" onMouseMove={handleCalendarMouseMove}>
+            <div
+              className="pointer-events-none absolute left-0 right-0 top-0 z-20 grid grid-cols-7 gap-1 rounded-md border border-christmas-gold/20 bg-card/95 text-center text-sm font-bold uppercase tracking-wider text-christmas-gold shadow-lg shadow-black/20 backdrop-blur transition-transform duration-200 ease-out"
+              style={{ transform: `translateY(${weekdayGuide.top}px)` }}
+            >
+              {WEEK_DAYS.map((day) => <div key={day} className="py-1.5">{day}</div>)}
+            </div>
+            <div className="space-y-3">
+              {calendarWeeks.map((week, weekIndex) => (
+                <div
+                  key={`week-${weekIndex}`}
+                  ref={(node) => {
+                    weekRefs.current[weekIndex] = node
+                  }}
+                  data-calendar-week-index={weekIndex}
+                  className={cn(
+                    "grid grid-cols-7 gap-2 transition-[padding] duration-200",
+                    weekdayGuide.weekIndex === weekIndex && "pt-2",
+                  )}
+                >
                   {week.map((day) => {
                 const dayKey = formatDayKey(day)
                 const dayGames = gamesByDay.get(dayKey) ?? []
@@ -718,8 +795,8 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                 )
                   })}
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
