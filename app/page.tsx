@@ -907,7 +907,7 @@ export default function YearReviewPage() {
     [tagFilteredData],
   )
 
-  const data = useMemo(() => {
+  const summaryData = useMemo(() => {
     if (!tagFilteredData) return null
     return filterDataByEventSlice(tagFilteredData, {
       eventTypes: selectedEventTypes,
@@ -922,6 +922,8 @@ export default function YearReviewPage() {
     selectedOpponents,
     tagFilteredData,
   ])
+
+  const data = rawData
 
   const competitiveData = useMemo(() => {
     if (!data) return null
@@ -1016,20 +1018,20 @@ export default function YearReviewPage() {
   }, [competitiveData])
 
   // Core stats
-  const overallStats = useMemo(() => (data ? getOverallStats(data) : null), [data])
-  const mapStats = useMemo(() => (data ? getMapStats(data.events, data.dictionaries?.maps ?? []) : []), [data])
+  const overallStats = useMemo(() => (summaryData ? getOverallStats(summaryData) : null), [summaryData])
+  const mapStats = useMemo(() => (summaryData ? getMapStats(summaryData.events, summaryData.dictionaries?.maps ?? []) : []), [summaryData])
   const eventTypeStats = useMemo(
-    () => (data ? getEventTypeStats(data.events, data.dictionaries?.event_types ?? []) : []),
-    [data],
+    () => (summaryData ? getEventTypeStats(summaryData.events, summaryData.dictionaries?.event_types ?? []) : []),
+    [summaryData],
   )
-  const roleStats = useMemo(() => (data ? getRoleStats(data.player_event_stats, data.dictionaries?.roles ?? []) : []), [data])
-  const monthlyActivity = useMemo(() => (data ? getMonthlyActivity(data.events) : []), [data])
+  const roleStats = useMemo(() => (summaryData ? getRoleStats(summaryData.player_event_stats, summaryData.dictionaries?.roles ?? []) : []), [summaryData])
+  const monthlyActivity = useMemo(() => (summaryData ? getMonthlyActivity(summaryData.events) : []), [summaryData])
 
   // New detailed stats
-  const dailyActivity = useMemo(() => (data ? getDailyActivity(data.events) : []), [data])
+  const dailyActivity = useMemo(() => (summaryData ? getDailyActivity(summaryData.events) : []), [summaryData])
   const weeklyParticipation = useMemo(
-    () => (data ? getWeeklyParticipation(data.events, data.player_event_stats) : []),
-    [data],
+    () => (summaryData ? getWeeklyParticipation(summaryData.events, summaryData.player_event_stats) : []),
+    [summaryData],
   )
   const mdcRosterCount = useMemo(
     () =>
@@ -1874,11 +1876,69 @@ export default function YearReviewPage() {
           </Card>
         </section>
 
+        {/* Tabs for different views - Removed export tab */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="w-full flex flex-wrap justify-start gap-2 bg-transparent border-0 h-auto p-0">
+            <TabsTrigger
+              value="calendar"
+              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-amber-500/30 bg-amber-500/10 text-christmas-snow data-[state=active]:bg-amber-500 data-[state=active]:border-amber-500 data-[state=active]:text-slate-950 hover:bg-amber-500/20 transition-all"
+            >
+              Календарь
+            </TabsTrigger>
+            <TabsTrigger
+              value="summary"
+              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-violet-500/30 bg-violet-500/10 text-christmas-snow data-[state=active]:bg-violet-500 data-[state=active]:border-violet-500 data-[state=active]:text-white hover:bg-violet-500/20 transition-all"
+            >
+              Итоги
+            </TabsTrigger>
+            <TabsTrigger
+              value="leaderboards"
+              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-christmas-red/30 bg-christmas-red/10 text-christmas-snow data-[state=active]:bg-christmas-red data-[state=active]:border-christmas-red data-[state=active]:text-white hover:bg-christmas-red/20 transition-all"
+            >
+              Лидерборды
+            </TabsTrigger>
+            <TabsTrigger
+              value="roles"
+              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-christmas-green/30 bg-christmas-green/10 text-christmas-snow data-[state=active]:bg-christmas-green data-[state=active]:border-christmas-green data-[state=active]:text-white hover:bg-christmas-green/20 transition-all"
+            >
+              По ролям
+            </TabsTrigger>
+            <TabsTrigger
+              value="records"
+              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-rose-500/30 bg-rose-500/10 text-christmas-snow data-[state=active]:bg-rose-500 data-[state=active]:border-rose-500 data-[state=active]:text-white hover:bg-rose-500/20 transition-all"
+            >
+              Рекорды
+            </TabsTrigger>
+            <TabsTrigger
+              value="progress"
+              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-blue-500/30 bg-blue-500/10 text-christmas-snow data-[state=active]:bg-blue-500 data-[state=active]:border-blue-500 data-[state=active]:text-white hover:bg-blue-500/20 transition-all"
+            >
+              Игроки
+            </TabsTrigger>
+            <TabsTrigger
+              value="games"
+              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-cyan-500/30 bg-cyan-500/10 text-christmas-snow data-[state=active]:bg-cyan-500 data-[state=active]:border-cyan-500 data-[state=active]:text-slate-950 hover:bg-cyan-500/20 transition-all"
+            >
+              Игры
+            </TabsTrigger>
+            <TabsTrigger
+              value="group"
+              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-orange-500/30 bg-orange-500/10 text-christmas-snow data-[state=active]:bg-orange-500 data-[state=active]:border-orange-500 data-[state=active]:text-white hover:bg-orange-500/20 transition-all"
+            >
+              Отряды
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="calendar" className="space-y-4" ref={calendarSectionRef}>
+            <GamesCalendar games={pastGames} onOpenGame={(eventId) => handleOpenGame(eventId, "")} focusedEventId={calendarFocusEventId} />
+          </TabsContent>
+
+          <TabsContent value="summary" className="space-y-4">
         <Card className="border-christmas-gold/20 bg-card/60">
           <CardContent className="flex flex-col gap-3 pt-4">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="text-sm font-medium text-christmas-snow">Глобальный срез</p>
+                <p className="text-sm font-medium text-christmas-snow">Фильтры</p>
                 <p className="text-xs text-muted-foreground">{sliceSummaryLabel}</p>
               </div>
               <Button
@@ -2065,56 +2125,6 @@ export default function YearReviewPage() {
           <MapChart data={mapStats} />
           <RoleChart data={roleStats} />
         </section>
-
-        {/* Tabs for different views - Removed export tab */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="w-full flex flex-wrap justify-start gap-2 bg-transparent border-0 h-auto p-0">
-            <TabsTrigger
-              value="calendar"
-              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-amber-500/30 bg-amber-500/10 text-christmas-snow data-[state=active]:bg-amber-500 data-[state=active]:border-amber-500 data-[state=active]:text-slate-950 hover:bg-amber-500/20 transition-all"
-            >
-              Календарь
-            </TabsTrigger>
-            <TabsTrigger
-              value="leaderboards"
-              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-christmas-red/30 bg-christmas-red/10 text-christmas-snow data-[state=active]:bg-christmas-red data-[state=active]:border-christmas-red data-[state=active]:text-white hover:bg-christmas-red/20 transition-all"
-            >
-              Лидерборды
-            </TabsTrigger>
-            <TabsTrigger
-              value="roles"
-              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-christmas-green/30 bg-christmas-green/10 text-christmas-snow data-[state=active]:bg-christmas-green data-[state=active]:border-christmas-green data-[state=active]:text-white hover:bg-christmas-green/20 transition-all"
-            >
-              По ролям
-            </TabsTrigger>
-            <TabsTrigger
-              value="records"
-              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-rose-500/30 bg-rose-500/10 text-christmas-snow data-[state=active]:bg-rose-500 data-[state=active]:border-rose-500 data-[state=active]:text-white hover:bg-rose-500/20 transition-all"
-            >
-              Рекорды
-            </TabsTrigger>
-            <TabsTrigger
-              value="progress"
-              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-blue-500/30 bg-blue-500/10 text-christmas-snow data-[state=active]:bg-blue-500 data-[state=active]:border-blue-500 data-[state=active]:text-white hover:bg-blue-500/20 transition-all"
-            >
-              Игроки
-            </TabsTrigger>
-            <TabsTrigger
-              value="games"
-              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-cyan-500/30 bg-cyan-500/10 text-christmas-snow data-[state=active]:bg-cyan-500 data-[state=active]:border-cyan-500 data-[state=active]:text-slate-950 hover:bg-cyan-500/20 transition-all"
-            >
-              Игры
-            </TabsTrigger>
-            <TabsTrigger
-              value="group"
-              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-orange-500/30 bg-orange-500/10 text-christmas-snow data-[state=active]:bg-orange-500 data-[state=active]:border-orange-500 data-[state=active]:text-white hover:bg-orange-500/20 transition-all"
-            >
-              Отряды
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="calendar" className="space-y-4" ref={calendarSectionRef}>
-            <GamesCalendar games={pastGames} onOpenGame={(eventId) => handleOpenGame(eventId, "")} focusedEventId={calendarFocusEventId} />
           </TabsContent>
 
           {/* Leaderboards Tab */}
