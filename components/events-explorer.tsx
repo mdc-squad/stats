@@ -569,6 +569,14 @@ export function EventsExplorer({
     return [focusedGame, ...filteredGames]
   }, [filteredGames, focusedGame])
 
+  const getVisiblePlayersForGame = (game: PastGameSummary) => {
+    if (selectedRawTags.length === 0) {
+      return game.players
+    }
+
+    return game.players.filter((player) => selectedRawTags.includes(player.tag?.trim() ?? ""))
+  }
+
   useEffect(() => {
     if (!focusTarget) return
 
@@ -641,8 +649,8 @@ export function EventsExplorer({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 2xl:grid-cols-[minmax(0,1.45fr)_repeat(7,minmax(0,0.82fr))]">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-7">
+            <div className="hidden">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Поиск</p>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -738,7 +746,7 @@ export function EventsExplorer({
               />
             </div>
 
-            <div className="space-y-2 2xl:col-span-2">
+            <div className="hidden">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Участники матча</p>
               <PlayerSelector
                 players={filterablePlayers}
@@ -746,6 +754,31 @@ export function EventsExplorer({
                 onSelectionChange={setMatchPlayerIds}
                 placeholder="Фильтр по игрокам..."
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Участники матча</p>
+              <PlayerSelector
+                players={filterablePlayers}
+                selected={matchPlayerIds}
+                onSelectionChange={setMatchPlayerIds}
+                placeholder="Фильтр по игрокам..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Поиск</p>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Карта, соперник, событие или игрок..."
+                  className="border-christmas-gold/20 bg-background/50 pl-9 text-christmas-snow"
+                />
+              </div>
             </div>
           </div>
 
@@ -953,12 +986,13 @@ export function EventsExplorer({
                   game.casters.length > 0
                     ? game.casters.map((player) => (player.tag ? `${player.tag} ${player.nickname}` : player.nickname)).join(", ")
                     : "нет"
-                const mdcMatchPlayers = game.players.filter((player) => tagIncludesClan(player.tag, "mdc")).length
-                const graveMatchPlayers = game.players.filter((player) => tagIncludesClan(player.tag, "grave")).length
+                const visiblePlayers = getVisiblePlayersForGame(game)
+                const mdcMatchPlayers = visiblePlayers.filter((player) => tagIncludesClan(player.tag, "mdc")).length
+                const graveMatchPlayers = visiblePlayers.filter((player) => tagIncludesClan(player.tag, "grave")).length
                 const formatPlayers =
                   typeof game.team_size === "number" && Number.isFinite(game.team_size) && game.team_size > 0
                     ? game.team_size
-                    : game.players.length
+                    : visiblePlayers.length
                 const mercMatchPlayers = Math.max(formatPlayers - mdcMatchPlayers - graveMatchPlayers, 0)
                 const mvpLabel = game.topPerformer
                   ? `${game.topPerformer.tag ? `${game.topPerformer.tag} ` : ""}${game.topPerformer.nickname} • #${game.topPerformer.rank}`
@@ -1100,7 +1134,7 @@ export function EventsExplorer({
                           </div>
 
                           <ScrollArea className="rounded-lg border border-border/50 bg-background/30">
-                            {game.players.length === 0 ? (
+                            {visiblePlayers.length === 0 ? (
                               <div className="p-4 text-sm text-muted-foreground">
                                 Для этого события есть карточка матча, но нет развернутого протокола игроков в `playersevents`.
                               </div>
@@ -1125,7 +1159,7 @@ export function EventsExplorer({
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {game.players.map((player) => {
+                                  {visiblePlayers.map((player) => {
                                     const isHighlighted =
                                       focusTarget?.eventId === game.event_id && focusTarget.playerId === player.player_id
                                     const eloWidth = Math.max(0, Math.min(100, player.eloShare))
