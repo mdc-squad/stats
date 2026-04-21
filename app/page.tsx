@@ -550,42 +550,6 @@ function useDataSliceFilters(rawData: MDCData | null, includeTags = true) {
   }
 }
 
-function NativeDataMultiFilter({
-  label,
-  options,
-  selected,
-  onChange,
-}: {
-  label: string
-  options: MultiValueFilterOption[]
-  selected: string[]
-  onChange: (values: string[]) => void
-}) {
-  return (
-    <label className="space-y-2">
-      <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">{label}</span>
-      <select
-        multiple
-        value={selected}
-        onChange={(event) => onChange(Array.from(event.currentTarget.selectedOptions, (option) => option.value))}
-        className="min-h-[92px] w-full rounded-md border border-christmas-gold/20 bg-background/50 px-3 py-2 text-sm text-christmas-snow outline-none focus:border-christmas-gold/50"
-      >
-        {options.length === 0 ? (
-          <option value="" disabled>
-            Нет значений
-          </option>
-        ) : (
-          options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))
-        )}
-      </select>
-    </label>
-  )
-}
-
 function DataSliceFilterCard({ filters }: { filters: DataSliceFilters }) {
   return (
     <Card className="border-christmas-gold/20 bg-card/60">
@@ -600,27 +564,35 @@ function DataSliceFilterCard({ filters }: { filters: DataSliceFilters }) {
           </Button>
         </div>
         <div className={cn("grid grid-cols-1 gap-3 md:grid-cols-2", filters.includeTags ? "xl:grid-cols-6" : "xl:grid-cols-5")}>
-          <label className="space-y-2">
-            <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Период</span>
-            <select
-              value={filters.selectedPeriod}
-              onChange={(event) => filters.setSelectedPeriod(event.currentTarget.value as StatsPeriod)}
-              className="h-10 w-full rounded-md border border-christmas-gold/20 bg-background/50 px-3 text-sm text-christmas-snow outline-none focus:border-christmas-gold/50"
-            >
-              {STATS_PERIOD_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="space-y-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
+            <Select value={filters.selectedPeriod} onValueChange={(value) => filters.setSelectedPeriod(value as StatsPeriod)}>
+              <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow"><SelectValue placeholder="Период" /></SelectTrigger>
+              <SelectContent>{STATS_PERIOD_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
           {filters.includeTags ? (
-            <NativeDataMultiFilter label="Тег" options={filters.tagOptions} selected={filters.effectiveSelectedTags} onChange={filters.setSelectedTags} />
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Тег</p>
+              <MultiValueFilter options={filters.tagOptions} selected={filters.effectiveSelectedTags} onSelectionChange={filters.setSelectedTags} placeholder="Все теги" searchPlaceholder="Поиск по тегам..." allLabel="Выбрать все теги" />
+            </div>
           ) : null}
-          <NativeDataMultiFilter label="Тип" options={filters.eventTypeOptions} selected={filters.selectedEventTypes} onChange={filters.setSelectedEventTypes} />
-          <NativeDataMultiFilter label="Карта" options={filters.mapOptions} selected={filters.selectedMaps} onChange={filters.setSelectedMaps} />
-          <NativeDataMultiFilter label="Фракция" options={filters.factionOptions} selected={filters.selectedFactions} onChange={filters.setSelectedFactions} />
-          <NativeDataMultiFilter label="Оппонент" options={filters.opponentOptions} selected={filters.selectedOpponents} onChange={filters.setSelectedOpponents} />
+          <div className="space-y-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Тип</p>
+            <MultiValueFilter options={filters.eventTypeOptions} selected={filters.selectedEventTypes} onSelectionChange={filters.setSelectedEventTypes} placeholder="Любые типы" searchPlaceholder="Поиск по типам..." />
+          </div>
+          <div className="space-y-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Карта</p>
+            <MultiValueFilter options={filters.mapOptions} selected={filters.selectedMaps} onSelectionChange={filters.setSelectedMaps} placeholder="Любые карты" searchPlaceholder="Поиск по картам..." />
+          </div>
+          <div className="space-y-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Фракция</p>
+            <MultiValueFilter options={filters.factionOptions} selected={filters.selectedFactions} onSelectionChange={filters.setSelectedFactions} placeholder="Любые фракции" searchPlaceholder="Поиск по фракциям..." />
+          </div>
+          <div className="space-y-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Оппонент</p>
+            <MultiValueFilter options={filters.opponentOptions} selected={filters.selectedOpponents} onSelectionChange={filters.setSelectedOpponents} placeholder="Любые оппоненты" searchPlaceholder="Поиск по кланам и оппонентам..." />
+          </div>
         </div>
         {filters.selectedPeriod === "custom" ? (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
