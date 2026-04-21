@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type ComponentType } from "react"
+import { useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -440,6 +440,37 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
   )
 }
 
+function HolidayLabel({ label }: { label: string }) {
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const textRef = useRef<HTMLSpanElement | null>(null)
+  const [scrollDistance, setScrollDistance] = useState(0)
+
+  useEffect(() => {
+    const updateScrollDistance = () => {
+      const container = containerRef.current
+      const text = textRef.current
+      if (!container || !text) return
+      setScrollDistance(Math.max(0, text.scrollWidth - container.clientWidth))
+    }
+
+    updateScrollDistance()
+    window.addEventListener("resize", updateScrollDistance)
+    return () => window.removeEventListener("resize", updateScrollDistance)
+  }, [label])
+
+  return (
+    <div ref={containerRef} className="calendar-holiday-scroll mt-2 text-center text-[10px] font-medium text-christmas-gold/80">
+      <span
+        ref={textRef}
+        className={cn("calendar-holiday-scroll__text", scrollDistance > 0 && "calendar-holiday-scroll__text--moving")}
+        style={scrollDistance > 0 ? ({ "--holiday-scroll-distance": `-${scrollDistance}px` } as CSSProperties) : undefined}
+      >
+        {label}
+      </span>
+    </div>
+  )
+}
+
 export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: GamesCalendarProps) {
   const [month, setMonth] = useState(() => {
     const now = new Date()
@@ -466,6 +497,13 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
   }, [focusedEventId, month])
 
   const calendarDays = useMemo(() => buildCalendarDays(month), [month])
+  const calendarWeeks = useMemo(() => {
+    const weeks: Date[][] = []
+    for (let index = 0; index < calendarDays.length; index += 7) {
+      weeks.push(calendarDays.slice(index, index + 7))
+    }
+    return weeks
+  }, [calendarDays])
   const gamesByDay = useMemo(() => {
     const grouped = new Map<string, PastGameSummary[]>()
 
@@ -573,11 +611,13 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
       <CardContent className="space-y-3">
         <div className="overflow-x-auto pb-1">
           <div className="min-w-[920px] space-y-3">
-            <div className="grid grid-cols-7 gap-1 text-center text-sm font-bold uppercase tracking-wider text-christmas-gold">
-              {WEEK_DAYS.map((day) => <div key={day} className="py-1.5">{day}</div>)}
-            </div>
-            <div className="grid grid-cols-7 gap-2">
-              {calendarDays.map((day) => {
+            {calendarWeeks.map((week, weekIndex) => (
+              <div key={`week-${weekIndex}`} className="space-y-2">
+                <div className="grid grid-cols-7 gap-1 text-center text-sm font-bold uppercase tracking-wider text-christmas-gold">
+                  {WEEK_DAYS.map((day) => <div key={`${weekIndex}-${day}`} className="py-1.5">{day}</div>)}
+                </div>
+                <div className="grid grid-cols-7 gap-2">
+                  {week.map((day) => {
                 const dayKey = formatDayKey(day)
                 const dayGames = gamesByDay.get(dayKey) ?? []
                 const isCurrentMonth = day.getMonth() === month.getMonth()
@@ -604,7 +644,7 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                     <div className="mb-2 flex items-center justify-between">
                       <div className="min-w-0">
                         <span className={cn("text-sm font-semibold", isToday ? "text-christmas-gold" : isCurrentMonth ? "text-christmas-snow" : "text-muted-foreground")}>{day.getDate()}</span>
-                        {isToday ? <span className="ml-1 align-middle text-[9px] font-medium uppercase text-cyan-300">сегодня</span> : null}
+                        {isToday ? <span className="ml-1 align-middle text-[9px] font-medium uppercase text-christmas-gold">сегодня</span> : null}
                       </div>
                       {dayGames.length > 0 ? <Badge variant="outline" className="border-border/60 px-1.5 py-0 text-[10px] text-muted-foreground">{dayGames.length}</Badge> : null}
                     </div>
@@ -673,11 +713,13 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                         </Tooltip>
                       ))}
                     </div>
-                    {holiday ? <div className="mt-2 truncate text-center text-[10px] font-medium text-christmas-gold/80">{holiday.label}</div> : null}
+                    {holiday ? <HolidayLabel label={holiday.label} /> : null}
                   </div>
                 )
-              })}
-            </div>
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">

@@ -183,3 +183,28 @@
 .scrollbar-hidden::-webkit-scrollbar {
   display: none;
 }
+
+@keyframes calendarHolidayScroll {
+  0%,
+  18% {
+    transform: translateX(0);
+  }
+  82%,
+  100% {
+    transform: translateX(var(--holiday-scroll-distance));
+  }
+}
+
+.calendar-holiday-scroll {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.calendar-holiday-scroll__text {
+  display: inline-block;
+  max-width: none;
+}
+
+.calendar-holiday-scroll__text--moving {
+  animation: calendarHolidayScroll 8s ease-in-out infinite;
+}
