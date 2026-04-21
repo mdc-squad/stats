@@ -28,6 +28,8 @@ import { toPng } from "html-to-image"
 
 interface PlayerCardProps {
   player: Player
+  rawPlayer?: Player
+  useFilteredRatings?: boolean
   rank?: number
   footerLabel?: string
   achievements?: string[]
@@ -136,6 +138,8 @@ function isMeaningfulSquadLabel(label: string): boolean {
 
 export function PlayerCard({
   player,
+  rawPlayer,
+  useFilteredRatings = false,
   rank,
   footerLabel = DEFAULT_FOOTER_LABEL,
   achievements = [],
@@ -157,6 +161,7 @@ export function PlayerCard({
   const cardRef = useRef<HTMLDivElement>(null)
   const [isExporting, setIsExporting] = useState(false)
   const isExpanded = layout === "expanded"
+  const ratingSource = useFilteredRatings ? player : rawPlayer ?? player
 
   const squadSummary = useMemo(() => {
     const bySquad = new Map<string, number>()
@@ -367,14 +372,14 @@ export function PlayerCard({
     {
       label: "ELO",
       key: "elo",
-      value: player.totals.elo.toFixed(1),
+      value: ratingSource.totals.elo.toFixed(1),
       icon: getMetricIcon("elo"),
       accentClass: "border-sky-400/30 bg-sky-400/10 text-sky-300",
     },
     {
       label: "ТБФ",
       key: "tbf",
-      value: player.totals.tbf.toFixed(1),
+      value: ratingSource.totals.tbf.toFixed(1),
       icon: getMetricIcon("tbf"),
       accentClass: "border-christmas-red/30 bg-christmas-red/10 text-christmas-red",
     },
@@ -725,8 +730,8 @@ export function PlayerCard({
           <PlayerProgressChart
             data={progress}
             currentKD={player.totals.kd}
-            currentElo={player.totals.elo}
-            currentTbf={player.totals.tbf}
+            currentElo={ratingSource.totals.elo}
+            currentTbf={ratingSource.totals.tbf}
           />
 
           {!isExporting && (

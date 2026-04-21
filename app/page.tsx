@@ -2668,6 +2668,8 @@ export default function YearReviewPage() {
                   <div key={player.player_id}>
                     <PlayerCard
                       player={player}
+                      rawPlayer={data.players.find((entry) => entry.player_id === player.player_id)}
+                      useFilteredRatings={playerFilters.hasFilters}
                       rank={index + 1}
                       footerLabel={seasonalTheme.summaryLabel}
                       achievements={playerAchievements[player.player_id] ?? []}
@@ -2711,7 +2713,84 @@ export default function YearReviewPage() {
 
           {/* Squads Tab */}
           <TabsContent value="group" className="space-y-4">
-            <DateOnlyFilterCard filters={groupFilters} />
+            <Card className="border-christmas-gold/20 bg-card/60">
+              <CardContent className="space-y-3 pt-4">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-christmas-snow">Отряды по цветам</p>
+                    <p className="text-xs text-muted-foreground">
+                      Общие показатели, последние матчи, составы и сравнение динамики между отрядами.
+                    </p>
+                  </div>
+                  <div className="grid w-full gap-3 md:grid-cols-3 xl:w-auto xl:min-w-[520px]">
+                    <div className="space-y-2">
+                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
+                      <Select value={groupFilters.selectedPeriod} onValueChange={(value) => groupFilters.setSelectedPeriod(value as StatsPeriod)}>
+                        <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
+                          <SelectValue placeholder="Период" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATS_PERIOD_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {groupFilters.selectedPeriod === "custom" ? (
+                      <>
+                        <label className="space-y-2">
+                          <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
+                          <Input
+                            value={groupFilters.customDateFrom}
+                            onChange={(event) => groupFilters.setCustomDateFrom(event.target.value)}
+                            type="date"
+                            className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                          />
+                        </label>
+                        <label className="space-y-2">
+                          <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
+                          <Input
+                            value={groupFilters.customDateTo}
+                            onChange={(event) => groupFilters.setCustomDateTo(event.target.value)}
+                            type="date"
+                            className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                          />
+                        </label>
+                      </>
+                    ) : (
+                      <div className="flex items-end justify-end md:col-span-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10"
+                          onClick={groupFilters.reset}
+                          disabled={!groupFilters.hasFilters}
+                        >
+                          Сбросить фильтр
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {groupFilters.selectedPeriod === "custom" ? (
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10"
+                      onClick={groupFilters.reset}
+                      disabled={!groupFilters.hasFilters}
+                    >
+                      Сбросить фильтр
+                    </Button>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
             <SquadOverview
               games={groupPastGames}
               players={groupData?.players ?? data.players}

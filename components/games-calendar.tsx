@@ -613,14 +613,14 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
 
   return (
     <Card className="border-christmas-gold/20 bg-card/60">
-      <CardHeader className="gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <CardTitle className="flex items-center gap-2 text-base text-christmas-snow">
-            <CalendarDays className="h-4 w-4 text-christmas-gold" />
+      <CardHeader className="gap-4">
+        <div className="flex justify-center">
+          <CardTitle className="flex items-center justify-center gap-3 text-xl font-semibold text-christmas-snow md:text-2xl">
+            <CalendarDays className="h-6 w-6 text-christmas-gold md:h-7 md:w-7" />
             Календарь событий
           </CardTitle>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-2">
           <Button type="button" variant="outline" size="sm" className="border-christmas-gold/20 bg-background/50" onClick={() => goToMonth(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -631,17 +631,17 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                 setPickerYear(month.getFullYear())
                 setMonthPickerOpen((open) => !open)
               }}
-              className="min-w-[180px] rounded-md border border-christmas-gold/20 bg-background/50 px-3 py-1.5 text-center text-sm font-semibold text-christmas-snow hover:bg-christmas-gold/10"
+              className="min-w-[220px] rounded-md border border-christmas-gold/20 bg-background/50 px-4 py-2 text-center text-base font-semibold text-christmas-snow hover:bg-christmas-gold/10"
             >
               {formatMonthTitle(month)}
             </button>
             {monthPickerOpen ? (
-              <div className="absolute right-0 top-full z-30 mt-2 w-[280px] rounded-lg border border-christmas-gold/20 bg-card/95 p-3 shadow-xl shadow-black/30">
+              <div className="absolute left-1/2 top-full z-30 mt-2 w-[300px] -translate-x-1/2 rounded-lg border border-christmas-gold/20 bg-card/95 p-3 shadow-xl shadow-black/30">
                 <div className="mb-3 flex items-center justify-between">
                   <Button type="button" variant="outline" size="sm" className="border-christmas-gold/20 bg-background/50" onClick={() => setPickerYear((year) => year - 1)}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <span className="text-sm font-semibold text-christmas-snow">{pickerYear}</span>
+                  <span className="text-base font-semibold text-christmas-snow">{pickerYear}</span>
                   <Button type="button" variant="outline" size="sm" className="border-christmas-gold/20 bg-background/50" onClick={() => setPickerYear((year) => year + 1)}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
