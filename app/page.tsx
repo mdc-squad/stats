@@ -10,7 +10,6 @@ import { Progress } from "@/components/ui/progress"
 import { Calendar as DatePickerCalendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
 import { MultiValueFilter, type MultiValueFilterOption } from "@/components/multi-value-filter"
 import { Leaderboard } from "@/components/leaderboard"
 import { AvgStatLeaderboard } from "@/components/avg-stat-leaderboard"
@@ -369,240 +368,6 @@ function buildGlobalTagFilterOptions(players: Player[] | undefined, tagDomain: s
   })
 
   return options
-}
-
-type DataSliceFilters = ReturnType<typeof useDataSliceFilters>
-
-function useDataSliceFilters(rawData: MDCData | null, includeTags = true) {
-  const [selectedPeriod, setSelectedPeriod] = useState<StatsPeriod>("all")
-  const [customDateFrom, setCustomDateFrom] = useState("")
-  const [customDateTo, setCustomDateTo] = useState("")
-  const [selectedTags, setSelectedTags] = useState<string[] | null>(null)
-  const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([])
-  const [selectedMaps, setSelectedMaps] = useState<string[]>([])
-  const [selectedOpponents, setSelectedOpponents] = useState<string[]>([])
-  const [selectedFactions, setSelectedFactions] = useState<string[]>([])
-
-  const selectedPeriodOption = useMemo(
-    () => STATS_PERIOD_OPTIONS.find((option) => option.value === selectedPeriod) ?? STATS_PERIOD_OPTIONS[0],
-    [selectedPeriod],
-  )
-
-  const periodSummaryLabel = useMemo(() => {
-    if (selectedPeriod !== "custom") return selectedPeriodOption.summary
-    const formattedFrom = customDateFrom ? formatDateFilterLabel(customDateFrom) : ""
-    const formattedTo = customDateTo ? formatDateFilterLabel(customDateTo) : ""
-    if (customDateFrom && customDateTo) return `Срез: ${formattedFrom} - ${formattedTo}`
-    if (customDateFrom) return `Срез: с ${formattedFrom}`
-    if (customDateTo) return `Срез: до ${formattedTo}`
-    return selectedPeriodOption.summary
-  }, [customDateFrom, customDateTo, selectedPeriod, selectedPeriodOption.summary])
-
-  const periodRange = useMemo(
-    () =>
-      selectedPeriod === "custom"
-        ? buildDateRangeFromCustomInput(customDateFrom, customDateTo)
-        : buildDateRangeForPeriod(selectedPeriod),
-    [customDateFrom, customDateTo, selectedPeriod],
-  )
-
-  const dateFilteredData = useMemo(() => (rawData ? filterDataByDateRange(rawData, periodRange) : null), [periodRange, rawData])
-  const tagOptions = useMemo<GlobalTagFilterOption[]>(
-    () => (includeTags ? buildGlobalTagFilterOptions(dateFilteredData?.players, dateFilteredData?.dictionaries?.tags) : []),
-    [dateFilteredData, includeTags],
-  )
-  const defaultSelectedTags = useMemo(
-    () => tagOptions.filter((option) => option.rawTags.some(matchesDefaultTagFilter)).map((option) => option.value),
-    [tagOptions],
-  )
-  const effectiveSelectedTags = includeTags ? selectedTags ?? defaultSelectedTags : []
-
-  useEffect(() => {
-    if (!includeTags || selectedTags === null) return
-    const availableTags = new Set(tagOptions.map((option) => option.value))
-    setSelectedTags((current) => {
-      if (current === null) return null
-      const next = current.filter((tag) => availableTags.has(tag))
-      return next.length === current.length ? current : next
-    })
-  }, [includeTags, selectedTags, tagOptions])
-
-  const selectedRawTags = useMemo(() => {
-    if (!includeTags) return []
-    const optionByValue = new Map(tagOptions.map((option) => [option.value, option.rawTags]))
-    const sourceValues = effectiveSelectedTags.length > 0 ? effectiveSelectedTags : tagOptions.map((option) => option.value)
-    return Array.from(new Set(sourceValues.flatMap((value) => optionByValue.get(value) ?? [])))
-  }, [effectiveSelectedTags, includeTags, tagOptions])
-
-  const tagFilteredData = useMemo(() => {
-    if (!dateFilteredData) return null
-    return includeTags ? filterDataByTags(dateFilteredData, selectedRawTags) : dateFilteredData
-  }, [dateFilteredData, includeTags, selectedRawTags])
-
-  const eventTypeOptions = useMemo<MultiValueFilterOption[]>(
-    () =>
-      Array.from(new Set((tagFilteredData?.events ?? []).map((event) => event.event_type?.trim() ?? "").filter(Boolean)))
-        .sort((left, right) => left.localeCompare(right, "ru"))
-        .map((value) => ({ value, label: value })),
-    [tagFilteredData],
-  )
-  const mapOptions = useMemo<MultiValueFilterOption[]>(
-    () =>
-      Array.from(new Set((tagFilteredData?.events ?? []).map((event) => event.map?.trim() ?? "").filter(Boolean)))
-        .sort((left, right) => left.localeCompare(right, "ru"))
-        .map((value) => ({ value, label: value })),
-    [tagFilteredData],
-  )
-  const opponentOptions = useMemo<MultiValueFilterOption[]>(
-    () =>
-      Array.from(new Set((tagFilteredData?.events ?? []).map((event) => event.opponent?.trim() ?? "").filter(Boolean)))
-        .sort((left, right) => left.localeCompare(right, "ru"))
-        .map((value) => ({ value, label: value })),
-    [tagFilteredData],
-  )
-  const factionOptions = useMemo<MultiValueFilterOption[]>(
-    () =>
-      Array.from(new Set((tagFilteredData?.events ?? []).map((event) => event.faction_1?.trim() ?? "").filter(Boolean)))
-        .sort((left, right) => left.localeCompare(right, "ru"))
-        .map((value) => ({ value, label: value })),
-    [tagFilteredData],
-  )
-
-  const data = useMemo(() => {
-    if (!tagFilteredData) return null
-    return filterDataByEventSlice(tagFilteredData, {
-      eventTypes: selectedEventTypes,
-      maps: selectedMaps,
-      opponents: selectedOpponents,
-      factions: selectedFactions,
-    })
-  }, [selectedEventTypes, selectedFactions, selectedMaps, selectedOpponents, tagFilteredData])
-
-  const isDefaultTagSelection = !includeTags || haveSameStringSet(effectiveSelectedTags, defaultSelectedTags)
-  const hasFilters = Boolean(
-    !isDefaultTagSelection ||
-      selectedEventTypes.length ||
-      selectedMaps.length ||
-      selectedOpponents.length ||
-      selectedFactions.length ||
-      selectedPeriod !== "all" ||
-      customDateFrom ||
-      customDateTo,
-  )
-
-  const summaryLabel = useMemo(() => {
-    const segments = [periodSummaryLabel]
-    if (includeTags && !isDefaultTagSelection) segments.push(effectiveSelectedTags.length > 0 ? `теги: ${effectiveSelectedTags.length}` : "теги: все")
-    if (selectedEventTypes.length > 0) segments.push(`типы: ${selectedEventTypes.length}`)
-    if (selectedMaps.length > 0) segments.push(`карты: ${selectedMaps.length}`)
-    if (selectedOpponents.length > 0) segments.push(`оппоненты: ${selectedOpponents.length}`)
-    if (selectedFactions.length > 0) segments.push(`фракции: ${selectedFactions.length}`)
-    return segments.join(" • ")
-  }, [
-    effectiveSelectedTags.length,
-    includeTags,
-    isDefaultTagSelection,
-    periodSummaryLabel,
-    selectedEventTypes.length,
-    selectedFactions.length,
-    selectedMaps.length,
-    selectedOpponents.length,
-  ])
-
-  const reset = useCallback(() => {
-    setSelectedPeriod("all")
-    setCustomDateFrom("")
-    setCustomDateTo("")
-    setSelectedTags(null)
-    setSelectedEventTypes([])
-    setSelectedMaps([])
-    setSelectedOpponents([])
-    setSelectedFactions([])
-  }, [])
-
-  return {
-    data,
-    includeTags,
-    selectedPeriod,
-    setSelectedPeriod,
-    customDateFrom,
-    setCustomDateFrom,
-    customDateTo,
-    setCustomDateTo,
-    tagOptions,
-    effectiveSelectedTags,
-    setSelectedTags,
-    eventTypeOptions,
-    selectedEventTypes,
-    setSelectedEventTypes,
-    mapOptions,
-    selectedMaps,
-    setSelectedMaps,
-    factionOptions,
-    selectedFactions,
-    setSelectedFactions,
-    opponentOptions,
-    selectedOpponents,
-    setSelectedOpponents,
-    summaryLabel,
-    hasFilters,
-    reset,
-  }
-}
-
-function DataSliceFilterCard({ filters }: { filters: DataSliceFilters }) {
-  return (
-    <Card className="border-christmas-gold/20 bg-card/60">
-      <CardContent className="space-y-3 pt-4">
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-sm font-medium text-christmas-snow">Фильтры</p>
-            <p className="text-xs text-muted-foreground">{filters.summaryLabel}</p>
-          </div>
-          <Button type="button" variant="outline" size="sm" className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10" onClick={filters.reset} disabled={!filters.hasFilters}>
-            Сбросить фильтры
-          </Button>
-        </div>
-        <div className={cn("grid grid-cols-1 gap-3 md:grid-cols-2", filters.includeTags ? "xl:grid-cols-6" : "xl:grid-cols-5")}>
-          <div className="space-y-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
-            <Select value={filters.selectedPeriod} onValueChange={(value) => filters.setSelectedPeriod(value as StatsPeriod)}>
-              <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow"><SelectValue placeholder="Период" /></SelectTrigger>
-              <SelectContent>{STATS_PERIOD_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          {filters.includeTags ? (
-            <div className="space-y-2">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Тег</p>
-              <MultiValueFilter options={filters.tagOptions} selected={filters.effectiveSelectedTags} onSelectionChange={filters.setSelectedTags} placeholder="Все теги" searchPlaceholder="Поиск по тегам..." allLabel="Выбрать все теги" />
-            </div>
-          ) : null}
-          <div className="space-y-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Тип</p>
-            <MultiValueFilter options={filters.eventTypeOptions} selected={filters.selectedEventTypes} onSelectionChange={filters.setSelectedEventTypes} placeholder="Любые типы" searchPlaceholder="Поиск по типам..." />
-          </div>
-          <div className="space-y-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Карта</p>
-            <MultiValueFilter options={filters.mapOptions} selected={filters.selectedMaps} onSelectionChange={filters.setSelectedMaps} placeholder="Любые карты" searchPlaceholder="Поиск по картам..." />
-          </div>
-          <div className="space-y-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Фракция</p>
-            <MultiValueFilter options={filters.factionOptions} selected={filters.selectedFactions} onSelectionChange={filters.setSelectedFactions} placeholder="Любые фракции" searchPlaceholder="Поиск по фракциям..." />
-          </div>
-          <div className="space-y-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Оппонент</p>
-            <MultiValueFilter options={filters.opponentOptions} selected={filters.selectedOpponents} onSelectionChange={filters.setSelectedOpponents} placeholder="Любые оппоненты" searchPlaceholder="Поиск по кланам и оппонентам..." />
-          </div>
-        </div>
-        {filters.selectedPeriod === "custom" ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <label className="space-y-2"><span className="text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span><Input value={filters.customDateFrom} onChange={(event) => filters.setCustomDateFrom(event.target.value)} type="date" className="border-christmas-gold/20 bg-background/50 text-christmas-snow" /></label>
-            <label className="space-y-2"><span className="text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span><Input value={filters.customDateTo} onChange={(event) => filters.setCustomDateTo(event.target.value)} type="date" className="border-christmas-gold/20 bg-background/50 text-christmas-snow" /></label>
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
-  )
 }
 
 function mergeMDCData(older: MDCData, newer: MDCData): MDCData {
@@ -1159,24 +924,12 @@ export default function YearReviewPage() {
   ])
 
   const data = rawData
-  const leaderboardFilters = useDataSliceFilters(rawData, true)
-  const roleFilters = useDataSliceFilters(rawData, true)
-  const recordFilters = useDataSliceFilters(rawData, true)
-  const playerFilters = useDataSliceFilters(rawData, false)
-  const leaderboardData = leaderboardFilters.data
-  const roleData = roleFilters.data
-  const recordData = recordFilters.data
-  const playerData = playerFilters.data
 
   const competitiveData = useMemo(() => {
     if (!data) return null
     return filterDataToCompetitiveEvents(data)
   }, [data])
-  const leaderboardCompetitiveData = useMemo(() => (leaderboardData ? filterDataToCompetitiveEvents(leaderboardData) : null), [leaderboardData])
-  const roleCompetitiveData = useMemo(() => (roleData ? filterDataToCompetitiveEvents(roleData) : null), [roleData])
-  const recordCompetitiveData = useMemo(() => (recordData ? filterDataToCompetitiveEvents(recordData) : null), [recordData])
-  const playerCompetitiveData = useMemo(() => (playerData ? filterDataToCompetitiveEvents(playerData) : null), [playerData])
-  const playerCardData = useMemo(() => playerCompetitiveData ?? playerData ?? data, [data, playerCompetitiveData, playerData])
+  const playerCardData = useMemo(() => competitiveData ?? data, [competitiveData, data])
   const isDefaultTagSelection = useMemo(
     () => haveSameStringSet(effectiveSelectedTags, defaultSelectedTags),
     [defaultSelectedTags, effectiveSelectedTags],
@@ -1259,10 +1012,10 @@ export default function YearReviewPage() {
   }, [data])
 
   const competitiveUniqueRoles = useMemo(() => {
-    if (!roleCompetitiveData) return []
-    const playerStats = Array.isArray(roleCompetitiveData.player_event_stats) ? roleCompetitiveData.player_event_stats : []
-    return getUniqueRoles(playerStats, roleCompetitiveData.dictionaries?.roles ?? [])
-  }, [roleCompetitiveData])
+    if (!competitiveData) return []
+    const playerStats = Array.isArray(competitiveData.player_event_stats) ? competitiveData.player_event_stats : []
+    return getUniqueRoles(playerStats, competitiveData.dictionaries?.roles ?? [])
+  }, [competitiveData])
 
   // Core stats
   const overallStats = useMemo(() => (summaryData ? getOverallStats(summaryData) : null), [summaryData])
@@ -1292,8 +1045,8 @@ export default function YearReviewPage() {
     [rawData],
   )
   const competitiveClanPlayers = useMemo(
-    () => (leaderboardCompetitiveData ? leaderboardCompetitiveData.players : []),
-    [leaderboardCompetitiveData],
+    () => (competitiveData ? competitiveData.players : []),
+    [competitiveData],
   )
   const competitiveClanPlayerIds = useMemo(
     () => new Set(competitiveClanPlayers.map((player) => player.player_id)),
@@ -1301,10 +1054,10 @@ export default function YearReviewPage() {
   )
   const competitiveClanPlayerStats = useMemo(
     () =>
-      leaderboardCompetitiveData
-        ? leaderboardCompetitiveData.player_event_stats.filter((stat) => competitiveClanPlayerIds.has(stat.player_id))
+      competitiveData
+        ? competitiveData.player_event_stats.filter((stat) => competitiveClanPlayerIds.has(stat.player_id))
         : [],
-    [leaderboardCompetitiveData, competitiveClanPlayerIds],
+    [competitiveData, competitiveClanPlayerIds],
   )
   const qualifiedCompetitiveClanPlayers = useMemo(
     () => competitiveClanPlayers.filter((player) => player.totals.events >= MIN_COMPETITIVE_EVENTS_FOR_TOPS),
@@ -1323,58 +1076,27 @@ export default function YearReviewPage() {
     qualifiedCompetitiveClanPlayers.length,
     VEHICLE_LEADERBOARD_PREVIEW_LIMIT,
   )
-  const roleClanPlayers = useMemo(() => (roleCompetitiveData ? roleCompetitiveData.players : []), [roleCompetitiveData])
-  const roleClanPlayerIds = useMemo(() => new Set(roleClanPlayers.map((player) => player.player_id)), [roleClanPlayers])
-  const roleClanPlayerStats = useMemo(
-    () => (roleCompetitiveData ? roleCompetitiveData.player_event_stats.filter((stat) => roleClanPlayerIds.has(stat.player_id)) : []),
-    [roleCompetitiveData, roleClanPlayerIds],
-  )
-  const qualifiedRoleClanPlayers = useMemo(
-    () => roleClanPlayers.filter((player) => player.totals.events >= MIN_COMPETITIVE_EVENTS_FOR_TOPS),
-    [roleClanPlayers],
-  )
-  const qualifiedRoleClanPlayerIds = useMemo(() => new Set(qualifiedRoleClanPlayers.map((player) => player.player_id)), [qualifiedRoleClanPlayers])
-  const qualifiedRoleClanPlayerStats = useMemo(
-    () => roleClanPlayerStats.filter((stat) => qualifiedRoleClanPlayerIds.has(stat.player_id)),
-    [qualifiedRoleClanPlayerIds, roleClanPlayerStats],
-  )
-  const fullRoleLeaderboardLimit = Math.max(qualifiedRoleClanPlayers.length, LEADERBOARD_PREVIEW_LIMIT)
-  const recordClanPlayers = useMemo(() => (recordCompetitiveData ? recordCompetitiveData.players : []), [recordCompetitiveData])
-  const recordClanPlayerIds = useMemo(() => new Set(recordClanPlayers.map((player) => player.player_id)), [recordClanPlayers])
-  const recordClanPlayerStats = useMemo(
-    () => (recordCompetitiveData ? recordCompetitiveData.player_event_stats.filter((stat) => recordClanPlayerIds.has(stat.player_id)) : []),
-    [recordCompetitiveData, recordClanPlayerIds],
-  )
-  const qualifiedRecordClanPlayers = useMemo(
-    () => recordClanPlayers.filter((player) => player.totals.events >= MIN_COMPETITIVE_EVENTS_FOR_TOPS),
-    [recordClanPlayers],
-  )
-  const qualifiedRecordClanPlayerIds = useMemo(() => new Set(qualifiedRecordClanPlayers.map((player) => player.player_id)), [qualifiedRecordClanPlayers])
-  const qualifiedRecordClanPlayerStats = useMemo(
-    () => recordClanPlayerStats.filter((stat) => qualifiedRecordClanPlayerIds.has(stat.player_id)),
-    [qualifiedRecordClanPlayerIds, recordClanPlayerStats],
-  )
-  const fullRecordLimit = Math.max(qualifiedRecordClanPlayerStats.length, 1)
+  const fullCompetitiveRecordLimit = Math.max(qualifiedCompetitiveClanPlayerStats.length, 1)
   const slStats = useMemo(
     () =>
-      leaderboardCompetitiveData
-        ? getSLStats(qualifiedCompetitiveClanPlayerStats, leaderboardCompetitiveData.events, qualifiedCompetitiveClanPlayers)
+      competitiveData
+        ? getSLStats(qualifiedCompetitiveClanPlayerStats, competitiveData.events, qualifiedCompetitiveClanPlayers)
         : [],
-    [leaderboardCompetitiveData, qualifiedCompetitiveClanPlayerStats, qualifiedCompetitiveClanPlayers],
+    [competitiveData, qualifiedCompetitiveClanPlayerStats, qualifiedCompetitiveClanPlayers],
   )
   const recordMatchesByMetric = useMemo(
     () =>
-      recordCompetitiveData
+      competitiveData
         ? {
-            kd: getTopMatchRecords(qualifiedRecordClanPlayerStats, recordCompetitiveData.events, "kd", fullRecordLimit),
-            kda: getTopMatchRecords(qualifiedRecordClanPlayerStats, recordCompetitiveData.events, "kda", fullRecordLimit),
-            elo: getTopMatchRecords(qualifiedRecordClanPlayerStats, recordCompetitiveData.events, "elo", fullRecordLimit),
-            kills: getTopMatchRecords(qualifiedRecordClanPlayerStats, recordCompetitiveData.events, "kills", fullRecordLimit),
-            downs: getTopMatchRecords(qualifiedRecordClanPlayerStats, recordCompetitiveData.events, "downs", fullRecordLimit),
-            deaths: getTopMatchRecords(qualifiedRecordClanPlayerStats, recordCompetitiveData.events, "deaths", fullRecordLimit),
-            revives: getTopMatchRecords(qualifiedRecordClanPlayerStats, recordCompetitiveData.events, "revives", fullRecordLimit),
-            heals: getTopMatchRecords(qualifiedRecordClanPlayerStats, recordCompetitiveData.events, "heals", fullRecordLimit),
-            vehicle: getTopMatchRecords(qualifiedRecordClanPlayerStats, recordCompetitiveData.events, "vehicle", fullRecordLimit),
+            kd: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kd", fullCompetitiveRecordLimit),
+            kda: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kda", fullCompetitiveRecordLimit),
+            elo: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "elo", fullCompetitiveRecordLimit),
+            kills: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "kills", fullCompetitiveRecordLimit),
+            downs: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "downs", fullCompetitiveRecordLimit),
+            deaths: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "deaths", fullCompetitiveRecordLimit),
+            revives: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "revives", fullCompetitiveRecordLimit),
+            heals: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "heals", fullCompetitiveRecordLimit),
+            vehicle: getTopMatchRecords(qualifiedCompetitiveClanPlayerStats, competitiveData.events, "vehicle", fullCompetitiveRecordLimit),
           }
         : {
             kd: [],
@@ -1387,7 +1109,7 @@ export default function YearReviewPage() {
             heals: [],
             vehicle: [],
           },
-    [fullRecordLimit, qualifiedRecordClanPlayerStats, recordCompetitiveData],
+    [competitiveData, fullCompetitiveRecordLimit, qualifiedCompetitiveClanPlayerStats],
   )
   const pastGames = useMemo(() => {
     if (!data) return []
@@ -1416,33 +1138,33 @@ export default function YearReviewPage() {
   }, [playerCardData, rawData])
 
   const roleLeaderboards = useMemo(() => {
-    if (!roleCompetitiveData) return []
+    if (!competitiveData) return []
     return competitiveUniqueRoles
       .filter((role) => role.trim().replace(/\s+/g, " ").toLowerCase() !== "без кита")
       .map((role) => ({
         role,
         players: getTopByRole(
-          qualifiedRoleClanPlayerStats,
-          qualifiedRoleClanPlayers,
+          qualifiedCompetitiveClanPlayerStats,
+          qualifiedCompetitiveClanPlayers,
           role,
-          fullRoleLeaderboardLimit,
-          roleCompetitiveData.dictionaries?.roles ?? [],
+          fullCompetitiveLeaderboardLimit,
+          competitiveData.dictionaries?.roles ?? [],
           selectedRoleMetric,
-          roleCompetitiveData.events,
+          competitiveData.events,
         ),
       }))
   }, [
-    roleCompetitiveData,
+    competitiveData,
     competitiveUniqueRoles,
-    fullRoleLeaderboardLimit,
-    qualifiedRoleClanPlayerStats,
-    qualifiedRoleClanPlayers,
+    fullCompetitiveLeaderboardLimit,
+    qualifiedCompetitiveClanPlayerStats,
+    qualifiedCompetitiveClanPlayers,
     selectedRoleMetric,
   ])
 
   const roleMetricMaxima = useMemo(() => {
-    if (!playerCardData) return {}
-    const roleSource = playerCardData
+    if (!data) return {}
+    const roleSource = competitiveData ?? data
     return getMaxRoleMetricByRole(
       roleSource.player_event_stats,
       roleSource.players,
@@ -1450,7 +1172,7 @@ export default function YearReviewPage() {
       roleSource.dictionaries?.roles ?? [],
       roleSource.events,
     )
-  }, [playerCardData, selectedRoleMetric])
+  }, [competitiveData, data, selectedRoleMetric])
 
   // Basic leaderboards
   const leaderboardKills = useMemo(
@@ -2179,7 +1901,7 @@ export default function YearReviewPage() {
               value="roles"
               className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-christmas-green/30 bg-christmas-green/10 text-christmas-snow data-[state=active]:bg-christmas-green data-[state=active]:border-christmas-green data-[state=active]:text-white hover:bg-christmas-green/20 transition-all"
             >
-              Роли
+              По ролям
             </TabsTrigger>
             <TabsTrigger
               value="records"
@@ -2407,7 +2129,6 @@ export default function YearReviewPage() {
 
           {/* Leaderboards Tab */}
           <TabsContent value="leaderboards" className="space-y-4">
-            <DataSliceFilterCard filters={leaderboardFilters} />
             <p className="text-xs text-muted-foreground">
               В топ включены игроки с более чем {MIN_COMPETITIVE_EVENTS_FOR_TOPS - 1} играми.
             </p>
@@ -2426,7 +2147,6 @@ export default function YearReviewPage() {
 
           {/* Roles Tab */}
           <TabsContent value="roles" className="space-y-4">
-            <DataSliceFilterCard filters={roleFilters} />
             <Card className="border-christmas-gold/20 bg-card/60">
               <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -2481,7 +2201,6 @@ export default function YearReviewPage() {
           </TabsContent>
 
           <TabsContent value="records" className="space-y-4">
-            <DataSliceFilterCard filters={recordFilters} />
             <p className="text-xs text-muted-foreground">
               Рекорды ниже показаны за одну отдельную игру. В каждой категории у игрока берётся только лучший матч.
             </p>
@@ -2521,7 +2240,6 @@ export default function YearReviewPage() {
 
           {/* Player Progress Tab */}
           <TabsContent value="progress" className="space-y-4">
-            <DataSliceFilterCard filters={playerFilters} />
             <Card className="border-christmas-gold/20">
               <CardHeader>
                 <CardTitle className="text-base text-christmas-snow">Выберите игроков для просмотра статистики</CardTitle>
