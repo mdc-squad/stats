@@ -239,10 +239,10 @@ function resultTone(item: CalendarGame): string {
 }
 
 function selectedGameTone(game: PastGameSummary): string {
-  if (isPlannedGame(game)) return "border-sky-400/45 bg-sky-950"
-  if (game.is_win === true) return "border-christmas-green/45 bg-green-950"
-  if (game.is_win === false) return "border-christmas-red/45 bg-red-950"
-  return "border-border/70 bg-background"
+  if (isPlannedGame(game)) return "border-sky-400/40 bg-sky-400/10"
+  if (game.is_win === true) return "border-christmas-green/40 bg-christmas-green/10"
+  if (game.is_win === false) return "border-christmas-red/40 bg-christmas-red/10"
+  return "border-border/60 bg-background/50"
 }
 
 function matchupLabel(game: PastGameSummary): string {
@@ -710,8 +710,7 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                 const isToday = dayKey === formatDayKey(new Date())
                 const holiday = getHoliday(day)
                 const nonWorkingDay = isNonWorkingDay(day)
-                const tooltipSide: "right" | "left" | "top" | "bottom" =
-                  weekIndex <= 2 ? "bottom" : dayIndex <= 1 ? "right" : dayIndex >= 5 ? "left" : "top"
+                const tooltipSide: "right" | "left" = dayIndex >= 4 ? "left" : "right"
 
                 return (
                   <div
