@@ -117,7 +117,7 @@ export function AvgStatLeaderboard({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 shrink-0 border-christmas-gold/35 bg-christmas-gold/10 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-christmas-snow hover:border-christmas-gold/60 hover:bg-christmas-gold/20"
+                className="h-8 shrink-0 border-christmas-gold/35 bg-christmas-gold/10 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-christmas-gold hover:border-christmas-gold/60 hover:bg-christmas-gold/20 hover:text-christmas-gold"
                 onClick={() => setShowAll((current) => !current)}
               >
                 {showAll ? "Свернуть" : "Весь топ"}
