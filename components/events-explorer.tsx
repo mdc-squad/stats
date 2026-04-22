@@ -735,7 +735,7 @@ export function EventsExplorer({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-7">
-            <div className="space-y-2">
+            <div className={cn("space-y-2", selectedPeriod === "custom" && "xl:col-span-3")}>
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
               <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as GamesPeriod)}>
                 <SelectTrigger className="border-christmas-gold/35 bg-background/50 text-christmas-snow">
@@ -750,7 +750,7 @@ export function EventsExplorer({
                 </SelectContent>
               </Select>
               {selectedPeriod === "custom" ? (
-                <div className="grid grid-cols-1 gap-3 pt-1">
+                <div className="grid grid-cols-2 gap-3 pt-1">
                   <label className="space-y-2">
                     <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
                     <DateFilterPicker value={customDateFrom} onChange={setCustomDateFrom} />
