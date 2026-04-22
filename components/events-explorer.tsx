@@ -692,6 +692,19 @@ export function EventsExplorer({
   const focusedGameHiddenByFilters =
     !!focusTarget && !!focusedGame && !filteredGames.some((game) => game.event_id === focusedGame.event_id)
 
+  const hasActiveFilters =
+    query.trim().length > 0 ||
+    selectedPeriod !== "all" ||
+    customDateFrom.length > 0 ||
+    customDateTo.length > 0 ||
+    selectedTags !== null ||
+    typeFilters.length > 0 ||
+    mapFilters.length > 0 ||
+    opponentFilters.length > 0 ||
+    factionFilters.length > 0 ||
+    squadFilters.length > 0 ||
+    matchPlayerIds.length > 0
+
   const clearFilters = () => {
     setQuery("")
     setSelectedPeriod("all")
@@ -727,11 +740,21 @@ export function EventsExplorer({
   return (
     <div className="space-y-4">
       <Card className="border-christmas-gold/20 bg-card/70">
-        <CardHeader className="pb-3">
+        <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
           <CardTitle className="flex items-center gap-2 text-base text-christmas-snow">
             <Filter className="w-4 h-4 text-christmas-gold" />
             Статистика и аналитика игр
           </CardTitle>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="border-christmas-gold/35 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold"
+            onClick={clearFilters}
+            disabled={!hasActiveFilters}
+          >
+            Сбросить фильтры
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-7">
@@ -862,14 +885,6 @@ export function EventsExplorer({
               Показано {filteredGames.length}
               {focusedGameHiddenByFilters ? " + 1 открытая игра" : ""} из {matchGamesCount}
             </p>
-            <Button
-              type="button"
-              variant="outline"
-              className="border-christmas-gold/35 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold"
-              onClick={clearFilters}
-            >
-              Сбросить фильтры
-            </Button>
           </div>
         </CardContent>
       </Card>
