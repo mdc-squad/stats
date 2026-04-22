@@ -621,7 +621,7 @@ function DataTabFilterCard({
             type="button"
             variant="outline"
             size="sm"
-            className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10"
+            className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold"
             onClick={onReset ?? filters.reset}
             disabled={!filters.hasFilters && !extraHasFilters}
           >
@@ -710,7 +710,7 @@ function DateOnlyFilterCard({ filters }: { filters: DataTabFilters }) {
             type="button"
             variant="outline"
             size="sm"
-            className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10"
+            className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold"
             onClick={filters.reset}
             disabled={!filters.hasFilters}
           >
@@ -2389,7 +2389,7 @@ export default function YearReviewPage() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10"
+                className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold"
                 onClick={resetSliceFilters}
                 disabled={!hasExtendedSliceFilters}
               >
@@ -2789,7 +2789,7 @@ export default function YearReviewPage() {
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10"
+                          className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold"
                           onClick={groupFilters.reset}
                           disabled={!groupFilters.hasFilters}
                         >
@@ -2811,7 +2811,7 @@ export default function YearReviewPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10"
+                      className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold"
                       onClick={groupFilters.reset}
                       disabled={!groupFilters.hasFilters}
                     >

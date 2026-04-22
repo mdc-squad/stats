@@ -142,7 +142,7 @@ export function MultiValueFilter({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-6 px-2 text-xs text-muted-foreground hover:bg-background/60 hover:text-christmas-snow"
+            className="h-6 px-2 text-xs text-muted-foreground hover:bg-christmas-gold/10 hover:text-christmas-gold"
             onClick={clearSelection}
           >
             Сброс

@@ -735,7 +735,7 @@ export function EventsExplorer({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-7">
-            <div className={cn("space-y-2", selectedPeriod === "custom" && "xl:col-span-3")}>
+            <div className="space-y-2">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
               <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as GamesPeriod)}>
                 <SelectTrigger className="border-christmas-gold/35 bg-background/50 text-christmas-snow">
@@ -865,7 +865,7 @@ export function EventsExplorer({
             <Button
               type="button"
               variant="outline"
-              className="border-christmas-gold/35 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10"
+              className="border-christmas-gold/35 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold"
               onClick={clearFilters}
             >
               Сбросить фильтры

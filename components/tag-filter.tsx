@@ -60,7 +60,7 @@ export function TagFilter({ tags, selectedTags, onTagsChange }: TagFilterProps) 
                 Все
               </Button>
               {selectedTags.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={clearAll} className="text-xs h-6 px-2">
+                <Button variant="ghost" size="sm" onClick={clearAll} className="h-6 px-2 text-xs hover:bg-christmas-gold/10 hover:text-christmas-gold">
                   <X className="w-3 h-3 mr-1" />
                   Сброс
                 </Button>

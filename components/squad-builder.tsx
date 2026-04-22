@@ -1033,7 +1033,7 @@ export function SquadBuilder({ players, playerStats, roles = [] }: SquadBuilderP
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="text-muted-foreground"
+                  className="text-muted-foreground hover:bg-christmas-gold/10 hover:text-christmas-gold"
                   onClick={clearPlayerFilters}
                 >
                   Сбросить фильтры
