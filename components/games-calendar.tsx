@@ -286,6 +286,7 @@ function getRosterCounts(game: PastGameSummary) {
 
 function compactInfoItems(item: CalendarGame): Array<{ key: string; icon: LucideIcon; value: string }> {
   const game = item.primary
+  const isLecture = isLectureEvent(game.event_type)
   const eventIcon = getEventTypeIcon(game.event_type)
   const matchup = game.faction_matchup || [game.faction_1, game.faction_2].filter(Boolean).join(" vs ")
   const ticketValue = item.isSideSwap ? aggregateTicketDiff(item.games) : gameTicketDiff(game)
@@ -293,11 +294,11 @@ function compactInfoItems(item: CalendarGame): Array<{ key: string; icon: Lucide
   const items = [
     game.event_type ? { key: "type", icon: eventIcon, value: game.event_type } : null,
     game.started_at ? { key: "time", icon: CalendarDays, value: formatTime(game.started_at) } : null,
-    getEventSizeLabel(game) ? { key: "format", icon: Users, value: getEventSizeLabel(game) } : null,
-    game.map && !isLectureEvent(game.event_type) ? { key: "map", icon: MapPin, value: game.map } : null,
-    game.mode ? { key: "mode", icon: Gamepad2, value: game.mode } : null,
-    matchup ? { key: "factions", icon: Flag, value: matchup } : null,
-    ticketValue !== null ? { key: "tickets", icon: ArrowLeftRight, value: `${ticketValue > 0 ? "+" : ""}${ticketValue}` } : null,
+    !isLecture && getEventSizeLabel(game) ? { key: "format", icon: Users, value: getEventSizeLabel(game) } : null,
+    !isLecture && game.map ? { key: "map", icon: MapPin, value: game.map } : null,
+    !isLecture && game.mode ? { key: "mode", icon: Gamepad2, value: game.mode } : null,
+    !isLecture && matchup ? { key: "factions", icon: Flag, value: matchup } : null,
+    !isLecture && ticketValue !== null ? { key: "tickets", icon: ArrowLeftRight, value: `${ticketValue > 0 ? "+" : ""}${ticketValue}` } : null,
   ]
 
   return items.filter((entry): entry is { key: string; icon: LucideIcon; value: string } => Boolean(entry))
@@ -341,6 +342,7 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
   const roster = getRosterCounts(selectedGame)
   const matchup = selectedGame.faction_matchup || [selectedGame.faction_1, selectedGame.faction_2].filter(Boolean).join(" vs ")
   const planned = isPlannedGame(primary)
+  const isLecture = isLectureEvent(selectedGame.event_type)
   const aggregateDiff = aggregateTicketDiff(games)
 
   useEffect(() => {
@@ -388,16 +390,22 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
         </div>
       ) : null}
       <div className="grid grid-cols-1 gap-1 text-center text-muted-foreground">
-        {!isLectureEvent(selectedGame.event_type) ? <span>Карта: <span className="text-christmas-snow">{selectedGame.map || "Не указана"}</span></span> : null}
-        <span>Формат: <span className="text-christmas-snow">{getEventSizeLabel(selectedGame) || "Не указан"}</span></span>
-        <span>Режим: <span className="text-christmas-snow">{selectedGame.mode || "Не указан"}</span></span>
-        <span>Оппонент: <span className="text-christmas-snow">{selectedGame.opponent || "Не указан"}</span></span>
-        {selectedGame.opponent_strength ? <span>Сила соперника: <span className="text-christmas-snow">{selectedGame.opponent_strength}</span></span> : null}
-        <span>Фракции: <span className="text-christmas-snow">{matchup || "Не указаны"}</span></span>
-        <span>Результат: <span className="text-christmas-snow">{resultLabel(selectedGame)}</span></span>
-        {isSideSwap && aggregateDiff !== null ? <span>Общая разница тикетов: <span className="text-christmas-snow">{aggregateDiff > 0 ? "+" : ""}{aggregateDiff}</span></span> : null}
+        {isLecture ? (
+          <span>Участников: <span className="text-christmas-snow">{roster.total}</span></span>
+        ) : (
+          <>
+            <span>Карта: <span className="text-christmas-snow">{selectedGame.map || "Не указана"}</span></span>
+            <span>Формат: <span className="text-christmas-snow">{getEventSizeLabel(selectedGame) || "Не указан"}</span></span>
+            <span>Режим: <span className="text-christmas-snow">{selectedGame.mode || "Не указан"}</span></span>
+            <span>Оппонент: <span className="text-christmas-snow">{selectedGame.opponent || "Не указан"}</span></span>
+            {selectedGame.opponent_strength ? <span>Сила соперника: <span className="text-christmas-snow">{selectedGame.opponent_strength}</span></span> : null}
+            <span>Фракции: <span className="text-christmas-snow">{matchup || "Не указаны"}</span></span>
+            <span>Результат: <span className="text-christmas-snow">{resultLabel(selectedGame)}</span></span>
+            {isSideSwap && aggregateDiff !== null ? <span>Общая разница тикетов: <span className="text-christmas-snow">{aggregateDiff > 0 ? "+" : ""}{aggregateDiff}</span></span> : null}
+          </>
+        )}
       </div>
-      {!planned && selectedGame.discord_url ? (
+      {!planned && !isLecture && selectedGame.discord_url ? (
         <a
           href={selectedGame.discord_url}
           target="_blank"
@@ -407,7 +415,7 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
           Discord
         </a>
       ) : null}
-      {!planned ? (
+      {!planned && !isLecture ? (
         <>
           <div className="grid grid-cols-2 gap-1.5">
             {metricItems(selectedGame).map((metric) => {
@@ -427,7 +435,7 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
           </div>
         </>
       ) : null}
-      {games.length > 1 ? (
+      {games.length > 1 && !isLecture ? (
         <div className="border-t border-border/60 pt-2">
           <p className="mb-1 text-muted-foreground">Матчи в группе: {games.length}</p>
           {games.map((game) => (

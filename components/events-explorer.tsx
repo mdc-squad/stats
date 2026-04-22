@@ -1,6 +1,6 @@
 "use client"
 
-import { useDeferredValue, useEffect, useMemo, useState, type CSSProperties, type ComponentType } from "react"
+import { useCallback, useDeferredValue, useEffect, useMemo, useState, type CSSProperties, type ComponentType } from "react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -569,9 +569,37 @@ export function EventsExplorer({
     return [focusedGame, ...filteredGames]
   }, [filteredGames, focusedGame])
 
+  const getScopedPlayersForFilters = useCallback((game: PastGameSummary) => {
+    let scopedPlayers = game.players
+
+    if (selectedRawTags.length > 0) {
+      scopedPlayers = scopedPlayers.filter((player) => selectedRawTags.includes(player.tag?.trim() ?? ""))
+    }
+
+    if (matchPlayerIds.length > 0) {
+      const selectedIds = new Set(matchPlayerIds)
+      scopedPlayers = scopedPlayers.filter((player) => selectedIds.has(player.player_id))
+    }
+
+    if (squadFilters.length > 0) {
+      scopedPlayers = scopedPlayers.filter((player) => player.squad_labels.some((label) => squadFilters.includes(label)))
+    }
+
+    return scopedPlayers
+  }, [matchPlayerIds, selectedRawTags, squadFilters])
+
+  const scopedFilteredGames = useMemo(
+    () =>
+      filteredGames.map((game) => ({
+        ...game,
+        players: getScopedPlayersForFilters(game),
+      })),
+    [filteredGames, getScopedPlayersForFilters],
+  )
+
   const analyticsPlayers = useMemo(() => {
     const playerIds = new Set<string>()
-    filteredGames.forEach((game) => {
+    scopedFilteredGames.forEach((game) => {
       game.players.forEach((player) => {
         playerIds.add(player.player_id)
       })
@@ -580,14 +608,10 @@ export function EventsExplorer({
     return players
       .filter((player) => playerIds.has(player.player_id) && player.totals?.events > 0)
       .sort((left, right) => left.nickname.localeCompare(right.nickname, "ru"))
-  }, [filteredGames, players])
+  }, [players, scopedFilteredGames])
 
   const getVisiblePlayersForGame = (game: PastGameSummary) => {
-    if (selectedRawTags.length === 0) {
-      return game.players
-    }
-
-    return game.players.filter((player) => selectedRawTags.includes(player.tag?.trim() ?? ""))
+    return getScopedPlayersForFilters(game)
   }
 
   useEffect(() => {
@@ -1298,12 +1322,12 @@ export function EventsExplorer({
               </div>
             </CardContent>
           </Card>
-          <GameSliceLeaderboards games={filteredGames} selectedPlayerIds={selectedPlayerIds} />
+          <GameSliceLeaderboards games={scopedFilteredGames} selectedPlayerIds={selectedPlayerIds} />
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-0">
           <EventsAnalyticsPanel
-            games={filteredGames}
+            games={scopedFilteredGames}
             players={analyticsPlayers}
             selectedPlayerIds={selectedPlayerIds}
             onSelectedPlayerIdsChange={onSelectedPlayersChange}

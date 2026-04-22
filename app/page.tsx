@@ -2715,14 +2715,8 @@ export default function YearReviewPage() {
           <TabsContent value="group" className="space-y-4">
             <Card className="border-christmas-gold/20 bg-card/60">
               <CardContent className="space-y-3 pt-4">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-christmas-snow">Отряды по цветам</p>
-                    <p className="text-xs text-muted-foreground">
-                      Общие показатели, последние матчи, составы и сравнение динамики между отрядами.
-                    </p>
-                  </div>
-                  <div className="grid w-full gap-3 md:grid-cols-3 xl:w-auto xl:min-w-[520px]">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                  <div className="grid w-full gap-3 md:grid-cols-3 xl:max-w-[560px] xl:flex-1">
                     <div className="space-y-2">
                       <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
                       <Select value={groupFilters.selectedPeriod} onValueChange={(value) => groupFilters.setSelectedPeriod(value as StatsPeriod)}>
@@ -2773,6 +2767,12 @@ export default function YearReviewPage() {
                         </Button>
                       </div>
                     )}
+                  </div>
+                  <div className="space-y-2 xl:max-w-xl">
+                    <p className="text-sm font-medium text-christmas-snow">Отряды по цветам</p>
+                    <p className="text-xs text-muted-foreground">
+                      Общие показатели, последние матчи, составы и сравнение динамики между отрядами.
+                    </p>
                   </div>
                 </div>
                 {groupFilters.selectedPeriod === "custom" ? (

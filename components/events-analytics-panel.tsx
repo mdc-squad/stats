@@ -746,10 +746,7 @@ export function EventsAnalyticsPanel({
       return leftTime - rightTime
     })
 
-    const eligibleGames =
-      effectiveScope === "team"
-        ? sortedGames
-        : sortedGames.filter((game) => getScopedPlayers(game, effectiveScope, selectedSet).length > 0)
+    const eligibleGames = sortedGames.filter((game) => getScopedPlayers(game, effectiveScope, selectedSet).length > 0)
 
     const comparisonSeries = buildComparisonSeries(eligibleGames, effectiveScope, selectedSet, breakdown)
     const overallState = createSeriesState()
