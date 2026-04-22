@@ -155,7 +155,7 @@ export function BestMatches({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 shrink-0 border-christmas-gold/35 bg-christmas-gold/10 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-christmas-gold hover:border-christmas-gold hover:bg-christmas-gold hover:text-black"
+                className="h-8 shrink-0 border-christmas-gold/35 bg-christmas-gold/10 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-christmas-gold hover:!border-christmas-gold hover:!bg-christmas-gold hover:!text-black"
                 onClick={() => setShowAll((current) => !current)}
               >
                 {showAll ? "Свернуть" : "Весь топ"}
