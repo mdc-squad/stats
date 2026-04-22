@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { PlayerAvatar } from "@/components/player-avatar"
 import { RoleIcon, formatRoleName } from "@/components/role-icon"
 import { SpecializationIcon } from "@/components/specialization-icon"
@@ -185,6 +185,8 @@ function ChartDynamicsPanel({ metric, left, right }: { metric: ChartMetricKey; l
 export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenPlayer }: SquadOverviewProps) {
   const [chartMetric, setChartMetric] = useState<ChartMetricKey>("avgElo")
   const [hiddenSquadLabels, setHiddenSquadLabels] = useState<Set<string>>(() => new Set())
+  const [isChartAutoPlaying, setIsChartAutoPlaying] = useState(true)
+  const [autoSquadIndex, setAutoSquadIndex] = useState(0)
   const [lockedValues, setLockedValues] = useState<LockedChartValues[]>([])
   const { squads, chartData, chartLines } = useMemo(() => {
     const playersById = new Map(players.map((p) => [p.player_id, p]))
@@ -265,10 +267,13 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
   }, [chartMetric, games, players, squadDomain])
 
   const selectedChartMetric = CHART_METRICS.find((m) => m.key === chartMetric) ?? CHART_METRICS[0]
-  const visibleChartLines = chartLines.filter((line) => !hiddenSquadLabels.has(line.label))
-  const toggleChartSquad = (label: string) => { setHiddenSquadLabels((current) => { const next = new Set(current); if (next.has(label)) next.delete(label); else next.add(label); return next }); setLockedValues([]) }
-  const handleChartMetricChange = (value: ChartMetricKey) => { setChartMetric(value); setLockedValues([]) }
+  const autoChartLine = chartLines.length > 0 ? chartLines[autoSquadIndex % chartLines.length] : undefined
+  const visibleChartLines = isChartAutoPlaying ? (autoChartLine ? [autoChartLine] : []) : chartLines.filter((line) => !hiddenSquadLabels.has(line.label))
+  const stopChartAuto = () => setIsChartAutoPlaying(false)
+  const toggleChartSquad = (label: string) => { stopChartAuto(); setHiddenSquadLabels((current) => { const next = new Set(current); if (next.has(label)) next.delete(label); else next.add(label); return next }); setLockedValues([]) }
+  const handleChartMetricChange = (value: ChartMetricKey) => { stopChartAuto(); setChartMetric(value); setLockedValues([]) }
   const handleChartClick = (state: unknown) => {
+    stopChartAuto()
     const chartState = state as { activeLabel?: string | number; activePayload?: Array<{ dataKey?: string | number; name?: string | number; color?: string; value?: number | string | null; payload?: { eventLabel?: string } }> } | null | undefined
     if (!chartState?.activePayload?.length) return
     const entries = getSortedChartEntries(chartState.activePayload.filter((entry) => visibleChartLines.some((line) => line.key === String(entry.dataKey))))
@@ -276,6 +281,32 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
     const point = chartState.activePayload[0]?.payload
     setLockedValues((current) => [...current, { label: String(chartState.activeLabel ?? ""), eventLabel: point?.eventLabel ? String(point.eventLabel) : undefined, entries }].slice(-2))
   }
+
+  useEffect(() => {
+    if (autoSquadIndex >= chartLines.length) {
+      setAutoSquadIndex(0)
+    }
+  }, [autoSquadIndex, chartLines.length])
+
+  useEffect(() => {
+    if (!isChartAutoPlaying || chartLines.length === 0) return
+
+    const intervalId = window.setInterval(() => {
+      setAutoSquadIndex((current) => {
+        const next = (current + 1) % chartLines.length
+        if (next === 0) {
+          setChartMetric((metric) => {
+            const currentMetricIndex = CHART_METRICS.findIndex((item) => item.key === metric)
+            return CHART_METRICS[(currentMetricIndex + 1) % CHART_METRICS.length]?.key ?? "avgElo"
+          })
+        }
+        return next
+      })
+    }, 3000)
+
+    return () => window.clearInterval(intervalId)
+  }, [chartLines.length, isChartAutoPlaying])
+
   if (squads.length === 0) return <Card className="border-border/50 bg-card/60"><CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base text-christmas-snow"><Shield className="h-4 w-4 text-christmas-gold" />Отряды по цветам</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Нет доступных отрядов для текущего среза.</CardContent></Card>
 
   return (
@@ -327,9 +358,9 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
         <CardHeader className="gap-3 pb-3 md:flex-row md:items-center md:justify-between"><div><CardTitle className="flex items-center gap-2 text-base text-christmas-snow"><Swords className="h-4 w-4 text-christmas-gold" />Сравнение отрядов</CardTitle></div><Select value={chartMetric} onValueChange={(v) => handleChartMetricChange(v as ChartMetricKey)}><SelectTrigger className="w-full border-christmas-gold/20 bg-background/50 text-christmas-snow md:w-[190px]"><SelectValue /></SelectTrigger><SelectContent>{CHART_METRICS.map((m) => <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>)}</SelectContent></Select></CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => { setHiddenSquadLabels(new Set()); setLockedValues([]) }} className="rounded-md border border-christmas-gold/30 px-2 py-1 text-xs text-christmas-gold hover:bg-christmas-gold/10">Все отряды</button>
+            <button type="button" onClick={() => { stopChartAuto(); setHiddenSquadLabels(new Set()); setLockedValues([]) }} className="rounded-md border border-christmas-gold/30 px-2 py-1 text-xs text-christmas-gold hover:bg-christmas-gold/10">Все отряды</button>
             {chartLines.map((line) => {
-              const hidden = hiddenSquadLabels.has(line.label)
+              const hidden = isChartAutoPlaying ? line.label !== autoChartLine?.label : hiddenSquadLabels.has(line.label)
               return <button key={line.key} type="button" onClick={() => toggleChartSquad(line.label)} className={cn("inline-flex items-center gap-2 rounded-md border px-2 py-1 text-xs transition-colors", hidden ? "border-border/50 text-muted-foreground opacity-55" : "border-border/60 bg-background/30 text-christmas-snow hover:border-christmas-gold/40")}><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: line.color }} />{line.label}</button>
             })}
           </div>

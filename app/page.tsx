@@ -2755,9 +2755,15 @@ export default function YearReviewPage() {
           <TabsContent value="group" className="space-y-4">
             <Card className="border-christmas-gold/20 bg-card/60">
               <CardContent className="space-y-3 pt-4">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                  <div className="grid w-full gap-3 md:grid-cols-3 xl:max-w-[560px] xl:flex-1">
-                    <div className="space-y-2">
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-lg font-semibold text-christmas-gold">Отряды по цветам</p>
+                    <p className="text-xs text-muted-foreground">
+                      Общие показатели, последние матчи, составы и сравнение динамики между отрядами.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+                    <div className={cn("space-y-2", groupFilters.selectedPeriod === "custom" ? "xl:w-56 xl:shrink-0" : "xl:flex-1")}>
                       <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
                       <Select value={groupFilters.selectedPeriod} onValueChange={(value) => groupFilters.setSelectedPeriod(value as StatsPeriod)}>
                         <SelectTrigger className="border-christmas-gold/35 bg-background/50 text-christmas-snow">
@@ -2774,51 +2780,30 @@ export default function YearReviewPage() {
                     </div>
                     {groupFilters.selectedPeriod === "custom" ? (
                       <>
-                        <label className="space-y-2">
+                        <label className="space-y-2 xl:w-40 xl:shrink-0">
                           <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
                           <DateFilterPicker value={groupFilters.customDateFrom} onChange={groupFilters.setCustomDateFrom} />
                         </label>
-                        <label className="space-y-2">
+                        <label className="space-y-2 xl:w-40 xl:shrink-0">
                           <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
                           <DateFilterPicker value={groupFilters.customDateTo} onChange={groupFilters.setCustomDateTo} />
                         </label>
                       </>
-                    ) : (
-                      <div className="flex items-end justify-end md:col-span-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold"
-                          onClick={groupFilters.reset}
-                          disabled={!groupFilters.hasFilters}
-                        >
-                          Сбросить фильтр
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-2 xl:max-w-xl">
-                    <p className="text-sm font-medium text-christmas-snow">Отряды по цветам</p>
-                    <p className="text-xs text-muted-foreground">
-                      Общие показатели, последние матчи, составы и сравнение динамики между отрядами.
-                    </p>
+                    ) : null}
+                    <div className="flex justify-end xl:ml-auto">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold"
+                        onClick={groupFilters.reset}
+                        disabled={!groupFilters.hasFilters}
+                      >
+                        Сбросить фильтр
+                      </Button>
+                    </div>
                   </div>
                 </div>
-                {groupFilters.selectedPeriod === "custom" ? (
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold"
-                      onClick={groupFilters.reset}
-                      disabled={!groupFilters.hasFilters}
-                    >
-                      Сбросить фильтр
-                    </Button>
-                  </div>
-                ) : null}
               </CardContent>
             </Card>
             <SquadOverview
