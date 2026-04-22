@@ -23,9 +23,23 @@ export function WinrateProgressChart({ data }: WinrateProgressChartProps) {
     return `${d.getDate()}.${d.getMonth() + 1}`
   }
 
+  const formatFullDate = (date: unknown) => {
+    if (typeof date !== "string" || date.length === 0) {
+      return "N/A"
+    }
+
+    const d = new Date(date)
+    if (Number.isNaN(d.getTime())) {
+      return date
+    }
+
+    return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`
+  }
+
   const chartData = data.map((d) => ({
     ...d,
     dateLabel: formatDate(d.date),
+    fullDateLabel: formatFullDate(d.date),
   }))
 
   const averageWinRate = useMemo(() => {
@@ -88,6 +102,10 @@ export function WinrateProgressChart({ data }: WinrateProgressChartProps) {
                   color: "var(--foreground)",
                 }}
                 formatter={(value: number) => [`${value.toFixed(1)}%`, "Win Rate"]}
+                labelFormatter={(_, payload) => {
+                  const point = payload?.[0]?.payload as { fullDateLabel?: string } | undefined
+                  return point?.fullDateLabel ?? ""
+                }}
               />
               <Line
                 type="monotone"

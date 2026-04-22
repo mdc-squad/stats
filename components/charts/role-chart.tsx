@@ -1,6 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { RoleIcon, formatRoleName } from "@/components/role-icon"
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts"
 import { Users } from "lucide-react"
 
@@ -30,12 +31,14 @@ const CustomTooltip = ({ active, payload, totalCount }: any) => {
   if (active && payload && payload.length) {
     const value = Number(payload[0].value ?? 0)
     const sharePercent = totalCount > 0 ? (value / totalCount) * 100 : 0
+    const role = String(payload[0].name ?? "")
     return (
       <div className="bg-card border border-border rounded-lg p-2 shadow-lg">
-        <p className="text-christmas-snow font-medium">{payload[0].name}</p>
-        <p className="text-christmas-snow/80 text-sm">
-          Доля среди role-записей: {sharePercent.toFixed(1)}% ({value.toLocaleString("ru-RU")} участий)
+        <p className="flex items-center gap-1.5 font-medium text-christmas-snow">
+          <RoleIcon role={role} className="h-4 w-4" />
+          {formatRoleName(role) || role}
         </p>
+        <p className="text-sm text-christmas-snow/80">{sharePercent.toFixed(1)}% - {value.toLocaleString("ru-RU")} участий</p>
       </div>
     )
   }
@@ -76,7 +79,12 @@ export function RoleChart({ data }: RoleChartProps) {
                 verticalAlign="bottom"
                 height={60}
                 wrapperStyle={{ fontSize: "11px" }}
-                formatter={(value) => <span style={{ color: "var(--christmas-snow)", fontSize: "11px" }}>{value}</span>}
+                formatter={(value) => (
+                  <span className="inline-flex items-center gap-1" style={{ color: "var(--christmas-snow)", fontSize: "11px" }}>
+                    <RoleIcon role={String(value)} className="h-3.5 w-3.5" />
+                    {formatRoleName(String(value)) || String(value)}
+                  </span>
+                )}
               />
             </PieChart>
           </ResponsiveContainer>

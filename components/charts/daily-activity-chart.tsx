@@ -7,10 +7,9 @@ import { Calendar } from "lucide-react"
 interface DailyActivityChartProps {
   wins: number
   losses: number
-  periodLabel?: string
 }
 
-export function DailyActivityChart({ wins, losses, periodLabel = "за всё время" }: DailyActivityChartProps) {
+export function DailyActivityChart({ wins, losses }: DailyActivityChartProps) {
   const totalMatches = wins + losses
   const slices = [
     { name: "Победы", value: wins, color: "var(--christmas-green)" },
@@ -25,7 +24,6 @@ export function DailyActivityChart({ wins, losses, periodLabel = "за всё в
             <Calendar className="w-4 h-4" />
             Победы и поражения
           </CardTitle>
-          <p className="text-xs text-muted-foreground">{periodLabel}</p>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col">
           <p className="text-sm text-muted-foreground">Нет данных по результатам событий</p>
@@ -41,7 +39,6 @@ export function DailyActivityChart({ wins, losses, periodLabel = "за всё в
           <Calendar className="w-4 h-4" />
           Победы и поражения
         </CardTitle>
-        <p className="text-xs text-muted-foreground">{periodLabel}</p>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col space-y-3">
         <div className="relative h-[240px] rounded-xl border border-border/50 bg-background/25 px-2">
@@ -84,12 +81,12 @@ export function DailyActivityChart({ wins, losses, periodLabel = "за всё в
                 data-testid={slice.name === "Победы" ? "overall-results-wins" : "overall-results-losses"}
                 className="rounded-xl border border-border/50 bg-background/30 p-3"
               >
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <div className="flex items-center justify-center gap-2">
                     <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: slice.color }} />
                     <p className="text-sm font-medium text-christmas-snow">{slice.name}</p>
                   </div>
-                  <div>
+                  <div className="text-center">
                     <p className="text-xl font-semibold leading-none text-christmas-snow">{slice.value}</p>
                     <p className="mt-1 text-[11px] text-muted-foreground">{percentage.toFixed(1)}%</p>
                   </div>

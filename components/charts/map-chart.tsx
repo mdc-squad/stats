@@ -18,7 +18,7 @@ const CustomTooltip = ({ active, payload }: any) => {
         <p className="text-christmas-snow font-medium">{point.map}</p>
         <p className="text-christmas-snow/80 text-sm">Матчей: {point.count}</p>
         <p className="text-christmas-snow/80 text-sm">Побед: {point.wins}</p>
-        <p className="text-christmas-snow/80 text-sm">С известным результатом: {point.resolved}</p>
+        <p className="text-christmas-snow/80 text-sm">С результатом: {point.resolved}</p>
         <p className="text-christmas-gold text-xs">
           WR: {point.resolved > 0 ? `${point.winRate.toFixed(1)}%` : "н/д"}
         </p>

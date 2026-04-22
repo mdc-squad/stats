@@ -2489,7 +2489,7 @@ export default function YearReviewPage() {
           </CardContent>
         </Card>
 
-        <OverallStatsPanel stats={overallStats} periodLabel={sliceSummaryLabel} />
+        <OverallStatsPanel stats={overallStats} />
 
         {/* Event Types Summary - Compact */}
         <section>
@@ -2521,7 +2521,6 @@ export default function YearReviewPage() {
           <DailyActivityChart
             wins={overallStats.wins}
             losses={overallStats.losses}
-            periodLabel={sliceSummaryLabel}
           />
           <ActivityChart data={monthlyActivity} />
           <WeeklyActivityChart data={weeklyParticipation} />

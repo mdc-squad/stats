@@ -9,6 +9,23 @@ interface WeeklyActivityChartProps {
 }
 
 export function WeeklyActivityChart({ data }: WeeklyActivityChartProps) {
+  const formatDate = (date: Date) =>
+    `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}`
+
+  const getWeekPeriod = (week: string) => {
+    const match = week.match(/^(\d{4})-W(\d{1,2})$/)
+    if (!match) return week
+
+    const year = Number(match[1])
+    const weekNumber = Number(match[2])
+    const firstDay = new Date(year, 0, 1)
+    const mondayOffset = (firstDay.getDay() + 6) % 7
+    const start = new Date(year, 0, 1 - mondayOffset + (weekNumber - 1) * 7)
+    const end = new Date(start)
+    end.setDate(start.getDate() + 6)
+    return `${formatDate(start)} - ${formatDate(end)}`
+  }
+
   const formatWeek = (week: unknown) => {
     if (typeof week !== "string" || week.length === 0) {
       return "W?"
@@ -25,6 +42,7 @@ export function WeeklyActivityChart({ data }: WeeklyActivityChartProps) {
   const chartData = data.map((d) => ({
     ...d,
     weekLabel: formatWeek(d.week),
+    weekPeriod: getWeekPeriod(d.week),
   }))
 
   if (chartData.length === 0) {
@@ -66,7 +84,10 @@ export function WeeklyActivityChart({ data }: WeeklyActivityChartProps) {
                   color: "var(--foreground)",
                 }}
                 formatter={(value: number) => [value, "Участников"]}
-                labelFormatter={(label) => `Неделя ${label}`}
+                labelFormatter={(label, payload) => {
+                  const point = payload?.[0]?.payload as { weekPeriod?: string } | undefined
+                  return `Неделя ${label}${point?.weekPeriod ? `: ${point.weekPeriod}` : ""}`
+                }}
               />
               <Bar dataKey="participants" fill="var(--christmas-gold)" radius={[4, 4, 0, 0]} />
             </BarChart>

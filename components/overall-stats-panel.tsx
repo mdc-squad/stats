@@ -1,9 +1,7 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getMetricIcon } from "@/lib/app-icons"
-import { CircleHelp, TrendingUp } from "lucide-react"
+import { TrendingUp } from "lucide-react"
 
 interface OverallStatsPanelProps {
   stats: {
@@ -19,10 +17,9 @@ interface OverallStatsPanelProps {
     averageKDA: number
     activePlayers: number
   }
-  periodLabel?: string
 }
 
-export function OverallStatsPanel({ stats, periodLabel = "за всё время" }: OverallStatsPanelProps) {
+export function OverallStatsPanel({ stats }: OverallStatsPanelProps) {
   const statItems = [
     {
       label: "Всего событий",
@@ -81,54 +78,28 @@ export function OverallStatsPanel({ stats, periodLabel = "за всё время
   ]
 
   return (
-    <Card className="border-christmas-gold/30 bg-gradient-to-br from-card via-card to-christmas-green/5">
-      <CardHeader className="pb-2.5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle className="text-lg font-semibold flex items-center gap-2 text-christmas-snow">
-              <TrendingUp className="w-5 h-5 text-christmas-gold" />
-              Общая статистика клана
-            </CardTitle>
-          </div>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/35 text-muted-foreground transition-colors hover:border-christmas-gold/40 hover:text-christmas-gold"
-                aria-label="Пояснение по формулам статистики"
-              >
-                <CircleHelp className="h-4 w-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs border border-border bg-card text-card-foreground">
-              <p className="font-medium text-christmas-snow">Как считаются метрики</p>
-              <p className="mt-1 leading-relaxed text-muted-foreground">KDA = ноки / смерти. Если смертей нет, значение равно числу ноков.</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-        <p className="text-xs text-muted-foreground">{periodLabel}</p>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-9">
-          {statItems.map((item) => (
-            (() => {
-              const Icon = item.icon
-              return (
+    <section>
+      <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-christmas-snow">
+        <TrendingUp className="h-5 w-5 text-christmas-gold" />
+        Общая статистика клана
+      </h2>
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-9">
+        {statItems.map((item) => {
+          const Icon = item.icon
+          return (
             <div
               key={item.label}
-              className="flex min-h-[116px] flex-col items-center justify-center rounded-xl border border-border/50 bg-background/45 px-3 py-4 text-center lg:min-h-[104px] lg:px-2.5 lg:py-3"
+              className="flex min-h-[104px] flex-col items-center justify-center rounded-xl border border-christmas-gold/20 bg-card/60 px-2.5 py-3 text-center"
             >
               <div className={`${item.color} mb-2 flex justify-center opacity-80`}>
-                <Icon className="w-4 h-4" />
+                <Icon className="h-4 w-4" />
               </div>
               <p className="text-2xl font-bold leading-none text-christmas-snow">{item.value}</p>
               <p className="mt-1 text-[9px] uppercase tracking-[0.18em] text-muted-foreground">{item.label}</p>
             </div>
-              )
-            })()
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+          )
+        })}
+      </div>
+    </section>
   )
 }
