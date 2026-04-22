@@ -2722,7 +2722,6 @@ export default function YearReviewPage() {
                     <PlayerCard
                       player={player}
                       rawPlayer={data.players.find((entry) => entry.player_id === player.player_id)}
-                      useFilteredRatings={playerFilters.hasFilters}
                       rank={index + 1}
                       footerLabel={seasonalTheme.summaryLabel}
                       achievements={playerAchievements[player.player_id] ?? []}

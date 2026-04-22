@@ -29,7 +29,6 @@ import { toPng } from "html-to-image"
 interface PlayerCardProps {
   player: Player
   rawPlayer?: Player
-  useFilteredRatings?: boolean
   rank?: number
   footerLabel?: string
   achievements?: string[]
@@ -139,7 +138,6 @@ function isMeaningfulSquadLabel(label: string): boolean {
 export function PlayerCard({
   player,
   rawPlayer,
-  useFilteredRatings = false,
   rank,
   footerLabel = DEFAULT_FOOTER_LABEL,
   achievements = [],
@@ -161,7 +159,7 @@ export function PlayerCard({
   const cardRef = useRef<HTMLDivElement>(null)
   const [isExporting, setIsExporting] = useState(false)
   const isExpanded = layout === "expanded"
-  const ratingSource = useFilteredRatings ? player : rawPlayer ?? player
+  const ratingSource = rawPlayer ?? player
 
   const squadSummary = useMemo(() => {
     const bySquad = new Map<string, number>()
@@ -365,7 +363,7 @@ export function PlayerCard({
     {
       label: "ОР",
       key: "rating",
-      value: player.totals.rating.toFixed(1),
+      value: ratingSource.totals.rating.toFixed(1),
       icon: getMetricIcon("rating"),
       accentClass: "border-christmas-gold/30 bg-christmas-gold/10 text-christmas-gold",
     },
