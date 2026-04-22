@@ -200,6 +200,7 @@ const ROLE_METRIC_OPTIONS: Array<{ value: RoleLeaderboardMetric; label: string }
   { value: "revives", label: "Поднятия" },
   { value: "avgRevives", label: "Поднятия / игра" },
   { value: "heals", label: "Хил" },
+  { value: "avgHeals", label: "Хил / игра" },
   { value: "vehicle", label: "Техника" },
   { value: "avgVehicle", label: "Техника / игра" },
 ]
@@ -589,7 +590,25 @@ function useDataTabFilters(rawData: MDCData | null, enabled: boolean, includeTag
   }
 }
 
-function DataTabFilterCard({ filters }: { filters: DataTabFilters }) {
+function DataTabFilterCard({
+  filters,
+  leadingFilter,
+  extraHasFilters = false,
+  onReset,
+}: {
+  filters: DataTabFilters
+  leadingFilter?: ReactNode
+  extraHasFilters?: boolean
+  onReset?: () => void
+}) {
+  const columnClassName = filters.includeTags
+    ? leadingFilter
+      ? "xl:grid-cols-7"
+      : "xl:grid-cols-6"
+    : leadingFilter
+    ? "xl:grid-cols-6"
+    : "xl:grid-cols-5"
+
   return (
     <Card className="border-christmas-gold/20 bg-card/60">
       <CardContent className="space-y-3 pt-4">
@@ -603,14 +622,14 @@ function DataTabFilterCard({ filters }: { filters: DataTabFilters }) {
             variant="outline"
             size="sm"
             className="border-christmas-gold/20 bg-background/40 text-christmas-snow hover:bg-christmas-gold/10"
-            onClick={filters.reset}
-            disabled={!filters.hasFilters}
+            onClick={onReset ?? filters.reset}
+            disabled={!filters.hasFilters && !extraHasFilters}
           >
             Сбросить фильтры
           </Button>
         </div>
 
-        <div className={cn("grid grid-cols-1 gap-3 md:grid-cols-2", filters.includeTags ? "xl:grid-cols-6" : "xl:grid-cols-5")}>
+        <div className={cn("grid grid-cols-1 gap-3 md:grid-cols-2", columnClassName)}>
           <div className="space-y-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
             <Select value={filters.selectedPeriod} onValueChange={(value) => filters.setSelectedPeriod(value as StatsPeriod)}>
@@ -626,6 +645,8 @@ function DataTabFilterCard({ filters }: { filters: DataTabFilters }) {
               </SelectContent>
             </Select>
           </div>
+
+          {leadingFilter}
 
           {filters.includeTags ? (
             <div className="space-y-2">
@@ -2581,13 +2602,16 @@ export default function YearReviewPage() {
 
           {/* Roles Tab */}
           <TabsContent value="roles" className="space-y-4">
-            <DataTabFilterCard filters={roleFilters} />
-            <Card className="border-christmas-gold/20 bg-card/60">
-              <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-medium text-christmas-snow">Выберите критерий</p>
-                </div>
-                <div className="w-full sm:w-[220px]">
+            <DataTabFilterCard
+              filters={roleFilters}
+              extraHasFilters={selectedRoleMetric !== "kd"}
+              onReset={() => {
+                roleFilters.reset()
+                setSelectedRoleMetric("kd")
+              }}
+              leadingFilter={
+                <div className="space-y-2">
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Критерий</p>
                   <Select
                     value={selectedRoleMetric}
                     onValueChange={(value) => setSelectedRoleMetric(value as RoleLeaderboardMetric)}
@@ -2604,8 +2628,8 @@ export default function YearReviewPage() {
                     </SelectContent>
                   </Select>
                 </div>
-              </CardContent>
-            </Card>
+              }
+            />
             <div className="space-y-4">
               {roleRows.map((row, rowIndex) => {
                 const isExpanded = expandedRoleRows.includes(rowIndex)

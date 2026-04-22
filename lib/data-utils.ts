@@ -182,6 +182,7 @@ export type RoleLeaderboardMetric =
   | "heals"
   | "vehicle"
   | "avgRevives"
+  | "avgHeals"
   | "elo"
   | "tbf"
   | "rating"
@@ -1704,6 +1705,7 @@ export function getTopByRole(
         heals: entry.heals,
         vehicle: entry.vehicle,
         games: entry.games,
+        avgHeals: entry.avgHeals,
         kd: entry.kd,
         kda: entry.kda,
         elo: entry.elo,
@@ -1724,6 +1726,8 @@ export function getTopByRole(
             ? entry.vehicle
             : metric === "avgRevives"
             ? entry.avgRevives
+            : metric === "avgHeals"
+            ? entry.avgHeals
             : metric === "avgVehicle"
             ? entry.avgVehicle
             : metric === "elo"
@@ -1787,6 +1791,8 @@ export function getPlayerRoleMetricBreakdown(
           ? entry.vehicle
           : metric === "avgRevives"
           ? entry.avgRevives
+          : metric === "avgHeals"
+          ? entry.avgHeals
           : metric === "avgVehicle"
           ? entry.avgVehicle
           : metric === "elo"
@@ -1842,6 +1848,8 @@ export function getMaxRoleMetricByRole(
           ? entry.vehicle
           : metric === "avgRevives"
           ? entry.avgRevives
+          : metric === "avgHeals"
+          ? entry.avgHeals
           : metric === "avgVehicle"
           ? entry.avgVehicle
           : metric === "elo"
@@ -1996,6 +2004,7 @@ export interface PlayerRoleMetricEntry {
   tbf: number
   rating: number
   avgRevives: number
+  avgHeals: number
   avgVehicle: number
   metricValue: number
 }
@@ -2138,6 +2147,7 @@ function buildRoleMetricEntries(
         tbf,
         rating,
         avgRevives: aggregate.games > 0 ? aggregate.revives / aggregate.games : 0,
+        avgHeals: aggregate.games > 0 ? aggregate.heals / aggregate.games : 0,
         avgVehicle: aggregate.games > 0 ? aggregate.vehicle / aggregate.games : 0,
         metricValue: 0,
       })

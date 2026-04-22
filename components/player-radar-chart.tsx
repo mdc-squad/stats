@@ -39,6 +39,7 @@ const ROLE_METRIC_LABELS: Record<RoleLeaderboardMetric, string> = {
   revives: "Поднятия",
   avgRevives: "Поднятия / игра",
   heals: "Хил",
+  avgHeals: "Хил / игра",
   vehicle: "Техника",
   elo: "ELO",
   tbf: "ТБФ",

@@ -21,6 +21,7 @@ interface RolePlayer {
   downs: number
   revives: number
   heals: number
+  avgHeals: number
   vehicle: number
   games: number
   kd: number
@@ -51,6 +52,7 @@ const METRIC_LABELS: Record<RoleLeaderboardMetric, string> = {
   revives: "Поднятия",
   avgRevives: "Поднятия / игра",
   heals: "Хил",
+  avgHeals: "Хил / игра",
   vehicle: "Техника",
   elo: "ELO",
   tbf: "ТБФ",
@@ -60,10 +62,12 @@ const METRIC_LABELS: Record<RoleLeaderboardMetric, string> = {
 
 const DEFAULT_COLLAPSED_COUNT = 10
 const TOP_CARD_CLASS =
-  "flex flex-col overflow-hidden border-christmas-gold/30 bg-gradient-to-br from-christmas-red/5 via-card to-christmas-green/5"
+  "flex h-full flex-col overflow-hidden border-christmas-gold/30 bg-gradient-to-br from-christmas-red/5 via-card to-christmas-green/5"
+const FULL_TOP_LIST_CLASS =
+  "scrollbar-gold max-h-[820px] overflow-y-auto rounded-md border border-christmas-gold/25 bg-transparent p-2"
 
 function formatMetricValue(player: RolePlayer, metric: RoleLeaderboardMetric): string {
-  if (metric === "kd" || metric === "kda" || metric === "avgRevives" || metric === "avgVehicle") {
+  if (metric === "kd" || metric === "kda" || metric === "avgRevives" || metric === "avgHeals" || metric === "avgVehicle") {
     return player.metricValue.toFixed(2)
   }
 
@@ -107,30 +111,33 @@ export function RoleLeaderboard({
   const topSummary = topPlayer
     ? `${topPlayer.tag ? `${topPlayer.tag} ` : ""}${topPlayer.nickname} - ${METRIC_LABELS[metric]}: ${formatMetricValue(topPlayer, metric)}`
     : null
+  const topAchievements = topPlayer ? playerAchievements?.[topPlayer.player_id] ?? [] : []
 
   return (
     <div className="relative">
-      <Card className={cn(TOP_CARD_CLASS, showAll && "h-[720px]")}>
+      <Card className={TOP_CARD_CLASS}>
         <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-christmas-gold">
               {icon}
               Топ {role}
             </CardTitle>
-            <p
-              className={cn(
-                "mt-1",
-                isCollapsed && topSummary
-                  ? "truncate text-sm font-medium uppercase tracking-wider text-christmas-snow"
-                  : "text-[10px] text-muted-foreground",
-              )}
-            >
-              {isCollapsed && topSummary
-                ? topSummary
-                : showAll
-                ? `Игроков на роли: ${players.length} • сортировка по ${METRIC_LABELS[metric]}`
-                : `Минимум 10 игр на роли • показано ${visiblePlayers.length} из ${players.length}`}
-            </p>
+            {isCollapsed && topSummary ? (
+              <div className="mt-1">
+                <p className="truncate text-sm font-medium uppercase tracking-wider text-christmas-snow">
+                  {topSummary}
+                </p>
+                {topAchievements.length > 0 && (
+                  <AchievementBadges achievements={topAchievements} display="icons" containerClassName="mt-2" />
+                )}
+              </div>
+            ) : (
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {showAll
+                  ? `Игроков на роли: ${players.length} • сортировка по ${METRIC_LABELS[metric]}`
+                  : `Минимум 10 игр на роли • показано ${visiblePlayers.length} из ${players.length}`}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {canExpand && !isCollapsed && (
@@ -138,7 +145,7 @@ export function RoleLeaderboard({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 shrink-0 border-christmas-gold/35 bg-christmas-gold/10 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-christmas-snow hover:border-christmas-gold/60 hover:bg-christmas-gold/20"
+                className="h-8 shrink-0 border-christmas-gold/35 bg-christmas-gold/10 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-christmas-gold hover:border-christmas-gold/60 hover:bg-christmas-gold/20 hover:text-christmas-gold"
                 onClick={() => setShowAll((current) => !current)}
               >
                 {showAll ? "Свернуть" : "Весь топ"}
@@ -157,45 +164,52 @@ export function RoleLeaderboard({
           </div>
         </CardHeader>
         {isCollapsed ? null : (
-          <CardContent className={cn("flex flex-col", showAll && "min-h-0 flex-1")}>
-            <div className={cn("pr-2", showAll && "min-h-0 flex-1 overflow-y-auto")}>
+          <CardContent className="flex flex-col">
+            <div className={cn("pr-2", showAll && FULL_TOP_LIST_CLASS)}>
               <div className="space-y-1.5">
-                {visiblePlayers.map((player, index) => (
-                  <div
-                    key={player.player_id}
-                    className={`rounded-md px-2 py-1.5 transition-colors ${index < 3 ? "bg-secondary/50" : ""}`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="w-6 pt-1 text-center font-mono text-sm text-christmas-snow">{getMedal(index)}</span>
-                      <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
-                      <div className="min-w-0 flex-1">
-                        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1">
-                          <div className="min-w-0">
-                            <p className="font-medium text-sm truncate text-christmas-snow">
-                              {player.tag ? `${player.tag} ` : ""}{player.nickname}
-                            </p>
-                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <p className="text-xs text-muted-foreground">{player.games.toLocaleString("ru-RU")} игр на роли</p>
-                              {(playerAchievements?.[player.player_id]?.length ?? 0) > 0 && (
-                                <AchievementBadges
-                                  achievements={playerAchievements?.[player.player_id] ?? []}
-                                  display="icons"
-                                  containerClassName="shrink-0"
-                                />
-                              )}
+                {visiblePlayers.map((player, index) => {
+                  const achievements = playerAchievements?.[player.player_id] ?? []
+                  const gamesLine = `${player.games.toLocaleString("ru-RU")} игр на роли`
+
+                  return (
+                    <div
+                      key={player.player_id}
+                      className={cn("rounded-md px-2 py-2 transition-colors", index < 3 && "bg-secondary/50")}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="w-6 pt-1 text-center font-mono text-sm text-christmas-snow">{getMedal(index)}</span>
+                        <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <div className="grid min-h-[58px] grid-cols-[minmax(0,1fr)_auto] items-stretch gap-x-2 gap-y-1">
+                            <div className="flex min-w-0 flex-col justify-between gap-2">
+                              <p className="font-medium text-sm truncate text-christmas-snow">
+                                {player.tag ? `${player.tag} ` : ""}{player.nickname}
+                              </p>
+                              <div className="flex min-h-5 flex-wrap items-center gap-x-2 gap-y-1">
+                                {achievements.length > 0 && (
+                                  <AchievementBadges
+                                    achievements={achievements}
+                                    display="icons"
+                                    containerClassName="shrink-0"
+                                  />
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex min-w-[108px] flex-col items-end justify-between gap-2">
+                              <Badge
+                                variant="outline"
+                                className="whitespace-nowrap border-christmas-gold/30 font-mono text-christmas-gold"
+                              >
+                                {METRIC_LABELS[metric]}: {formatMetricValue(player, metric)}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground">{gamesLine}</p>
                             </div>
                           </div>
-                          <Badge
-                            variant="outline"
-                            className="self-start whitespace-nowrap border-christmas-gold/30 font-mono text-christmas-gold"
-                          >
-                            {METRIC_LABELS[metric]}: {formatMetricValue(player, metric)}
-                          </Badge>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           </CardContent>
