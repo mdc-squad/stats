@@ -803,7 +803,6 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                             side={tooltipSide}
                             sideOffset={8}
                             collisionPadding={24}
-                            sticky="always"
                             className="max-h-[var(--radix-tooltip-content-available-height)] overflow-y-auto bg-transparent p-0 text-card-foreground shadow-none scrollbar-gold"
                           >
                             <CalendarGameTooltip item={item} />
