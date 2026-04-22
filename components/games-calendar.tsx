@@ -711,7 +711,7 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                 const holiday = getHoliday(day)
                 const nonWorkingDay = isNonWorkingDay(day)
                 const tooltipSide: "right" | "left" | "top" | "bottom" =
-                  weekIndex <= 1 ? "bottom" : dayIndex <= 1 ? "right" : dayIndex >= 5 ? "left" : "top"
+                  weekIndex <= 2 ? "bottom" : dayIndex <= 1 ? "right" : dayIndex >= 5 ? "left" : "top"
 
                 return (
                   <div
@@ -804,7 +804,7 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                             sideOffset={8}
                             collisionPadding={24}
                             sticky="always"
-                            className="max-h-[calc(100vh-48px)] overflow-y-auto border border-border bg-card text-card-foreground scrollbar-gold"
+                            className="max-h-[var(--radix-tooltip-content-available-height)] overflow-y-auto border border-border bg-card text-card-foreground scrollbar-gold"
                           >
                             <CalendarGameTooltip item={item} />
                           </TooltipContent>
