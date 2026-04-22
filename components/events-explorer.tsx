@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getMetricIcon } from "@/lib/app-icons"
 import { getEventSizeLabel, type PastGameSummary, type Player } from "@/lib/data-utils"
-import { getSquadToneClasses, isSelectableSquadLabel } from "@/lib/squad-utils"
+import { getSquadToneClasses, getSquadToneKey, isSelectableSquadLabel } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
 import { ArrowLeftRight, Calendar, ClipboardList, Filter, MessageCircle, Play, Search, Trophy, Users, UserX, Video } from "lucide-react"
 
@@ -44,6 +44,8 @@ const GAMES_PERIOD_OPTIONS: Array<{ value: GamesPeriod; label: string }> = [
   { value: "365d", label: "365 дней" },
   { value: "custom", label: "Произвольно" },
 ]
+
+const SQUAD_FILTER_ORDER = ["green", "red", "yellow", "blue", "purple", "orange", "brown", "black"]
 
 function buildGamesDateRange(period: GamesPeriod, fromValue: string, toValue: string): { from?: Date; to?: Date } {
   if (period === "custom") {
@@ -188,8 +190,6 @@ interface EventsExplorerProps {
   games: PastGameSummary[]
   players: Player[]
   squadDomain: string[]
-  selectedPlayerIds: string[]
-  onSelectedPlayersChange: (ids: string[]) => void
   focusTarget?: {
     eventId: string
     playerId: string
@@ -444,8 +444,6 @@ export function EventsExplorer({
   games,
   players,
   squadDomain,
-  selectedPlayerIds,
-  onSelectedPlayersChange,
   focusTarget,
 }: EventsExplorerProps) {
   const [query, setQuery] = useState("")
@@ -514,8 +512,18 @@ export function EventsExplorer({
       }
     })
     return Array.from(labels)
-      .sort((left, right) => left.localeCompare(right, "ru"))
-      .map((value) => ({ value, label: value }))
+      .sort((left, right) => {
+        const leftIndex = SQUAD_FILTER_ORDER.indexOf(getSquadToneKey(left))
+        const rightIndex = SQUAD_FILTER_ORDER.indexOf(getSquadToneKey(right))
+        if (leftIndex !== rightIndex) {
+          return (leftIndex === -1 ? Number.POSITIVE_INFINITY : leftIndex) - (rightIndex === -1 ? Number.POSITIVE_INFINITY : rightIndex)
+        }
+        return left.localeCompare(right, "ru")
+      })
+      .map((value) => {
+        const tone = getSquadToneClasses(value)
+        return { value, label: value, dotClassName: tone.dot }
+      })
   }, [games, squadDomain])
 
   const tagOptions = useMemo<GamesTagOption[]>(() => buildGamesTagOptions(players, games), [games, players])
@@ -650,19 +658,6 @@ export function EventsExplorer({
     [filteredGames, getScopedPlayersForFilters],
   )
 
-  const analyticsPlayers = useMemo(() => {
-    const playerIds = new Set<string>()
-    scopedFilteredGames.forEach((game) => {
-      game.players.forEach((player) => {
-        playerIds.add(player.player_id)
-      })
-    })
-
-    return players
-      .filter((player) => playerIds.has(player.player_id) && player.totals?.events > 0)
-      .sort((left, right) => left.nickname.localeCompare(right.nickname, "ru"))
-  }, [players, scopedFilteredGames])
-
   const getVisiblePlayersForGame = (game: PastGameSummary) => {
     return getScopedPlayersForFilters(game)
   }
@@ -740,19 +735,6 @@ export function EventsExplorer({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-7">
-            <div className="hidden">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Поиск</p>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Карта, соперник, событие или игрок..."
-                  className="border-christmas-gold/20 bg-background/50 pl-9 text-christmas-snow"
-                />
-              </div>
-            </div>
-
             <div className="space-y-2">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
               <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as GamesPeriod)}>
@@ -767,6 +749,18 @@ export function EventsExplorer({
                   ))}
                 </SelectContent>
               </Select>
+              {selectedPeriod === "custom" ? (
+                <div className="grid grid-cols-1 gap-3 pt-1">
+                  <label className="space-y-2">
+                    <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
+                    <DateFilterPicker value={customDateFrom} onChange={setCustomDateFrom} />
+                  </label>
+                  <label className="space-y-2">
+                    <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
+                    <DateFilterPicker value={customDateTo} onChange={setCustomDateTo} />
+                  </label>
+                </div>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -836,20 +830,11 @@ export function EventsExplorer({
               />
             </div>
 
-            <div className="hidden">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Участники матча</p>
-              <PlayerSelector
-                players={filterablePlayers}
-                selected={matchPlayerIds}
-                onSelectionChange={setMatchPlayerIds}
-                placeholder="Фильтр по игрокам..."
-              />
-            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
             <div className="space-y-2">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Участники матча</p>
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Игроки</p>
               <PlayerSelector
                 players={filterablePlayers}
                 selected={matchPlayerIds}
@@ -870,29 +855,6 @@ export function EventsExplorer({
                 />
               </div>
             </div>
-          </div>
-
-          {selectedPeriod === "custom" ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:max-w-xl">
-            <label className="space-y-2">
-              <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
-              <DateFilterPicker value={customDateFrom} onChange={setCustomDateFrom} />
-            </label>
-            <label className="space-y-2">
-              <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
-              <DateFilterPicker value={customDateTo} onChange={setCustomDateTo} />
-            </label>
-            </div>
-          ) : null}
-
-          <div className="hidden">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Участники матча</p>
-            <PlayerSelector
-              players={filterablePlayers}
-              selected={matchPlayerIds}
-              onSelectionChange={setMatchPlayerIds}
-              placeholder="Фильтр по игрокам..."
-            />
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1352,28 +1314,13 @@ export function EventsExplorer({
         </TabsContent>
 
         <TabsContent value="leaderboards" className="mt-0 space-y-3">
-          <Card className="border-border/50 bg-card/60">
-            <CardContent className="space-y-3 pt-4">
-              <div className="space-y-2">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Игроки</p>
-                <PlayerSelector
-                  players={filterablePlayers}
-                  selected={selectedPlayerIds}
-                  onSelectionChange={onSelectedPlayersChange}
-                  placeholder="Весь состав или конкретные игроки..."
-                />
-              </div>
-            </CardContent>
-          </Card>
-          <GameSliceLeaderboards games={scopedFilteredGames} selectedPlayerIds={selectedPlayerIds} />
+          <GameSliceLeaderboards games={scopedFilteredGames} selectedPlayerIds={matchPlayerIds} />
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-0">
           <EventsAnalyticsPanel
             games={scopedFilteredGames}
-            players={analyticsPlayers}
-            selectedPlayerIds={selectedPlayerIds}
-            onSelectedPlayerIdsChange={onSelectedPlayersChange}
+            selectedPlayerIds={matchPlayerIds}
           />
         </TabsContent>
       </Tabs>

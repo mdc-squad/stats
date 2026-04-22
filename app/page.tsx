@@ -924,7 +924,6 @@ export default function YearReviewPage() {
   const [activeTab, setActiveTab] = useState("calendar")
   const [isCustomDateFromOpen, setIsCustomDateFromOpen] = useState(false)
   const [isCustomDateToOpen, setIsCustomDateToOpen] = useState(false)
-  const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
   const [selectedPlayersForChart, setSelectedPlayersForChart] = useState<string[]>([])
   const [gameFocusTarget, setGameFocusTarget] = useState<{ eventId: string; playerId: string } | null>(null)
   const [expandedLeaderboardRows, setExpandedLeaderboardRows] = useState<number[]>([])
@@ -1392,15 +1391,6 @@ export default function YearReviewPage() {
     setSelectedOpponents([])
     setSelectedFactions([])
   }, [])
-
-  useEffect(() => {
-    if (!data) {
-      return
-    }
-
-    const availablePlayerIds = new Set(data.players.map((player) => player.player_id))
-    setSelectedPlayers((current) => current.filter((playerId) => availablePlayerIds.has(playerId)))
-  }, [data])
 
   useEffect(() => {
     if (!playerCardData) {
@@ -2692,8 +2682,6 @@ export default function YearReviewPage() {
               games={pastGames}
               players={data.players}
               squadDomain={data.dictionaries?.squads ?? []}
-              selectedPlayerIds={selectedPlayers}
-              onSelectedPlayersChange={setSelectedPlayers}
               focusTarget={gameFocusTarget}
             />
           </TabsContent>

@@ -56,6 +56,7 @@ export function PlayerSelector({
               <CommandEmpty>Игрок не найден</CommandEmpty>
               <CommandGroup>
                 <CommandItem
+                  className="text-christmas-snow data-[selected=true]:bg-christmas-gold/10 data-[selected=true]:text-christmas-gold"
                   onSelect={() => {
                     if (selected.length === players.length) {
                       onSelectionChange([])
@@ -77,6 +78,7 @@ export function PlayerSelector({
                     key={player.player_id}
                     value={player.nickname}
                     onSelect={() => togglePlayer(player.player_id)}
+                    className="text-christmas-snow data-[selected=true]:bg-christmas-gold/10 data-[selected=true]:text-christmas-gold"
                   >
                     <Check
                       className={cn(

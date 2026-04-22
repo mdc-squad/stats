@@ -12,6 +12,7 @@ export interface MultiValueFilterOption {
   value: string
   label: string
   meta?: string
+  dotClassName?: string
 }
 
 interface MultiValueFilterProps {
@@ -81,7 +82,7 @@ export function MultiValueFilter({
         <PopoverContent className="w-full border-christmas-gold/35 bg-card/95 p-0" align="start">
           <Command className="bg-transparent text-christmas-snow">
             <CommandInput placeholder={searchPlaceholder} className="text-christmas-snow" />
-            <CommandList className="scrollbar-gold">
+            <CommandList className="scrollbar-gold border border-christmas-gold/25 bg-transparent">
               <CommandEmpty>{emptyLabel}</CommandEmpty>
               <CommandGroup>
                 <CommandItem className="text-christmas-snow data-[selected=true]:bg-christmas-gold/10 data-[selected=true]:text-christmas-gold" onSelect={handleSelectAll}>
@@ -106,6 +107,7 @@ export function MultiValueFilter({
                         selectedSet.has(option.value) ? "opacity-100 text-christmas-green" : "opacity-0",
                       )}
                     />
+                    {option.dotClassName ? <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", option.dotClassName)} /> : null}
                     <span className="truncate">{option.label}</span>
                     {option.meta && <span className="ml-auto text-xs text-muted-foreground">{option.meta}</span>}
                   </CommandItem>
@@ -124,6 +126,7 @@ export function MultiValueFilter({
               variant="secondary"
               className="text-xs bg-christmas-gold/10 text-christmas-snow border-christmas-gold/30"
             >
+              {option.dotClassName ? <span className={cn("mr-1 h-2 w-2 rounded-full", option.dotClassName)} /> : null}
               {option.label}
               <button type="button" className="ml-1 hover:text-christmas-red" onClick={() => toggleValue(option.value)}>
                 <X className="h-3 w-3" />

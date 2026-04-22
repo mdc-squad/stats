@@ -2,13 +2,12 @@
 
 import { useMemo, useState } from "react"
 import type { LucideIcon } from "lucide-react"
-import { PlayerSelector } from "@/components/player-selector"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { getMetricIcon } from "@/lib/app-icons"
-import type { PastGamePlayerStat, PastGameSummary, Player } from "@/lib/data-utils"
+import type { PastGamePlayerStat, PastGameSummary } from "@/lib/data-utils"
 import { getSquadToneKey, isSelectableSquadLabel } from "@/lib/squad-utils"
 import { Activity, ArrowLeftRight, TrendingUp } from "lucide-react"
 
@@ -38,9 +37,7 @@ type AnalyticsBreakdown =
 
 interface EventsAnalyticsPanelProps {
   games: PastGameSummary[]
-  players: Player[]
   selectedPlayerIds: string[]
-  onSelectedPlayerIdsChange: (ids: string[]) => void
 }
 
 type AnalyticsAggregate = {
@@ -723,19 +720,13 @@ function ChartTooltipContent({
 
 export function EventsAnalyticsPanel({
   games,
-  players,
   selectedPlayerIds,
-  onSelectedPlayerIdsChange,
 }: EventsAnalyticsPanelProps) {
   const [metric, setMetric] = useState<AnalyticsMetric>("kd")
   const [mode, setMode] = useState<AnalyticsMode>("cumulative")
   const [breakdown, setBreakdown] = useState<AnalyticsBreakdown>("overall")
   const [lockedValues, setLockedValues] = useState<LockedChartValues[]>([])
 
-  const analyticsPlayers = useMemo(
-    () => players.filter((player) => player.totals?.events > 0).sort((left, right) => left.nickname.localeCompare(right.nickname, "ru")),
-    [players],
-  )
   const effectiveScope: AnalyticsScope = selectedPlayerIds.length > 0 ? "selected" : "team"
 
   const analytics = useMemo(() => {
@@ -933,20 +924,7 @@ export function EventsAnalyticsPanel({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,0.8fr))]">
-          <div className="space-y-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Игроки</p>
-            <PlayerSelector
-              players={analyticsPlayers}
-              selected={selectedPlayerIds}
-              onSelectionChange={(ids) => {
-                setLockedValues([])
-                onSelectedPlayerIdsChange(ids)
-              }}
-              placeholder="Весь состав или конкретные игроки..."
-            />
-          </div>
-
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <div className="space-y-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Параметр</p>
             <Select
