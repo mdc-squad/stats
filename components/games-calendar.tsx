@@ -630,7 +630,7 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
           </CardTitle>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2">
-          <Button type="button" variant="outline" size="sm" className="border-christmas-gold/35 bg-background/50 hover:border-christmas-gold/60 hover:bg-christmas-gold/10" onClick={() => goToMonth(-1)}>
+          <Button type="button" variant="outline" size="sm" className="!border !border-christmas-gold/45 bg-background/50 text-christmas-gold hover:!border-christmas-gold/70 hover:bg-christmas-gold/10 hover:text-christmas-gold" onClick={() => goToMonth(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="relative">
@@ -647,11 +647,11 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
             {monthPickerOpen ? (
               <div className="absolute left-1/2 top-full z-30 mt-2 w-[300px] -translate-x-1/2 rounded-lg border border-christmas-gold/20 bg-card/95 p-3 shadow-xl shadow-black/30">
                 <div className="mb-3 flex items-center justify-between">
-                  <Button type="button" variant="outline" size="sm" className="border-christmas-gold/35 bg-background/50 hover:border-christmas-gold/60 hover:bg-christmas-gold/10" onClick={() => setPickerYear((year) => year - 1)}>
+                  <Button type="button" variant="outline" size="sm" className="!border !border-christmas-gold/45 bg-background/50 text-christmas-gold hover:!border-christmas-gold/70 hover:bg-christmas-gold/10 hover:text-christmas-gold" onClick={() => setPickerYear((year) => year - 1)}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="text-base font-semibold text-christmas-snow">{pickerYear}</span>
-                  <Button type="button" variant="outline" size="sm" className="border-christmas-gold/35 bg-background/50 hover:border-christmas-gold/60 hover:bg-christmas-gold/10" onClick={() => setPickerYear((year) => year + 1)}>
+                  <Button type="button" variant="outline" size="sm" className="!border !border-christmas-gold/45 bg-background/50 text-christmas-gold hover:!border-christmas-gold/70 hover:bg-christmas-gold/10 hover:text-christmas-gold" onClick={() => setPickerYear((year) => year + 1)}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -676,7 +676,7 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
               </div>
             ) : null}
           </div>
-          <Button type="button" variant="outline" size="sm" className="border-christmas-gold/35 bg-background/50 hover:border-christmas-gold/60 hover:bg-christmas-gold/10" onClick={() => goToMonth(1)}>
+          <Button type="button" variant="outline" size="sm" className="!border !border-christmas-gold/45 bg-background/50 text-christmas-gold hover:!border-christmas-gold/70 hover:bg-christmas-gold/10 hover:text-christmas-gold" onClick={() => goToMonth(1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
