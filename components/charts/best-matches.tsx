@@ -28,7 +28,9 @@ interface BestMatchesProps {
 
 const DEFAULT_COLLAPSED_COUNT = 10
 const TOP_CARD_CLASS =
-  "flex flex-col overflow-hidden border-christmas-gold/30 bg-gradient-to-br from-christmas-red/5 via-card to-christmas-green/5"
+  "flex h-full flex-col overflow-hidden border-christmas-gold/30 bg-gradient-to-br from-christmas-red/5 via-card to-christmas-green/5"
+const FULL_TOP_LIST_CLASS =
+  "scrollbar-gold max-h-[820px] overflow-y-auto rounded-md border border-christmas-gold/25 bg-transparent p-2"
 
 function getMetricNumericValue(match: BestMatch, metric: MatchRecordMetric): number {
   if (metric === "kd") {
@@ -125,7 +127,7 @@ export function BestMatches({
 
   return (
     <div className="relative">
-      <Card className={cn(TOP_CARD_CLASS, showAll && "h-[720px]")}>
+      <Card className={TOP_CARD_CLASS}>
         <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-christmas-gold">
@@ -172,10 +174,10 @@ export function BestMatches({
           </div>
         </CardHeader>
         {isCollapsed ? null : (
-          <CardContent className={cn("flex flex-col", showAll && "min-h-0 flex-1")}>
+          <CardContent className="flex flex-col">
             {sortedMatches.length === 0 && <p className="text-sm text-muted-foreground">Нет данных по матчам</p>}
             {sortedMatches.length > 0 && (
-              <div className={cn("pr-2", showAll && "min-h-0 flex-1 overflow-y-auto")}>
+              <div className={cn("pr-2", showAll && FULL_TOP_LIST_CLASS)}>
                 <div className="space-y-1.5">
                   {visibleRecords.map((match, index) => (
                     <div
@@ -196,7 +198,7 @@ export function BestMatches({
                                 </p>
                               </div>
                               <p className="mt-1 truncate text-xs text-muted-foreground">
-                                {match.map} • {match.role} • {match.kills}K / {match.deaths}D / {match.downs}Н
+                                {match.map} • {match.role} • {match.downs}Н / {match.kills}У / {match.deaths}С
                               </p>
                             </div>
                             <Badge variant="outline" className="border-christmas-gold/30 font-mono text-christmas-gold">
