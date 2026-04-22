@@ -198,6 +198,34 @@
   display: none;
 }
 
+.scrollbar-gold {
+  scrollbar-color: color-mix(in oklch, var(--christmas-gold) 78%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+.scrollbar-gold::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+.scrollbar-gold::-webkit-scrollbar-track {
+  background: transparent;
+  border: 1px solid color-mix(in oklch, var(--christmas-gold) 28%, transparent);
+  border-radius: 999px;
+}
+
+.scrollbar-gold::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--christmas-gold) 62%, transparent);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+.scrollbar-gold::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--christmas-gold) 82%, transparent);
+  background-clip: padding-box;
+}
+
 @keyframes calendarHolidayScroll {
   0%,
   18% {

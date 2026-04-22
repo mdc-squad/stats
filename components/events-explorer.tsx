@@ -703,7 +703,7 @@ export function EventsExplorer({
             <div className="space-y-2">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
               <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as GamesPeriod)}>
-                <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
+                <SelectTrigger className="border-christmas-gold/35 bg-background/50 text-christmas-snow">
                   <SelectValue placeholder="Период" />
                 </SelectTrigger>
                 <SelectContent>
@@ -827,7 +827,7 @@ export function EventsExplorer({
                 value={customDateFrom}
                 onChange={(event) => setCustomDateFrom(event.target.value)}
                 type="date"
-                className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
               />
             </label>
             <label className="space-y-2">
@@ -836,7 +836,7 @@ export function EventsExplorer({
                 value={customDateTo}
                 onChange={(event) => setCustomDateTo(event.target.value)}
                 type="date"
-                className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
               />
             </label>
             </div>
@@ -860,7 +860,7 @@ export function EventsExplorer({
             <Button
               type="button"
               variant="outline"
-              className="border-christmas-gold/20 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10"
+              className="border-christmas-gold/35 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10"
               onClick={clearFilters}
             >
               Сбросить фильтры

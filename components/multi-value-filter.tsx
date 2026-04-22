@@ -72,19 +72,19 @@ export function MultiValueFilter({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between bg-transparent border-christmas-gold/30 text-christmas-snow hover:bg-christmas-gold/10"
+            className="w-full justify-between border-christmas-gold/35 bg-background/50 text-christmas-snow hover:border-christmas-gold/60 hover:bg-christmas-gold/10 hover:text-christmas-gold"
           >
             {selected.length > 0 ? `Выбрано: ${selected.length}` : placeholder}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-full p-0" align="start">
-          <Command>
-            <CommandInput placeholder={searchPlaceholder} />
-            <CommandList>
+        <PopoverContent className="w-full border-christmas-gold/35 bg-card/95 p-0" align="start">
+          <Command className="bg-transparent text-christmas-snow">
+            <CommandInput placeholder={searchPlaceholder} className="text-christmas-snow" />
+            <CommandList className="scrollbar-gold">
               <CommandEmpty>{emptyLabel}</CommandEmpty>
               <CommandGroup>
-                <CommandItem onSelect={handleSelectAll}>
+                <CommandItem className="text-christmas-snow data-[selected=true]:bg-christmas-gold/10 data-[selected=true]:text-christmas-gold" onSelect={handleSelectAll}>
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
@@ -98,6 +98,7 @@ export function MultiValueFilter({
                     key={option.value}
                     value={`${option.value} ${option.label} ${option.meta ?? ""}`}
                     onSelect={() => toggleValue(option.value)}
+                    className="text-christmas-snow data-[selected=true]:bg-christmas-gold/10 data-[selected=true]:text-christmas-gold"
                   >
                     <Check
                       className={cn(

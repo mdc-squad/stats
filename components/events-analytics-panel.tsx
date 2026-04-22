@@ -956,7 +956,7 @@ export function EventsAnalyticsPanel({
                 setMetric(value as AnalyticsMetric)
               }}
             >
-              <SelectTrigger className="w-full border-christmas-gold/20 bg-background/50 text-christmas-snow">
+              <SelectTrigger className="w-full border-christmas-gold/35 bg-background/50 text-christmas-snow">
                 <SelectValue placeholder="Метрика" />
               </SelectTrigger>
               <SelectContent>
@@ -986,7 +986,7 @@ export function EventsAnalyticsPanel({
                 setMode(value as AnalyticsMode)
               }}
             >
-              <SelectTrigger className="w-full border-christmas-gold/20 bg-background/50 text-christmas-snow">
+              <SelectTrigger className="w-full border-christmas-gold/35 bg-background/50 text-christmas-snow">
                 <SelectValue placeholder="Режим" />
               </SelectTrigger>
               <SelectContent>
@@ -1005,7 +1005,7 @@ export function EventsAnalyticsPanel({
                 setBreakdown(value as AnalyticsBreakdown)
               }}
             >
-              <SelectTrigger className="w-full border-christmas-gold/20 bg-background/50 text-christmas-snow">
+              <SelectTrigger className="w-full border-christmas-gold/35 bg-background/50 text-christmas-snow">
                 <SelectValue placeholder="Группировка" />
               </SelectTrigger>
               <SelectContent>

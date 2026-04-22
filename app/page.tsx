@@ -577,7 +577,7 @@ function DataTabFilterCard({ filters }: { filters: DataTabFilters }) {
           <div className="space-y-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
             <Select value={filters.selectedPeriod} onValueChange={(value) => filters.setSelectedPeriod(value as StatsPeriod)}>
-              <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
+              <SelectTrigger className="border-christmas-gold/35 bg-background/50 text-christmas-snow">
                 <SelectValue placeholder="Период" />
               </SelectTrigger>
               <SelectContent>
@@ -630,7 +630,7 @@ function DataTabFilterCard({ filters }: { filters: DataTabFilters }) {
                 value={filters.customDateFrom}
                 onChange={(event) => filters.setCustomDateFrom(event.target.value)}
                 type="date"
-                className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
               />
             </label>
             <label className="space-y-2">
@@ -639,7 +639,7 @@ function DataTabFilterCard({ filters }: { filters: DataTabFilters }) {
                 value={filters.customDateTo}
                 onChange={(event) => filters.setCustomDateTo(event.target.value)}
                 type="date"
-                className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
               />
             </label>
           </div>
@@ -673,7 +673,7 @@ function DateOnlyFilterCard({ filters }: { filters: DataTabFilters }) {
           <div className="space-y-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
             <Select value={filters.selectedPeriod} onValueChange={(value) => filters.setSelectedPeriod(value as StatsPeriod)}>
-              <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
+              <SelectTrigger className="border-christmas-gold/35 bg-background/50 text-christmas-snow">
                 <SelectValue placeholder="Период" />
               </SelectTrigger>
               <SelectContent>
@@ -693,7 +693,7 @@ function DateOnlyFilterCard({ filters }: { filters: DataTabFilters }) {
                   value={filters.customDateFrom}
                   onChange={(event) => filters.setCustomDateFrom(event.target.value)}
                   type="date"
-                  className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                  className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
                 />
               </label>
               <label className="space-y-2">
@@ -702,7 +702,7 @@ function DateOnlyFilterCard({ filters }: { filters: DataTabFilters }) {
                   value={filters.customDateTo}
                   onChange={(event) => filters.setCustomDateTo(event.target.value)}
                   type="date"
-                  className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                  className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
                 />
               </label>
             </>
@@ -2327,7 +2327,7 @@ export default function YearReviewPage() {
             </TabsTrigger>
             <TabsTrigger
               value="group"
-              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-orange-500/30 bg-orange-500/10 text-christmas-snow data-[state=active]:bg-orange-500 data-[state=active]:border-orange-500 data-[state=active]:text-white hover:bg-orange-500/20 transition-all"
+              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-slate-400/30 bg-slate-400/10 text-christmas-snow data-[state=active]:bg-slate-300 data-[state=active]:border-slate-300 data-[state=active]:text-slate-950 hover:bg-slate-400/20 transition-all"
             >
               Отряды
             </TabsTrigger>
@@ -2360,7 +2360,7 @@ export default function YearReviewPage() {
               <div className="space-y-2">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
                 <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as StatsPeriod)}>
-                  <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
+                  <SelectTrigger className="border-christmas-gold/35 bg-background/50 text-christmas-snow">
                     <SelectValue placeholder="Период" />
                   </SelectTrigger>
                   <SelectContent>
@@ -2433,7 +2433,7 @@ export default function YearReviewPage() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="w-full justify-between border-christmas-gold/20 bg-background/50 text-christmas-snow hover:bg-background/60 hover:text-christmas-snow"
+                        className="w-full justify-between border-christmas-gold/35 bg-background/50 text-christmas-snow hover:bg-background/60 hover:text-christmas-snow"
                       >
                         <span className={customDateFrom ? "text-christmas-snow" : "text-muted-foreground"}>
                           {formatDateFilterLabel(customDateFrom)}
@@ -2462,7 +2462,7 @@ export default function YearReviewPage() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="w-full justify-between border-christmas-gold/20 bg-background/50 text-christmas-snow hover:bg-background/60 hover:text-christmas-snow"
+                        className="w-full justify-between border-christmas-gold/35 bg-background/50 text-christmas-snow hover:bg-background/60 hover:text-christmas-snow"
                       >
                         <span className={customDateTo ? "text-christmas-snow" : "text-muted-foreground"}>
                           {formatDateFilterLabel(customDateTo)}
@@ -2563,7 +2563,7 @@ export default function YearReviewPage() {
                     value={selectedRoleMetric}
                     onValueChange={(value) => setSelectedRoleMetric(value as RoleLeaderboardMetric)}
                   >
-                    <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
+                    <SelectTrigger className="border-christmas-gold/35 bg-background/50 text-christmas-snow">
                       <SelectValue placeholder="Критерий" />
                     </SelectTrigger>
                     <SelectContent>
@@ -2720,7 +2720,7 @@ export default function YearReviewPage() {
                     <div className="space-y-2">
                       <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
                       <Select value={groupFilters.selectedPeriod} onValueChange={(value) => groupFilters.setSelectedPeriod(value as StatsPeriod)}>
-                        <SelectTrigger className="border-christmas-gold/20 bg-background/50 text-christmas-snow">
+                        <SelectTrigger className="border-christmas-gold/35 bg-background/50 text-christmas-snow">
                           <SelectValue placeholder="Период" />
                         </SelectTrigger>
                         <SelectContent>
@@ -2740,7 +2740,7 @@ export default function YearReviewPage() {
                             value={groupFilters.customDateFrom}
                             onChange={(event) => groupFilters.setCustomDateFrom(event.target.value)}
                             type="date"
-                            className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                            className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
                           />
                         </label>
                         <label className="space-y-2">
@@ -2749,7 +2749,7 @@ export default function YearReviewPage() {
                             value={groupFilters.customDateTo}
                             onChange={(event) => groupFilters.setCustomDateTo(event.target.value)}
                             type="date"
-                            className="border-christmas-gold/20 bg-background/50 text-christmas-snow"
+                            className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
                           />
                         </label>
                       </>
