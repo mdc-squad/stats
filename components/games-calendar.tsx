@@ -755,25 +755,29 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                                 <div className="flex min-w-0 items-center justify-center gap-1.5 font-semibold text-christmas-snow">
                                   <span className="truncate">{item.primary.event_type}</span>
                                   <span className="truncate">{formatTime(item.primary.started_at)}</span>
-                                  {getEventSizeLabel(item.primary) ? <span className="truncate">{getEventSizeLabel(item.primary)}</span> : null}
+                                  {!isLectureEvent(item.primary.event_type) && getEventSizeLabel(item.primary) ? <span className="truncate">{getEventSizeLabel(item.primary)}</span> : null}
                                 </div>
-                                <div className="flex min-w-0 items-center justify-center gap-1.5">
-                                  <MapPin className="h-3 w-3 shrink-0" />
-                                  <span className="truncate">{item.primary.map}</span>
-                                </div>
-                                <div className="flex min-w-0 items-center justify-center gap-1.5">
-                                  {item.primary.mode ? (
-                                    <>
-                                      <Gamepad2 className="h-3 w-3 shrink-0" />
-                                      <span className="truncate">{item.primary.mode}</span>
-                                    </>
-                                  ) : null}
-                                </div>
-                                <div className="flex min-w-0 items-center justify-center gap-1.5">
-                                  <Flag className="h-3 w-3 shrink-0" />
-                                  <span className="truncate">{matchupLabel(item.primary)}</span>
-                                </div>
-                                {isPlannedGame(item.primary) && item.primary.discord_url ? (
+                                {!isLectureEvent(item.primary.event_type) ? (
+                                  <>
+                                    <div className="flex min-w-0 items-center justify-center gap-1.5">
+                                      <MapPin className="h-3 w-3 shrink-0" />
+                                      <span className="truncate">{item.primary.map}</span>
+                                    </div>
+                                    <div className="flex min-w-0 items-center justify-center gap-1.5">
+                                      {item.primary.mode ? (
+                                        <>
+                                          <Gamepad2 className="h-3 w-3 shrink-0" />
+                                          <span className="truncate">{item.primary.mode}</span>
+                                        </>
+                                      ) : null}
+                                    </div>
+                                    <div className="flex min-w-0 items-center justify-center gap-1.5">
+                                      <Flag className="h-3 w-3 shrink-0" />
+                                      <span className="truncate">{matchupLabel(item.primary)}</span>
+                                    </div>
+                                  </>
+                                ) : null}
+                                {!isLectureEvent(item.primary.event_type) && isPlannedGame(item.primary) && item.primary.discord_url ? (
                                   <a
                                     href={item.primary.discord_url}
                                     target="_blank"
@@ -783,12 +787,12 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                                   >
                                     Регистрация
                                   </a>
-                                ) : aggregateTicketDiff(item.games) !== null ? (
+                                ) : !isLectureEvent(item.primary.event_type) && aggregateTicketDiff(item.games) !== null ? (
                                   <div className="mt-1 rounded-md border border-christmas-gold/25 bg-background/35 px-2 py-1 text-center text-sm font-bold text-christmas-snow">
                                     {`${aggregateTicketDiff(item.games)! > 0 ? "+" : ""}${aggregateTicketDiff(item.games)}`}
                                   </div>
                                 ) : null}
-                                {item.isSideSwap ? <div className="text-center text-[11px] text-muted-foreground">2 игры со сменой сторон</div> : item.games.length > 1 ? <div className="text-center text-[11px] text-muted-foreground">{`${item.games.length} игры`}</div> : null}
+                                {!isLectureEvent(item.primary.event_type) && item.isSideSwap ? <div className="text-center text-[11px] text-muted-foreground">2 игры со сменой сторон</div> : !isLectureEvent(item.primary.event_type) && item.games.length > 1 ? <div className="text-center text-[11px] text-muted-foreground">{`${item.games.length} игры`}</div> : null}
                               </div>
                             </button>
                           </TooltipTrigger>

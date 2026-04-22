@@ -280,13 +280,6 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
 
   return (
     <div className="space-y-4">
-      <Card className="border-christmas-gold/20 bg-card/60">
-        <CardContent className="flex flex-col gap-2 py-4 md:flex-row md:items-center md:justify-between">
-          <div><p className="text-base font-semibold text-christmas-snow">Отряды по цветам</p><p className="text-sm text-muted-foreground">Общие показатели, последние матчи, составы и сравнение динамики между отрядами.</p></div>
-          <Badge variant="outline" className="border-christmas-gold/30 text-christmas-gold">{squads.length} отрядов</Badge>
-        </CardContent>
-      </Card>
-
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {squads.map((squad, index) => {
           const tone = getSquadToneClasses(squad.label)
