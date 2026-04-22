@@ -64,7 +64,7 @@ import {
   getTopMatchRecords,
   type RoleLeaderboardMetric,
 } from "@/lib/data-utils"
-import { getMetricIcon } from "@/lib/app-icons"
+import { getAchievementIcon, getMetricIcon } from "@/lib/app-icons"
 import { fetchAllData, type SyncProgressUpdate } from "@/lib/api"
 import { getSeasonalTheme, type SeasonalTheme } from "@/lib/seasonal-theme"
 import { cn } from "@/lib/utils"
@@ -1883,6 +1883,11 @@ export default function YearReviewPage() {
     return <Icon className="w-4 h-4" />
   }
 
+  const renderAchievementIcon = (achievement: string) => {
+    const Icon = getAchievementIcon(achievement)
+    return <Icon className="w-4 h-4" />
+  }
+
   const handleOpenGame = useCallback((eventId: string, playerId: string) => {
     startTransition(() => {
       setActiveTab("games")
@@ -1949,7 +1954,7 @@ export default function YearReviewPage() {
           stat="kd"
           formatValue={(v) => v.toFixed(2)}
           playerAchievements={playerAchievements}
-          icon={renderMetricIcon("kd")}
+          icon={renderAchievementIcon("Каратель")}
           variant="christmas"
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggle}
@@ -1965,7 +1970,7 @@ export default function YearReviewPage() {
           stat="kda"
           formatValue={(v) => v.toFixed(2)}
           playerAchievements={playerAchievements}
-          icon={renderMetricIcon("kda")}
+          icon={renderAchievementIcon("Доминатор")}
           variant="christmas"
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggle}
@@ -1981,7 +1986,7 @@ export default function YearReviewPage() {
           stat="elo"
           formatValue={(v) => v.toFixed(1)}
           playerAchievements={playerAchievements}
-          icon={renderMetricIcon("elo")}
+          icon={renderAchievementIcon("MVP")}
           variant="christmas"
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggle}
@@ -1997,7 +2002,7 @@ export default function YearReviewPage() {
           stat="tbf"
           formatValue={(v) => v.toFixed(1)}
           playerAchievements={playerAchievements}
-          icon={renderMetricIcon("tbf")}
+          icon={renderAchievementIcon("В тонусе")}
           variant="christmas"
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggle}
@@ -2013,7 +2018,7 @@ export default function YearReviewPage() {
           stat="rating"
           formatValue={(v) => v.toFixed(1)}
           playerAchievements={playerAchievements}
-          icon={renderMetricIcon("rating")}
+          icon={renderAchievementIcon("Эталон")}
           variant="christmas"
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggle}
@@ -2028,7 +2033,7 @@ export default function YearReviewPage() {
           players={leaderboardKills}
           stat="kills"
           playerAchievements={playerAchievements}
-          icon={renderMetricIcon("kills")}
+          icon={renderAchievementIcon("Убийца")}
           variant="christmas"
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggle}
@@ -2044,7 +2049,7 @@ export default function YearReviewPage() {
           stat="win_rate"
           formatValue={(v) => `${(v * 100).toFixed(0)}%`}
           playerAchievements={playerAchievements}
-          icon={renderMetricIcon("win_rate")}
+          icon={renderAchievementIcon("Победитель")}
           variant="christmas"
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggle}
@@ -2060,7 +2065,7 @@ export default function YearReviewPage() {
           stat="events"
           formatValue={(v) => `${v} игр`}
           playerAchievements={playerAchievements}
-          icon={renderMetricIcon("events")}
+          icon={renderAchievementIcon("Активист")}
           variant="christmas"
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggle}
@@ -2075,7 +2080,7 @@ export default function YearReviewPage() {
           players={leaderboardRevives}
           stat="revives"
           playerAchievements={playerAchievements}
-          icon={renderMetricIcon("revives")}
+          icon={renderAchievementIcon("Спасатель")}
           variant="christmas"
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggle}
@@ -2090,7 +2095,7 @@ export default function YearReviewPage() {
           players={leaderboardHeals}
           stat="heals"
           playerAchievements={playerAchievements}
-          icon={renderMetricIcon("heals")}
+          icon={renderAchievementIcon("Лекарь")}
           variant="christmas"
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggle}
@@ -2105,7 +2110,7 @@ export default function YearReviewPage() {
           players={leaderboardDowns}
           stat="downs"
           playerAchievements={playerAchievements}
-          icon={renderMetricIcon("downs")}
+          icon={renderAchievementIcon("Штурмовик")}
           variant="christmas"
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggle}
@@ -2120,7 +2125,7 @@ export default function YearReviewPage() {
           players={leaderboardVehicle}
           stat="vehicle"
           playerAchievements={playerAchievements}
-          icon={renderMetricIcon("vehicle")}
+          icon={renderAchievementIcon("Гроза техники")}
           variant="christmas"
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggle}
@@ -2137,7 +2142,7 @@ export default function YearReviewPage() {
           totalStat="vehicle"
           formatValue={(v) => v.toFixed(2)}
           playerAchievements={playerAchievements}
-          icon={renderMetricIcon("avgVehicle")}
+          icon={renderAchievementIcon("Укротитель машин")}
           variant="christmas"
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggle}
@@ -2154,7 +2159,7 @@ export default function YearReviewPage() {
           totalStat="heals"
           formatValue={(v) => v.toFixed(2)}
           playerAchievements={playerAchievements}
-          icon={renderMetricIcon("avgHeals")}
+          icon={renderAchievementIcon("Главврач")}
           variant="christmas"
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggle}
@@ -2172,7 +2177,7 @@ export default function YearReviewPage() {
           totalStat="revives"
           formatValue={(v) => v.toFixed(2)}
           playerAchievements={playerAchievements}
-          icon={renderMetricIcon("avgRevives")}
+          icon={renderAchievementIcon("Ангел-хранитель")}
           variant="christmas"
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggle}
