@@ -268,8 +268,16 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
 
   const selectedChartMetric = CHART_METRICS.find((m) => m.key === chartMetric) ?? CHART_METRICS[0]
   const autoChartLine = chartLines.length > 0 ? chartLines[autoSquadIndex % chartLines.length] : undefined
-  const visibleChartLines = isChartAutoPlaying ? (autoChartLine ? [autoChartLine] : []) : chartLines.filter((line) => !hiddenSquadLabels.has(line.label))
-  const stopChartAuto = () => setIsChartAutoPlaying(false)
+  const currentAutoLineLabel = autoChartLine?.label
+  const visibleChartLines = isChartAutoPlaying
+    ? (autoChartLine ? [autoChartLine] : [])
+    : chartLines.filter((line) => !hiddenSquadLabels.has(line.label))
+  const stopChartAuto = () => {
+    if (!isChartAutoPlaying) return
+    setIsChartAutoPlaying(false)
+    if (!currentAutoLineLabel) return
+    setHiddenSquadLabels(new Set(chartLines.filter((line) => line.label !== currentAutoLineLabel).map((line) => line.label)))
+  }
   const toggleChartSquad = (label: string) => { stopChartAuto(); setHiddenSquadLabels((current) => { const next = new Set(current); if (next.has(label)) next.delete(label); else next.add(label); return next }); setLockedValues([]) }
   const handleChartMetricChange = (value: ChartMetricKey) => { stopChartAuto(); setChartMetric(value); setLockedValues([]) }
   const handleChartClick = (state: unknown) => {
