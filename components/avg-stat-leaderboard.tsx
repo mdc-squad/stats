@@ -30,6 +30,8 @@ interface AvgStatLeaderboardProps {
 const DEFAULT_COLLAPSED_COUNT = 10
 const TOP_CARD_CLASS =
   "flex h-full flex-col overflow-hidden border-christmas-gold/30 bg-gradient-to-br from-christmas-red/5 via-card to-christmas-green/5"
+const FULL_TOP_LIST_CLASS =
+  "scrollbar-gold max-h-[820px] overflow-y-auto rounded-md border border-christmas-gold/25 bg-transparent p-2"
 
 export function AvgStatLeaderboard({
   title,
@@ -80,7 +82,6 @@ export function AvgStatLeaderboard({
       <Card
         className={cn(
           TOP_CARD_CLASS,
-          showAll && "h-[720px]",
           variant === "christmas" && "from-christmas-red/5 via-card to-christmas-green/5",
           className,
         )}
@@ -135,8 +136,8 @@ export function AvgStatLeaderboard({
           </div>
         </CardHeader>
         {isCollapsed ? null : (
-          <CardContent className={cn("flex flex-col", showAll && "min-h-0 flex-1")}>
-            <div className={cn("pr-2", showAll && "scrollbar-gold min-h-0 flex-1 overflow-y-auto rounded-md border border-christmas-gold/25 bg-transparent p-2")}>
+          <CardContent className="flex flex-col">
+            <div className={cn("pr-2", showAll && FULL_TOP_LIST_CLASS)}>
               <div className="space-y-1.5">
                 {visiblePlayers.map((player, index) => {
                   const avgValue = player[avgStat] as number
