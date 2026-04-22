@@ -4,6 +4,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useState, type CSSPr
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Calendar as DatePickerCalendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EventsAnalyticsPanel } from "@/components/events-analytics-panel"
 import { GameSliceLeaderboards } from "@/components/game-slice-leaderboards"
@@ -14,6 +15,7 @@ import { PlayerSelector } from "@/components/player-selector"
 import { RoleIcon } from "@/components/role-icon"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { getSpecializationLabel, SpecializationIcon } from "@/components/specialization-icon"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -22,7 +24,7 @@ import { getMetricIcon } from "@/lib/app-icons"
 import { getEventSizeLabel, type PastGameSummary, type Player } from "@/lib/data-utils"
 import { getSquadToneClasses, isSelectableSquadLabel } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
-import { ArrowLeftRight, ClipboardList, Filter, MessageCircle, Play, Search, Trophy, Users, UserX, Video } from "lucide-react"
+import { ArrowLeftRight, Calendar, ClipboardList, Filter, MessageCircle, Play, Search, Trophy, Users, UserX, Video } from "lucide-react"
 
 type GamesPeriod = "all" | "7d" | "30d" | "90d" | "180d" | "365d" | "custom"
 type GamesTagOption = MultiValueFilterOption & {
@@ -62,6 +64,57 @@ function buildGamesDateRange(period: GamesPeriod, fromValue: string, toValue: st
   from.setDate(from.getDate() - (days - 1))
   from.setHours(0, 0, 0, 0)
   return { from, to }
+}
+
+function parseDateInputValue(value: string): Date | undefined {
+  if (!value) return undefined
+  const [year, month, day] = value.split("-").map((part) => Number(part))
+  if (!year || !month || !day) return undefined
+  const parsed = new Date(year, month - 1, day)
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed
+}
+
+function formatDateInputValue(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function formatDateFilterLabel(value: string): string {
+  const parsed = parseDateInputValue(value)
+  return parsed ? parsed.toLocaleDateString("ru-RU") : "Выберите дату"
+}
+
+function DateFilterPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full justify-between border-christmas-gold/35 bg-background/50 text-christmas-snow hover:bg-background/60 hover:text-christmas-snow"
+        >
+          <span className={value ? "text-christmas-snow" : "text-muted-foreground"}>{formatDateFilterLabel(value)}</span>
+          <Calendar className="h-4 w-4 text-christmas-gold" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto border-christmas-gold/20 bg-card/95 p-0">
+        <DatePickerCalendar
+          mode="single"
+          selected={parseDateInputValue(value)}
+          defaultMonth={parseDateInputValue(value)}
+          onSelect={(date) => {
+            if (!date) return
+            onChange(formatDateInputValue(date))
+            setOpen(false)
+          }}
+        />
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 function normalizeTagLabel(value: string): string {
@@ -823,21 +876,11 @@ export function EventsExplorer({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:max-w-xl">
             <label className="space-y-2">
               <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
-              <Input
-                value={customDateFrom}
-                onChange={(event) => setCustomDateFrom(event.target.value)}
-                type="date"
-                className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
-              />
+              <DateFilterPicker value={customDateFrom} onChange={setCustomDateFrom} />
             </label>
             <label className="space-y-2">
               <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
-              <Input
-                value={customDateTo}
-                onChange={(event) => setCustomDateTo(event.target.value)}
-                type="date"
-                className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
-              />
+              <DateFilterPicker value={customDateTo} onChange={setCustomDateTo} />
             </label>
             </div>
           ) : null}

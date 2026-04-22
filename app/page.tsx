@@ -274,6 +274,43 @@ function formatDateFilterLabel(value: string): string {
   return parsed ? parsed.toLocaleDateString("ru-RU") : "Выберите дату"
 }
 
+function DateFilterPicker({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (value: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full justify-between border-christmas-gold/35 bg-background/50 text-christmas-snow hover:bg-background/60 hover:text-christmas-snow"
+        >
+          <span className={value ? "text-christmas-snow" : "text-muted-foreground"}>{formatDateFilterLabel(value)}</span>
+          <Calendar className="h-4 w-4 text-christmas-gold" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto border-christmas-gold/20 bg-card/95 p-0">
+        <DatePickerCalendar
+          mode="single"
+          selected={parseDateInputValue(value)}
+          defaultMonth={parseDateInputValue(value)}
+          onSelect={(date) => {
+            if (!date) return
+            onChange(formatDateInputValue(date))
+            setOpen(false)
+          }}
+        />
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 function isLectureEventType(value: string): boolean {
   const normalized = value.toLowerCase()
   return normalized.includes("лекц") || normalized.includes("lecture")
@@ -626,21 +663,11 @@ function DataTabFilterCard({ filters }: { filters: DataTabFilters }) {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <label className="space-y-2">
               <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
-              <Input
-                value={filters.customDateFrom}
-                onChange={(event) => filters.setCustomDateFrom(event.target.value)}
-                type="date"
-                className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
-              />
+              <DateFilterPicker value={filters.customDateFrom} onChange={filters.setCustomDateFrom} />
             </label>
             <label className="space-y-2">
               <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
-              <Input
-                value={filters.customDateTo}
-                onChange={(event) => filters.setCustomDateTo(event.target.value)}
-                type="date"
-                className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
-              />
+              <DateFilterPicker value={filters.customDateTo} onChange={filters.setCustomDateTo} />
             </label>
           </div>
         ) : null}
@@ -689,21 +716,11 @@ function DateOnlyFilterCard({ filters }: { filters: DataTabFilters }) {
             <>
               <label className="space-y-2">
                 <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
-                <Input
-                  value={filters.customDateFrom}
-                  onChange={(event) => filters.setCustomDateFrom(event.target.value)}
-                  type="date"
-                  className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
-                />
+                <DateFilterPicker value={filters.customDateFrom} onChange={filters.setCustomDateFrom} />
               </label>
               <label className="space-y-2">
                 <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
-                <Input
-                  value={filters.customDateTo}
-                  onChange={(event) => filters.setCustomDateTo(event.target.value)}
-                  type="date"
-                  className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
-                />
+                <DateFilterPicker value={filters.customDateTo} onChange={filters.setCustomDateTo} />
               </label>
             </>
           ) : null}
@@ -2736,21 +2753,11 @@ export default function YearReviewPage() {
                       <>
                         <label className="space-y-2">
                           <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
-                          <Input
-                            value={groupFilters.customDateFrom}
-                            onChange={(event) => groupFilters.setCustomDateFrom(event.target.value)}
-                            type="date"
-                            className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
-                          />
+                          <DateFilterPicker value={groupFilters.customDateFrom} onChange={groupFilters.setCustomDateFrom} />
                         </label>
                         <label className="space-y-2">
                           <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
-                          <Input
-                            value={groupFilters.customDateTo}
-                            onChange={(event) => groupFilters.setCustomDateTo(event.target.value)}
-                            type="date"
-                            className="border-christmas-gold/35 bg-background/50 text-christmas-snow"
-                          />
+                          <DateFilterPicker value={groupFilters.customDateTo} onChange={groupFilters.setCustomDateTo} />
                         </label>
                       </>
                     ) : (
