@@ -2308,7 +2308,7 @@ export default function YearReviewPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-christmas-gold/30 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10"
+                  className="border-christmas-gold/30 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold"
                   onClick={() => void loadData(true, true)}
                   disabled={isRefreshing}
                 >
