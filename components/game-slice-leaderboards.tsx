@@ -637,7 +637,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-base font-semibold text-christmas-snow">Игровые лидерборды</p>
         <Badge variant="outline" className="border-christmas-gold/30 text-christmas-gold">
-          {leaderboards.matchCount} матчей по фильтру игроков
+          {leaderboards.matchCount} матчей
         </Badge>
       </div>
 
