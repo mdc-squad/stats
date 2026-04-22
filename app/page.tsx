@@ -204,7 +204,7 @@ const ROLE_METRIC_OPTIONS: Array<{ value: RoleLeaderboardMetric; label: string }
   { value: "avgVehicle", label: "Техника / игра" },
 ]
 
-const MIN_COMPETITIVE_EVENTS_FOR_TOPS = 11
+const MIN_COMPETITIVE_EVENTS_FOR_TOPS = 10
 const MIN_PLAYER_CARD_SAMPLE_SIZE = 10
 const LEADERBOARD_PREVIEW_LIMIT = 10
 const VEHICLE_LEADERBOARD_PREVIEW_LIMIT = 5
@@ -1661,6 +1661,7 @@ export default function YearReviewPage() {
   const topWinRate = useMemo(() => leaderboardWinRate.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardWinRate])
   const topEvents = useMemo(() => leaderboardEvents.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardEvents])
   const topRevives = useMemo(() => leaderboardRevives.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardRevives])
+  const topHeals = useMemo(() => leaderboardHeals.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardHeals])
   const topDowns = useMemo(() => leaderboardDowns.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardDowns])
   const topVehicle = useMemo(() => leaderboardVehicle.slice(0, VEHICLE_LEADERBOARD_PREVIEW_LIMIT), [leaderboardVehicle])
   const topKDA = useMemo(() => leaderboardKDA.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardKDA])
@@ -1668,6 +1669,7 @@ export default function YearReviewPage() {
   const topTBF = useMemo(() => leaderboardTBF.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardTBF])
   const topRating = useMemo(() => leaderboardRating.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardRating])
   const topAvgVehicle = useMemo(() => leaderboardAvgVehicle.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardAvgVehicle])
+  const topAvgHeals = useMemo(() => leaderboardAvgHeals.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardAvgHeals])
   const topAvgRevives = useMemo(() => leaderboardAvgRevives.slice(0, LEADERBOARD_PREVIEW_LIMIT), [leaderboardAvgRevives])
   const playerAchievements = useMemo(() => {
     const byPlayerId = new Map<string, string[]>()
@@ -1701,28 +1703,32 @@ export default function YearReviewPage() {
     }
 
     register(topKills, "Убийца")
-    register(topKD, "Высокий K/D")
+    register(topKD, "Каратель")
     register(topKDA, "Доминатор")
     register(topELO, "MVP")
     register(topTBF, "В тонусе")
     register(topRating, "Эталон")
     register(topWinRate, "Победитель")
-    register(topEvents, "Оплот клана")
+    register(topEvents, "Активист")
     register(topRevives, "Спасатель")
+    register(topHeals, "Лекарь")
     register(topDowns, "Штурмовик")
     register(topVehicle, "Гроза техники")
-    register(topAvgVehicle, "Истребитель брони")
+    register(topAvgVehicle, "Укротитель машин")
+    register(topAvgHeals, "Главврач")
     register(topAvgRevives, "Ангел-хранитель")
     registerSL(slStats, "Сквад-лидер")
 
     return Object.fromEntries(byPlayerId)
   }, [
     slStats,
+    topAvgHeals,
     topAvgRevives,
     topAvgVehicle,
     topDowns,
     topELO,
     topEvents,
+    topHeals,
     topKDA,
     topKD,
     topKills,
@@ -2049,10 +2055,10 @@ export default function YearReviewPage() {
       key: "events",
       render: (isCollapsed: boolean, onToggle: () => void) => (
         <Leaderboard
-          title="Топ по боевой активности"
+          title="Топ по активности"
           players={leaderboardEvents}
           stat="events"
-          formatValue={(v) => `${v} боевых событий`}
+          formatValue={(v) => `${v} игр`}
           playerAchievements={playerAchievements}
           icon={renderMetricIcon("events")}
           variant="christmas"
@@ -2160,6 +2166,7 @@ export default function YearReviewPage() {
       render: (isCollapsed: boolean, onToggle: () => void) => (
         <AvgStatLeaderboard
           title="Топ по среднему поднятию за матч"
+          titleClassName="whitespace-normal text-[11px] leading-tight tracking-[0.08em]"
           players={leaderboardAvgRevives}
           avgStat="avgRevives"
           totalStat="revives"
@@ -2552,7 +2559,7 @@ export default function YearReviewPage() {
           <TabsContent value="leaderboards" className="space-y-4">
             <DataTabFilterCard filters={leaderboardFilters} />
             <p className="text-xs text-muted-foreground">
-              В топ включены игроки с более чем {MIN_COMPETITIVE_EVENTS_FOR_TOPS - 1} играми.
+              В топ включены игроки с не менее чем {MIN_COMPETITIVE_EVENTS_FOR_TOPS} играми.
             </p>
             <div className="space-y-4">
               {leaderboardRows.map((row, rowIndex) => {

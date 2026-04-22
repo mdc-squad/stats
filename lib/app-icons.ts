@@ -1,5 +1,23 @@
 import type { LucideIcon } from "lucide-react"
-import { Award, Calendar, Car, ChevronsUp, Cross, Crosshair, Crown, Heart, Skull, Star, Target, TrendingUp, Trophy, Zap } from "lucide-react"
+import {
+  Award,
+  Bomb,
+  Calendar,
+  Car,
+  ChevronsUp,
+  Cross,
+  Crosshair,
+  Crown,
+  Heart,
+  ShieldPlus,
+  Skull,
+  Star,
+  Syringe,
+  Target,
+  TrendingUp,
+  Trophy,
+  Zap,
+} from "lucide-react"
 
 export type AppMetricIconKey =
   | "kd"
@@ -47,15 +65,17 @@ export const ReviveIcon = MetricIcons.revives
 
 const ACHIEVEMENT_ICONS: Record<string, LucideIcon> = {
   "Убийца": getMetricIcon("kills"),
-  "Высокий K/D": getMetricIcon("kd"),
+  "Каратель": getMetricIcon("kd"),
   "Доминатор": getMetricIcon("kda"),
   "Победитель": getMetricIcon("win_rate"),
-  "Оплот клана": getMetricIcon("events"),
+  "Активист": getMetricIcon("events"),
   "Спасатель": getMetricIcon("revives"),
+  "Лекарь": Heart,
   "Штурмовик": getMetricIcon("downs"),
   "Гроза техники": getMetricIcon("vehicle"),
-  "Истребитель брони": getMetricIcon("avgVehicle"),
-  "Ангел-хранитель": getMetricIcon("avgRevives"),
+  "Укротитель машин": Bomb,
+  "Ангел-хранитель": ShieldPlus,
+  "Главврач": Syringe,
   "Сквад-лидер": ChevronsUp,
   MVP: getMetricIcon("elo"),
   "В тонусе": getMetricIcon("tbf"),

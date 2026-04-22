@@ -1467,7 +1467,7 @@ export function getPlayerStrengths(player: Player, thresholds?: RelativeThreshol
     kills: { avg: 80, top: 120 },
   }
   
-  if (player.totals.kd >= t.kd.top && player.totals.events >= 5) strengths.push("Высокий K/D")
+  if (player.totals.kd >= t.kd.top && player.totals.events >= 5) strengths.push("Каратель")
   if (player.totals.win_rate >= t.win_rate.top && player.totals.events >= 5) strengths.push("Победитель")
   if (player.totals.revives >= t.revives.top) strengths.push("Медик")
   if (player.totals.downs >= t.downs.top) strengths.push("Убийца")

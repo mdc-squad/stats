@@ -60,7 +60,7 @@ export function SLLeaderboard({ slStats, title = "Топ Squad Leaders", playerA
           </CardTitle>
           <p className="text-[10px] text-muted-foreground">
             Участие SL = запись в `playersevents`, где роль игрока указана как SL. В топ попадают только игроки с
-            более чем 10 боевыми событиями.
+            не менее чем 10 играми.
           </p>
         </CardHeader>
         <CardContent className="space-y-2">

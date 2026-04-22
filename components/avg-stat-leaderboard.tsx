@@ -18,6 +18,7 @@ interface AvgStatLeaderboardProps {
   totalStat: "vehicle" | "revives" | "heals"
   formatValue?: (value: number) => string
   className?: string
+  titleClassName?: string
   icon?: React.ReactNode
   variant?: "default" | "christmas"
   playerAchievements?: Record<string, string[]>
@@ -28,7 +29,7 @@ interface AvgStatLeaderboardProps {
 
 const DEFAULT_COLLAPSED_COUNT = 10
 const TOP_CARD_CLASS =
-  "flex flex-col overflow-hidden border-christmas-gold/30 bg-gradient-to-br from-christmas-red/5 via-card to-christmas-green/5"
+  "flex h-full flex-col overflow-hidden border-christmas-gold/30 bg-gradient-to-br from-christmas-red/5 via-card to-christmas-green/5"
 
 export function AvgStatLeaderboard({
   title,
@@ -37,6 +38,7 @@ export function AvgStatLeaderboard({
   totalStat,
   formatValue = (value) => value.toFixed(2),
   className,
+  titleClassName,
   icon,
   variant = "default",
   playerAchievements,
@@ -71,6 +73,7 @@ export function AvgStatLeaderboard({
     topPlayer && typeof topValue === "number" && Number.isFinite(topValue)
       ? `${topPlayer.tag ? `${topPlayer.tag} ` : ""}${topPlayer.nickname} - ${formatValue(topValue)}`
       : null
+  const topAchievements = topPlayer ? playerAchievements?.[topPlayer.player_id] ?? [] : []
 
   return (
     <div className="relative">
@@ -86,22 +89,26 @@ export function AvgStatLeaderboard({
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-christmas-gold">
               {icon}
-              <span className="truncate">{title}</span>
+              <span className={cn("truncate", titleClassName)}>{title}</span>
             </CardTitle>
-            <p
-              className={cn(
-                "mt-1",
-                isCollapsed && topSummary
-                  ? "truncate text-sm font-medium uppercase tracking-wider text-christmas-snow"
-                  : "text-[10px] text-muted-foreground",
-              )}
-            >
-              {isCollapsed && topSummary
-                ? topSummary
-                : showAll
-                ? `Игроков в топе: ${players.length}`
-                : `Показано: ${visiblePlayers.length} из ${players.length}`}
-            </p>
+            {isCollapsed && topSummary ? (
+              <div className="mt-1">
+                <p className="truncate text-sm font-medium uppercase tracking-wider text-christmas-snow">
+                  {topSummary}
+                </p>
+                {topAchievements.length > 0 && (
+                  <AchievementBadges
+                    achievements={topAchievements}
+                    display="icons"
+                    containerClassName="mt-2"
+                  />
+                )}
+              </div>
+            ) : (
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {showAll ? `Игроков в топе: ${players.length}` : `Показано: ${visiblePlayers.length} из ${players.length}`}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {canExpand && !isCollapsed && (
@@ -129,31 +136,27 @@ export function AvgStatLeaderboard({
         </CardHeader>
         {isCollapsed ? null : (
           <CardContent className={cn("flex flex-col", showAll && "min-h-0 flex-1")}>
-            <div className={cn("pr-2", showAll && "min-h-0 flex-1 overflow-y-auto")}>
+            <div className={cn("pr-2", showAll && "scrollbar-gold min-h-0 flex-1 overflow-y-auto rounded-md border border-christmas-gold/25 bg-transparent p-2")}>
               <div className="space-y-1.5">
                 {visiblePlayers.map((player, index) => {
                   const avgValue = player[avgStat] as number
                   const totalValue = player.totals[totalStat] as number
                   const achievements = playerAchievements?.[player.player_id] ?? []
+                  const gamesLine = `${player.totals.events.toLocaleString("ru-RU")} игр`
 
                   return (
-                    <div
-                      key={player.player_id}
-                      className={cn("rounded-md px-2 py-1.5 transition-colors", index < 3 && "bg-secondary/50")}
-                    >
+                    <div key={player.player_id} className={cn("rounded-md px-2 py-2 transition-colors", index < 3 && "bg-secondary/50")}>
                       <div className="flex items-start gap-3">
                         <span className="w-6 pt-1 text-center font-mono text-sm text-christmas-snow">{getMedal(index)}</span>
                         <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
                         <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div className="min-w-0">
+                          <div className="grid min-h-[58px] grid-cols-[minmax(0,1fr)_auto] items-stretch gap-x-2 gap-y-1">
+                            <div className="flex min-w-0 flex-col justify-between gap-2">
                               <p className="font-medium text-sm truncate text-christmas-snow">
                                 {player.tag ? `${player.tag} ` : ""}{player.nickname}
                               </p>
-                              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                                <p className="text-xs text-muted-foreground">
-                                  Всего: {totalValue.toLocaleString("ru-RU")} | {player.totals.events.toLocaleString("ru-RU")} событий
-                                </p>
+                              <div className="flex min-h-5 flex-wrap items-center gap-x-2 gap-y-1">
+                                <p className="text-xs text-muted-foreground">Всего: {totalValue.toLocaleString("ru-RU")}</p>
                                 {achievements.length > 0 && (
                                   <AchievementBadges
                                     achievements={achievements}
@@ -163,9 +166,12 @@ export function AvgStatLeaderboard({
                                 )}
                               </div>
                             </div>
-                            <Badge variant="outline" className="border-christmas-gold/30 font-mono text-christmas-gold">
-                              {formatValue(avgValue)}
-                            </Badge>
+                            <div className="flex min-w-[82px] flex-col items-end justify-between gap-2">
+                              <Badge variant="outline" className="whitespace-nowrap border-christmas-gold/30 font-mono text-christmas-gold">
+                                {formatValue(avgValue)}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground">{gamesLine}</p>
+                            </div>
                           </div>
                         </div>
                       </div>
