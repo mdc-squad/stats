@@ -239,10 +239,10 @@ function resultTone(item: CalendarGame): string {
 }
 
 function selectedGameTone(game: PastGameSummary): string {
-  if (isPlannedGame(game)) return "border-sky-400/40 bg-sky-400/10"
-  if (game.is_win === true) return "border-christmas-green/40 bg-christmas-green/10"
-  if (game.is_win === false) return "border-christmas-red/40 bg-christmas-red/10"
-  return "border-border/60 bg-background/50"
+  if (isPlannedGame(game)) return "border-sky-400/45 bg-[#071827]"
+  if (game.is_win === true) return "border-christmas-green/45 bg-[#071b12]"
+  if (game.is_win === false) return "border-christmas-red/45 bg-[#24070a]"
+  return "border-border/70 bg-[#090a12]"
 }
 
 function matchupLabel(game: PastGameSummary): string {
