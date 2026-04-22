@@ -2327,7 +2327,7 @@ export default function YearReviewPage() {
             </TabsTrigger>
             <TabsTrigger
               value="group"
-              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-slate-400/30 bg-slate-400/10 text-christmas-snow data-[state=active]:bg-slate-300 data-[state=active]:border-slate-300 data-[state=active]:text-slate-950 hover:bg-slate-400/20 transition-all"
+              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-pink-500/30 bg-pink-500/10 text-christmas-snow data-[state=active]:bg-pink-500 data-[state=active]:border-pink-500 data-[state=active]:text-white hover:bg-pink-500/20 transition-all"
             >
               Отряды
             </TabsTrigger>

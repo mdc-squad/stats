@@ -72,7 +72,7 @@ export function MultiValueFilter({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between border-christmas-gold/35 bg-background/50 text-christmas-snow hover:border-christmas-gold/60 hover:bg-christmas-gold/10 hover:text-christmas-gold"
+            className="w-full justify-between !border-christmas-gold/35 !bg-background/50 text-christmas-snow hover:!border-christmas-gold/60 hover:!bg-christmas-gold/10 hover:text-christmas-gold"
           >
             {selected.length > 0 ? `Выбрано: ${selected.length}` : placeholder}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
