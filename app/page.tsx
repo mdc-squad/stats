@@ -2710,7 +2710,7 @@ export default function YearReviewPage() {
                   players={activePlayers}
                   selected={selectedPlayersForChart}
                   onSelectionChange={setSelectedPlayersForChart}
-                  placeholder="Найти игрока для статистики..."
+                  placeholder="Выбор игрока"
                 />
               </CardContent>
             </Card>
