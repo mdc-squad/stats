@@ -773,12 +773,12 @@ export function EventsExplorer({
                 </SelectContent>
               </Select>
               {selectedPeriod === "custom" ? (
-                <div className="grid grid-cols-2 gap-3 pt-1">
-                  <label className="space-y-2">
+                <div className="grid w-max grid-cols-2 gap-3 pt-1">
+                  <label className="w-36 space-y-2">
                     <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
                     <DateFilterPicker value={customDateFrom} onChange={setCustomDateFrom} />
                   </label>
-                  <label className="space-y-2">
+                  <label className="w-36 space-y-2">
                     <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
                     <DateFilterPicker value={customDateTo} onChange={setCustomDateTo} />
                   </label>
