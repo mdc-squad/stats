@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-import { Filter, X, ChevronDown } from "lucide-react"
+import { Filter, ChevronDown } from "lucide-react"
 
 interface TagFilterProps {
   tags: string[]
@@ -19,10 +19,6 @@ export function TagFilter({ tags, selectedTags, onTagsChange }: TagFilterProps) 
     } else {
       onTagsChange([...selectedTags, tag])
     }
-  }
-
-  const clearAll = () => {
-    onTagsChange([])
   }
 
   const selectAll = () => {
@@ -59,12 +55,6 @@ export function TagFilter({ tags, selectedTags, onTagsChange }: TagFilterProps) 
               <Button variant="ghost" size="sm" onClick={selectAll} className="text-xs h-6 px-2">
                 Все
               </Button>
-              {selectedTags.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={clearAll} className="h-6 px-2 text-xs hover:bg-christmas-gold/10 hover:text-christmas-gold">
-                  <X className="w-3 h-3 mr-1" />
-                  Сброс
-                </Button>
-              )}
             </div>
           </div>
 

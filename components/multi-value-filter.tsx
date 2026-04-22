@@ -61,10 +61,6 @@ export function MultiValueFilter({
     onSelectionChange(options.map((option) => option.value))
   }
 
-  const clearSelection = () => {
-    onSelectionChange([])
-  }
-
   return (
     <div className="space-y-2">
       <Popover open={open} onOpenChange={setOpen}>
@@ -138,15 +134,6 @@ export function MultiValueFilter({
               +{selectedOptions.length - 8}
             </Badge>
           )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs text-muted-foreground hover:bg-christmas-gold/10 hover:text-christmas-gold"
-            onClick={clearSelection}
-          >
-            Сброс
-          </Button>
         </div>
       )}
     </div>
