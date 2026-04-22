@@ -873,29 +873,29 @@ export function EventsExplorer({
         <TabsList className="grid h-auto w-full grid-cols-1 overflow-hidden rounded-lg border border-border/60 bg-background/30 p-0 md:grid-cols-3">
           <TabsTrigger
             value="matches"
-            className="flex h-auto min-h-[58px] cursor-pointer flex-col items-start gap-0.5 rounded-none border-0 border-b border-r border-amber-500/20 bg-amber-500/[0.03] px-3 py-2.5 text-left shadow-none transition-colors duration-150 hover:bg-amber-500/[0.1] hover:text-amber-50 data-[state=active]:bg-amber-500/[0.15] data-[state=active]:text-amber-50 data-[state=active]:shadow-none md:border-b-0"
+            className="flex h-auto min-h-[58px] cursor-pointer flex-col items-start gap-0.5 rounded-none border-0 border-b border-r border-lime-500/20 bg-lime-500/[0.03] px-3 py-2.5 text-left shadow-none transition-colors duration-150 hover:bg-lime-500/[0.1] hover:text-lime-50 data-[state=active]:bg-lime-500/[0.15] data-[state=active]:text-lime-50 data-[state=active]:shadow-none md:border-b-0"
           >
-            <span className="text-[11px] uppercase tracking-[0.18em] text-amber-200/70">Раздел</span>
+            <span className="text-[11px] uppercase tracking-[0.18em] text-lime-200/70">Раздел</span>
             <span className="text-sm font-semibold text-christmas-snow">Матчи</span>
-            <span className="text-[11px] text-amber-100/70">
+            <span className="text-[11px] text-lime-100/70">
               {visibleGames.length} игр в листинге{focusedGameHiddenByFilters ? " + 1 открытая" : ""}
             </span>
           </TabsTrigger>
           <TabsTrigger
             value="leaderboards"
-            className="flex h-auto min-h-[58px] cursor-pointer flex-col items-start gap-0.5 rounded-none border-0 border-b border-emerald-500/20 bg-emerald-500/[0.03] px-3 py-2.5 text-left shadow-none transition-colors duration-150 hover:bg-emerald-500/[0.1] hover:text-emerald-50 data-[state=active]:bg-emerald-500/[0.15] data-[state=active]:text-emerald-50 data-[state=active]:shadow-none md:border-b-0 md:border-r"
+            className="flex h-auto min-h-[58px] cursor-pointer flex-col items-start gap-0.5 rounded-none border-0 border-b border-fuchsia-500/20 bg-fuchsia-500/[0.03] px-3 py-2.5 text-left shadow-none transition-colors duration-150 hover:bg-fuchsia-500/[0.1] hover:text-fuchsia-50 data-[state=active]:bg-fuchsia-500/[0.15] data-[state=active]:text-fuchsia-50 data-[state=active]:shadow-none md:border-b-0 md:border-r"
           >
-            <span className="text-[11px] uppercase tracking-[0.18em] text-emerald-200/70">Раздел</span>
+            <span className="text-[11px] uppercase tracking-[0.18em] text-fuchsia-200/70">Раздел</span>
             <span className="text-sm font-semibold text-christmas-snow">Лидерборды</span>
-            <span className="text-[11px] text-emerald-100/70">Матчевые рейтинги</span>
+            <span className="text-[11px] text-fuchsia-100/70">Матчевые рейтинги</span>
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
-            className="flex h-auto min-h-[58px] cursor-pointer flex-col items-start gap-0.5 rounded-none border-0 bg-cyan-500/[0.03] px-3 py-2.5 text-left shadow-none transition-colors duration-150 hover:bg-cyan-500/[0.1] hover:text-cyan-50 data-[state=active]:bg-cyan-500/[0.16] data-[state=active]:text-cyan-50 data-[state=active]:shadow-none"
+            className="flex h-auto min-h-[58px] cursor-pointer flex-col items-start gap-0.5 rounded-none border-0 bg-teal-500/[0.03] px-3 py-2.5 text-left shadow-none transition-colors duration-150 hover:bg-teal-500/[0.1] hover:text-teal-50 data-[state=active]:bg-teal-500/[0.16] data-[state=active]:text-teal-50 data-[state=active]:shadow-none"
           >
-            <span className="text-[11px] uppercase tracking-[0.18em] text-cyan-200/70">Раздел</span>
+            <span className="text-[11px] uppercase tracking-[0.18em] text-teal-200/70">Раздел</span>
             <span className="text-sm font-semibold text-christmas-snow">Аналитика</span>
-            <span className="text-[11px] text-cyan-100/70">Кривые и динамика</span>
+            <span className="text-[11px] text-teal-100/70">Кривые и динамика</span>
           </TabsTrigger>
         </TabsList>
 
