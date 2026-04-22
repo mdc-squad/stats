@@ -37,7 +37,7 @@ type CalendarGame = {
 }
 
 const WEEK_DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
-const WEEKDAY_GUIDE_OFFSET = 32
+const WEEKDAY_GUIDE_OFFSET = 0
 const MONTH_NAMES = [
   "Январь",
   "Февраль",
@@ -361,6 +361,7 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
   return (
     <div className={cn("max-w-sm space-y-2 rounded-lg border p-2 text-center text-xs", selectedGameTone(selectedGame))}>
       <div>
+        {planned ? <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-300">Запланирована</p> : null}
         <p className="font-semibold text-christmas-snow">{formatFullDate(primary.started_at)} в {formatTime(primary.started_at)}</p>
         <p className="text-muted-foreground">
           {primary.event_type || "Матч"}
@@ -400,7 +401,7 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
             <span>Оппонент: <span className="text-christmas-snow">{selectedGame.opponent || "Не указан"}</span></span>
             {selectedGame.opponent_strength ? <span>Сила соперника: <span className="text-christmas-snow">{selectedGame.opponent_strength}</span></span> : null}
             <span>Фракции: <span className="text-christmas-snow">{matchup || "Не указаны"}</span></span>
-            <span>Результат: <span className="text-christmas-snow">{resultLabel(selectedGame)}</span></span>
+            {!planned ? <span>Результат: <span className="text-christmas-snow">{resultLabel(selectedGame)}</span></span> : null}
             {isSideSwap && aggregateDiff !== null ? <span>Общая разница тикетов: <span className="text-christmas-snow">{aggregateDiff > 0 ? "+" : ""}{aggregateDiff}</span></span> : null}
           </>
         )}
@@ -629,7 +630,7 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
           </CardTitle>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2">
-          <Button type="button" variant="outline" size="sm" className="border-christmas-gold/20 bg-background/50" onClick={() => goToMonth(-1)}>
+          <Button type="button" variant="outline" size="sm" className="border-christmas-gold/35 bg-background/50 hover:border-christmas-gold/60 hover:bg-christmas-gold/10" onClick={() => goToMonth(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="relative">
@@ -646,11 +647,11 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
             {monthPickerOpen ? (
               <div className="absolute left-1/2 top-full z-30 mt-2 w-[300px] -translate-x-1/2 rounded-lg border border-christmas-gold/20 bg-card/95 p-3 shadow-xl shadow-black/30">
                 <div className="mb-3 flex items-center justify-between">
-                  <Button type="button" variant="outline" size="sm" className="border-christmas-gold/20 bg-background/50" onClick={() => setPickerYear((year) => year - 1)}>
+                  <Button type="button" variant="outline" size="sm" className="border-christmas-gold/35 bg-background/50 hover:border-christmas-gold/60 hover:bg-christmas-gold/10" onClick={() => setPickerYear((year) => year - 1)}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="text-base font-semibold text-christmas-snow">{pickerYear}</span>
-                  <Button type="button" variant="outline" size="sm" className="border-christmas-gold/20 bg-background/50" onClick={() => setPickerYear((year) => year + 1)}>
+                  <Button type="button" variant="outline" size="sm" className="border-christmas-gold/35 bg-background/50 hover:border-christmas-gold/60 hover:bg-christmas-gold/10" onClick={() => setPickerYear((year) => year + 1)}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -675,7 +676,7 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
               </div>
             ) : null}
           </div>
-          <Button type="button" variant="outline" size="sm" className="border-christmas-gold/20 bg-background/50" onClick={() => goToMonth(1)}>
+          <Button type="button" variant="outline" size="sm" className="border-christmas-gold/35 bg-background/50 hover:border-christmas-gold/60 hover:bg-christmas-gold/10" onClick={() => goToMonth(1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -699,16 +700,17 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                   data-calendar-week-index={weekIndex}
                   className={cn(
                     "grid grid-cols-7 gap-2 transition-[padding] duration-200",
-                    weekdayGuide.weekIndex === weekIndex && "pt-2",
+                    weekdayGuide.weekIndex === weekIndex && "pt-10",
                   )}
                 >
-                  {week.map((day) => {
+                  {week.map((day, dayIndex) => {
                 const dayKey = formatDayKey(day)
                 const dayGames = gamesByDay.get(dayKey) ?? []
                 const isCurrentMonth = day.getMonth() === month.getMonth()
                 const isToday = dayKey === formatDayKey(new Date())
                 const holiday = getHoliday(day)
                 const nonWorkingDay = isNonWorkingDay(day)
+                const tooltipSide: "right" | "left" | "top" = dayIndex <= 1 ? "right" : dayIndex >= 5 ? "left" : "top"
 
                 return (
                   <div
@@ -796,7 +798,13 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                               </div>
                             </button>
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="border border-border bg-card text-card-foreground">
+                          <TooltipContent
+                            side={tooltipSide}
+                            sideOffset={8}
+                            collisionPadding={12}
+                            sticky="always"
+                            className="border border-border bg-card text-card-foreground"
+                          >
                             <CalendarGameTooltip item={item} />
                           </TooltipContent>
                         </Tooltip>
@@ -815,7 +823,7 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
           <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-sky-400" />Будущие</span>
           <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-christmas-green" />Победы</span>
           <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-christmas-red" />Поражения</span>
-          <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />Клик открывает матч во вкладке игр</span>
+          <span>Клик открывает матч во вкладке игр</span>
         </div>
       </CardContent>
     </Card>
