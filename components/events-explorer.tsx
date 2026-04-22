@@ -772,18 +772,6 @@ export function EventsExplorer({
                   ))}
                 </SelectContent>
               </Select>
-              {selectedPeriod === "custom" ? (
-                <div className={cn("grid w-max grid-cols-2 gap-3", effectiveSelectedTags.length > 1 ? "pt-16" : "pt-8")}>
-                  <label className="w-36 space-y-2">
-                    <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
-                    <DateFilterPicker value={customDateFrom} onChange={setCustomDateFrom} />
-                  </label>
-                  <label className="w-36 space-y-2">
-                    <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
-                    <DateFilterPicker value={customDateTo} onChange={setCustomDateTo} />
-                  </label>
-                </div>
-              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -854,6 +842,19 @@ export function EventsExplorer({
             </div>
 
           </div>
+
+          {selectedPeriod === "custom" ? (
+            <div className="grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="space-y-2">
+                <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
+                <DateFilterPicker value={customDateFrom} onChange={setCustomDateFrom} />
+              </label>
+              <label className="space-y-2">
+                <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
+                <DateFilterPicker value={customDateTo} onChange={setCustomDateTo} />
+              </label>
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
             <div className="space-y-2">
