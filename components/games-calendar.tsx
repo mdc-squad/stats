@@ -819,11 +819,11 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-sky-400" />Будущие</span>
           <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-christmas-green" />Победы</span>
           <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-christmas-red" />Поражения</span>
-          <span>Клик открывает матч во вкладке игр</span>
+          <span className="ml-auto text-right">Клик открывает матч во вкладке игр</span>
         </div>
       </CardContent>
     </Card>
