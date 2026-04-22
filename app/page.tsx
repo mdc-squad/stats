@@ -2493,7 +2493,8 @@ export default function YearReviewPage() {
 
         {/* Event Types Summary - Compact */}
         <section>
-          <h2 className="text-lg font-semibold mb-4 text-christmas-snow">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-christmas-snow">
+            <Sparkles className="h-5 w-5 text-christmas-gold" />
             Статистика по типам событий
           </h2>
         

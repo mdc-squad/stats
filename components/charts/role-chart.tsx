@@ -79,12 +79,7 @@ export function RoleChart({ data }: RoleChartProps) {
                 verticalAlign="bottom"
                 height={60}
                 wrapperStyle={{ fontSize: "11px" }}
-                formatter={(value) => (
-                  <span className="inline-flex items-center gap-1" style={{ color: "var(--christmas-snow)", fontSize: "11px" }}>
-                    <RoleIcon role={String(value)} className="h-3.5 w-3.5" />
-                    {formatRoleName(String(value)) || String(value)}
-                  </span>
-                )}
+                formatter={(value) => <span style={{ color: "var(--christmas-snow)", fontSize: "11px" }}>{formatRoleName(String(value)) || String(value)}</span>}
               />
             </PieChart>
           </ResponsiveContainer>
