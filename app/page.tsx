@@ -2755,7 +2755,7 @@ export default function YearReviewPage() {
           <TabsContent value="group" className="space-y-4">
             <Card className="border-christmas-gold/20 bg-card/60">
               <CardContent className="space-y-3 pt-4">
-                <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.4fr)] xl:items-end">
+                <div className="grid gap-4 xl:grid-cols-[minmax(320px,420px)_minmax(0,1fr)] xl:items-end">
                   <div className="space-y-1">
                     <p className="text-lg font-semibold text-christmas-gold">Отряды по цветам</p>
                     <p className="text-xs text-muted-foreground">
@@ -2763,7 +2763,7 @@ export default function YearReviewPage() {
                     </p>
                   </div>
                   <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
-                    <div className={cn("space-y-2", groupFilters.selectedPeriod === "custom" ? "xl:w-48 xl:shrink-0" : "xl:flex-1")}>
+                    <div className="min-w-0 flex-1 space-y-2">
                       <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Период</p>
                       <Select value={groupFilters.selectedPeriod} onValueChange={(value) => groupFilters.setSelectedPeriod(value as StatsPeriod)}>
                         <SelectTrigger className="border-christmas-gold/35 bg-background/50 text-christmas-snow">
@@ -2780,17 +2780,17 @@ export default function YearReviewPage() {
                     </div>
                     {groupFilters.selectedPeriod === "custom" ? (
                       <>
-                        <label className="space-y-2 xl:w-36 xl:shrink-0">
+                        <label className="min-w-0 flex-1 space-y-2">
                           <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата от</span>
                           <DateFilterPicker value={groupFilters.customDateFrom} onChange={groupFilters.setCustomDateFrom} />
                         </label>
-                        <label className="space-y-2 xl:w-36 xl:shrink-0">
+                        <label className="min-w-0 flex-1 space-y-2">
                           <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Дата до</span>
                           <DateFilterPicker value={groupFilters.customDateTo} onChange={groupFilters.setCustomDateTo} />
                         </label>
                       </>
                     ) : null}
-                    <div className="flex justify-end xl:ml-auto">
+                    <div className="flex shrink-0 justify-end">
                       <Button
                         type="button"
                         variant="outline"
