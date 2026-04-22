@@ -239,10 +239,10 @@ function resultTone(item: CalendarGame): string {
 }
 
 function selectedGameTone(game: PastGameSummary): string {
-  if (isPlannedGame(game)) return "border-sky-400/40 bg-sky-400/10"
-  if (game.is_win === true) return "border-christmas-green/40 bg-christmas-green/10"
-  if (game.is_win === false) return "border-christmas-red/40 bg-christmas-red/10"
-  return "border-border/60 bg-background/50"
+  if (isPlannedGame(game)) return "border-sky-400/45 bg-sky-950"
+  if (game.is_win === true) return "border-christmas-green/45 bg-green-950"
+  if (game.is_win === false) return "border-christmas-red/45 bg-red-950"
+  return "border-border/70 bg-background"
 }
 
 function matchupLabel(game: PastGameSummary): string {
@@ -803,7 +803,7 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                             side={tooltipSide}
                             sideOffset={8}
                             collisionPadding={24}
-                            className="max-h-[var(--radix-tooltip-content-available-height)] overflow-y-auto bg-transparent p-0 text-card-foreground shadow-none scrollbar-gold"
+                            className="overflow-visible bg-transparent p-0 text-card-foreground shadow-none"
                           >
                             <CalendarGameTooltip item={item} />
                           </TooltipContent>
