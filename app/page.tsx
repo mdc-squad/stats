@@ -66,6 +66,7 @@ import {
 } from "@/lib/data-utils"
 import { getAchievementIcon, getMetricIcon } from "@/lib/app-icons"
 import { fetchAllData, type SyncProgressUpdate } from "@/lib/api"
+import { withBasePath } from "@/lib/base-path"
 import { getSeasonalTheme, type SeasonalTheme } from "@/lib/seasonal-theme"
 import { cn } from "@/lib/utils"
 import {
@@ -935,6 +936,7 @@ export default function YearReviewPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null)
   const [syncProgress, setSyncProgress] = useState<SyncProgressState | null>(null)
+  const [loadingShowcaseIndex, setLoadingShowcaseIndex] = useState(0)
   const [, setLastSyncReport] = useState<SyncReport | null>(null)
   const rawDataRef = useRef<MDCData | null>(null)
   const calendarSectionRef = useRef<HTMLDivElement | null>(null)
@@ -964,6 +966,18 @@ export default function YearReviewPage() {
       window.clearInterval(intervalId)
     }
   }, [])
+
+  useEffect(() => {
+    if (!loading) return
+
+    const intervalId = window.setInterval(() => {
+      setLoadingShowcaseIndex((current) => (current + 1) % 2)
+    }, 3000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [loading])
 
   const loadData = useCallback(async (forceRefresh = false, resetCache = false) => {
     const cached = readCachedData()
@@ -1152,6 +1166,28 @@ export default function YearReviewPage() {
       }) as ThemeVariableStyle,
     [isCacheProbablyStale, syncProgress],
   )
+
+  const loadingShowcaseItems = useMemo(
+    () => [
+      {
+        id: "clan",
+        title: "Mors De Caelo",
+        subtitle: "Эмблема клана",
+        emblemSrc: withBasePath("/mdc-clan-emblem.png"),
+        emblemAlt: "Эмблема клана MDC",
+      },
+      {
+        id: "coalition",
+        title: "De Caelo Ad Infernos",
+        subtitle: "Эмблема коалиции",
+        emblemSrc: withBasePath("/dcia-emblem.png"),
+        emblemAlt: "Эмблема коалиции DCAI",
+      },
+    ],
+    [],
+  )
+
+  const currentLoadingShowcase = loadingShowcaseItems[loadingShowcaseIndex % loadingShowcaseItems.length] ?? loadingShowcaseItems[0]
 
   const seasonalVariables = useMemo(
     () =>
@@ -1919,8 +1955,18 @@ export default function YearReviewPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-full max-w-md px-4 text-center space-y-4">
-          <Sparkles className="w-16 h-16 text-christmas-green mx-auto animate-pulse" />
+        <div className="w-full max-w-md px-4 text-center space-y-6">
+          <div className="mx-auto flex h-56 w-56 items-center justify-center rounded-full border border-christmas-gold/25 bg-background/40 p-4 shadow-[0_0_40px_rgba(234,179,8,0.08)]">
+            <img
+              src={currentLoadingShowcase.emblemSrc}
+              alt={currentLoadingShowcase.emblemAlt}
+              className="h-full w-full object-contain transition-opacity duration-500"
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-lg font-semibold text-christmas-snow">{currentLoadingShowcase.title}</p>
+            <p className="text-sm text-christmas-gold">{currentLoadingShowcase.subtitle}</p>
+          </div>
           <div className="space-y-2">
             <p className="text-christmas-gold">{syncProgress?.message ?? seasonalTheme.loadingLabel}</p>
             <Progress value={syncProgress?.percent ?? 5} className="h-2 bg-muted/30" />
