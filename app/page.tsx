@@ -995,7 +995,7 @@ export default function YearReviewPage() {
     if (!loading) return
 
     const intervalId = window.setInterval(() => {
-      setLoadingShowcaseIndex((current) => (current + 1) % 2)
+      setLoadingShowcaseIndex((current) => (current + 1) % 3)
     }, 3000)
 
     return () => {
@@ -1196,14 +1196,18 @@ export default function YearReviewPage() {
       {
         id: "clan",
         title: "Mors De Caelo",
-        subtitle: "Эмблема клана",
         emblemSrc: withBasePath("/mdc-clan-emblem.png"),
         emblemAlt: "Эмблема клана MDC",
       },
       {
+        id: "grave",
+        title: "GRAVE",
+        emblemSrc: withBasePath("/grave-emblem.png"),
+        emblemAlt: "Эмблема GRAVE",
+      },
+      {
         id: "coalition",
         title: "De Caelo Ad Infernos",
-        subtitle: "Эмблема коалиции",
         emblemSrc: withBasePath("/dcia-emblem.png"),
         emblemAlt: "Эмблема коалиции DCAI",
       },
@@ -1980,16 +1984,15 @@ export default function YearReviewPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-full max-w-md px-4 text-center space-y-6">
-          <div className="mx-auto flex h-56 w-56 items-center justify-center rounded-full border border-christmas-gold/25 bg-background/40 p-4 shadow-[0_0_40px_rgba(234,179,8,0.08)]">
+          <div className="mx-auto flex h-56 w-56 items-center justify-center p-4 transition-all duration-700 ease-in-out">
             <img
               src={currentLoadingShowcase.emblemSrc}
               alt={currentLoadingShowcase.emblemAlt}
-              className="h-full w-full object-contain transition-opacity duration-500"
+              className="h-full w-full object-contain transition-all duration-700 ease-in-out"
             />
           </div>
           <div className="space-y-1">
             <p className="text-lg font-semibold text-christmas-snow">{currentLoadingShowcase.title}</p>
-            <p className="text-sm text-christmas-gold">{currentLoadingShowcase.subtitle}</p>
           </div>
           <div className="space-y-2">
             <p className="text-christmas-gold">{syncProgress?.message ?? seasonalTheme.loadingLabel}</p>
