@@ -362,7 +362,7 @@ export function PlayerMatchHistory({
       ) : showAll ? (
         <div
           className={cn(
-            "scrollbar-hidden overflow-y-auto rounded-lg border border-border/50 bg-background/20",
+            "scrollbar-gold overflow-y-auto rounded-lg border border-christmas-gold/25 bg-transparent",
             isExpanded ? "h-[360px] lg:h-[420px]" : "h-[320px]",
           )}
         >
