@@ -55,8 +55,10 @@ const PLAYER_METRICS: MetricDef[] = METRIC_DEFS.map((metric) => ({
 
 function isVisibleSquadLabel(label: string) {
   const normalized = label.trim().toLowerCase()
+  const tone = getSquadToneKey(label)
   return (
     isSelectableSquadLabel(label) &&
+    SQUAD_ORDER.includes(tone) &&
     normalized !== "0" &&
     normalized !== "без отряда" &&
     normalized !== "не указан" &&
