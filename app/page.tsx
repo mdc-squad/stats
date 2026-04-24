@@ -24,7 +24,7 @@ import { RoleLeaderboard } from "@/components/charts/role-leaderboard"
 import { BestMatches } from "@/components/charts/best-matches"
 import { PlayerCard } from "@/components/player-card"
 import { PlayerSelector } from "@/components/player-selector"
-import { RoleIcon } from "@/components/role-icon"
+import { RoleIcon, formatRoleName } from "@/components/role-icon"
 import { SquadOverview } from "@/components/squad-overview"
 import { Snowfall } from "@/components/snowfall"
 import { SeasonalHeader } from "@/components/seasonal-header"
@@ -80,6 +80,26 @@ const API_CACHE_NAMESPACE = "mdc-api-cache"
 const APP_BUILD_ID = process.env.NEXT_PUBLIC_APP_BUILD_ID?.trim() || "dev"
 const API_CACHE_KEY = `${API_CACHE_NAMESPACE}-${APP_BUILD_ID}`
 const API_CACHE_TTL_MS = 5 * 60 * 1000
+const ROLE_TAB_ORDER = [
+  "SL",
+  "Медик",
+  "Стрелок",
+  "LAT",
+  "Тандем",
+  "ГП",
+  "Инженер",
+  "Сапёр",
+  "Разведчик",
+  "Марксмен",
+  "Снайпер",
+  "Рейдер",
+  "Л. пулемёт",
+  "Т. пулемёт",
+  "SL Крюмен",
+  "Крюмен",
+  "SL Пилот",
+  "Пилот",
+]
 
 type CachedPayload = {
   savedAt: number
@@ -274,6 +294,10 @@ function formatDateInputValue(date: Date): string {
 function formatDateFilterLabel(value: string): string {
   const parsed = parseDateInputValue(value)
   return parsed ? parsed.toLocaleDateString("ru-RU") : "Выберите дату"
+}
+
+function normalizeRoleOrderLabel(value: string): string {
+  return value.trim().toLowerCase().replace(/ё/g, "е")
 }
 
 function DateFilterPicker({
@@ -2252,7 +2276,24 @@ export default function YearReviewPage() {
     return rows
   }, [])
 
-  const roleRows = nonEmptyRoleLeaderboards.reduce<typeof nonEmptyRoleLeaderboards[]>((rows, entry, index) => {
+  const roleOrderIndex = new Map(
+    ROLE_TAB_ORDER.map((role, index) => [normalizeRoleOrderLabel(role), index]),
+  )
+
+  const orderedRoleLeaderboards = [...nonEmptyRoleLeaderboards].sort((left, right) => {
+    const leftLabel = normalizeRoleOrderLabel(formatRoleName(left.role) || left.role)
+    const rightLabel = normalizeRoleOrderLabel(formatRoleName(right.role) || right.role)
+    const leftIndex = roleOrderIndex.get(leftLabel)
+    const rightIndex = roleOrderIndex.get(rightLabel)
+
+    if (leftIndex !== undefined || rightIndex !== undefined) {
+      return (leftIndex ?? Number.POSITIVE_INFINITY) - (rightIndex ?? Number.POSITIVE_INFINITY)
+    }
+
+    return leftLabel.localeCompare(rightLabel, "ru")
+  })
+
+  const roleRows = orderedRoleLeaderboards.reduce<typeof orderedRoleLeaderboards>((rows, entry, index) => {
     if (index % 3 === 0) {
       rows.push([entry])
     } else {
