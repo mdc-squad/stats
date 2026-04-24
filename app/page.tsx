@@ -230,6 +230,8 @@ const MIN_COMPETITIVE_EVENTS_FOR_TOPS = 10
 const MIN_PLAYER_CARD_SAMPLE_SIZE = 10
 const LEADERBOARD_PREVIEW_LIMIT = 10
 const VEHICLE_LEADERBOARD_PREVIEW_LIMIT = 5
+const LOADING_SHOWCASE_INTERVAL_MS = 3600
+const LOADING_SHOWCASE_FADE_MS = 900
 
 type LeaderboardCardConfig = {
   key: string
@@ -974,6 +976,7 @@ export default function YearReviewPage() {
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null)
   const [syncProgress, setSyncProgress] = useState<SyncProgressState | null>(null)
   const [loadingShowcaseIndex, setLoadingShowcaseIndex] = useState(0)
+  const [loadingShowcaseVisible, setLoadingShowcaseVisible] = useState(true)
   const [, setLastSyncReport] = useState<SyncReport | null>(null)
   const rawDataRef = useRef<MDCData | null>(null)
   const calendarSectionRef = useRef<HTMLDivElement | null>(null)
@@ -1005,16 +1008,24 @@ export default function YearReviewPage() {
   }, [])
 
   useEffect(() => {
-    if (!loading) return
+    if (!loading || loadingShowcaseItems.length <= 1) return
 
+    let fadeTimeoutId: number | null = null
     const intervalId = window.setInterval(() => {
-      setLoadingShowcaseIndex((current) => (current + 1) % 3)
-    }, 3000)
+      setLoadingShowcaseVisible(false)
+      fadeTimeoutId = window.setTimeout(() => {
+        setLoadingShowcaseIndex((current) => (current + 1) % loadingShowcaseItems.length)
+        setLoadingShowcaseVisible(true)
+      }, LOADING_SHOWCASE_FADE_MS)
+    }, LOADING_SHOWCASE_INTERVAL_MS)
 
     return () => {
       window.clearInterval(intervalId)
+      if (fadeTimeoutId !== null) {
+        window.clearTimeout(fadeTimeoutId)
+      }
     }
-  }, [loading])
+  }, [loading, loadingShowcaseItems.length])
 
   const loadData = useCallback(async (forceRefresh = false, resetCache = false) => {
     const cached = readCachedData()
@@ -1997,14 +2008,26 @@ export default function YearReviewPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-full max-w-md px-4 text-center space-y-6">
-          <div className="mx-auto flex h-56 w-56 items-center justify-center p-4 transition-all duration-700 ease-in-out">
+          <div
+            className={cn(
+              "mx-auto flex h-56 w-56 items-center justify-center p-4 transition-all ease-in-out",
+              loadingShowcaseVisible ? "scale-100 opacity-100 blur-0" : "scale-[0.985] opacity-0 blur-[2px]",
+            )}
+            style={{ transitionDuration: `${LOADING_SHOWCASE_FADE_MS}ms` }}
+          >
             <img
               src={currentLoadingShowcase.emblemSrc}
               alt={currentLoadingShowcase.emblemAlt}
-              className="h-full w-full object-contain transition-all duration-700 ease-in-out"
+              className="h-full w-full object-contain"
             />
           </div>
-          <div className="space-y-1">
+          <div
+            className={cn(
+              "space-y-1 transition-all ease-in-out",
+              loadingShowcaseVisible ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
+            )}
+            style={{ transitionDuration: `${LOADING_SHOWCASE_FADE_MS}ms` }}
+          >
             <p className="text-lg font-semibold text-christmas-snow">{currentLoadingShowcase.title}</p>
           </div>
           <div className="space-y-2">
