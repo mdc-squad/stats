@@ -2012,7 +2012,7 @@ export default function YearReviewPage() {
           <div
             className={cn(
               "mx-auto flex h-56 w-56 items-center justify-center p-4 transition-all ease-in-out",
-              loadingShowcaseVisible ? "translate-y-0 scale-100 rotate-0 opacity-100" : "translate-y-3 scale-[0.96] -rotate-3 opacity-0",
+              loadingShowcaseVisible ? "translate-y-0 scale-100 opacity-100" : "translate-y-3 scale-[0.96] opacity-0",
             )}
             style={{ transitionDuration: `${LOADING_SHOWCASE_FADE_MS}ms` }}
           >
