@@ -230,8 +230,8 @@ const MIN_COMPETITIVE_EVENTS_FOR_TOPS = 10
 const MIN_PLAYER_CARD_SAMPLE_SIZE = 10
 const LEADERBOARD_PREVIEW_LIMIT = 10
 const VEHICLE_LEADERBOARD_PREVIEW_LIMIT = 5
-const LOADING_SHOWCASE_INTERVAL_MS = 3600
-const LOADING_SHOWCASE_FADE_MS = 900
+const LOADING_SHOWCASE_INTERVAL_MS = 5000
+const LOADING_SHOWCASE_FADE_MS = 280
 const LOADING_SHOWCASE_ITEMS_COUNT = 3
 
 type LeaderboardCardConfig = {
@@ -1025,6 +1025,7 @@ export default function YearReviewPage() {
       if (fadeTimeoutId !== null) {
         window.clearTimeout(fadeTimeoutId)
       }
+      setLoadingShowcaseVisible(true)
     }
   }, [loading])
 
@@ -2011,10 +2012,9 @@ export default function YearReviewPage() {
         <div className="w-full max-w-md px-4 text-center space-y-6">
           <div
             className={cn(
-              "mx-auto flex h-56 w-56 items-center justify-center p-4 transition-all ease-in-out",
-              loadingShowcaseVisible ? "translate-y-0 scale-100 opacity-100" : "translate-y-3 scale-[0.96] opacity-0",
+              "mx-auto flex h-56 w-56 items-center justify-center p-4 transition-all duration-300",
+              loadingShowcaseVisible ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
             )}
-            style={{ transitionDuration: `${LOADING_SHOWCASE_FADE_MS}ms` }}
           >
             <img
               src={currentLoadingShowcase.emblemSrc}
@@ -2024,10 +2024,9 @@ export default function YearReviewPage() {
           </div>
           <div
             className={cn(
-              "space-y-1 transition-all ease-in-out",
-              loadingShowcaseVisible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0",
+              "space-y-1 transition-all duration-300",
+              loadingShowcaseVisible ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
             )}
-            style={{ transitionDuration: `${LOADING_SHOWCASE_FADE_MS}ms` }}
           >
             <p className="text-xl font-semibold text-christmas-snow">{currentLoadingShowcase.title}</p>
           </div>
