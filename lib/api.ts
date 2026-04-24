@@ -1035,7 +1035,7 @@ async function fetchJsonWithOptions(url: string, options: FetchApiOptions = {}):
 async function fetchTeamsPayload(options: FetchApiOptions = {}): Promise<unknown> {
   return fetchJsonWithOptions(`${API_BASE}/teams`, {
     ...options,
-    publish: false,
+    publish: true,
   })
 }
 
