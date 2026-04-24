@@ -82,8 +82,8 @@ const API_CACHE_KEY = `${API_CACHE_NAMESPACE}-${APP_BUILD_ID}`
 const API_CACHE_TTL_MS = 5 * 60 * 1000
 const ROLE_TAB_ORDER = [
   "SL",
-  "Медик",
   "Стрелок",
+  "Медик",
   "LAT",
   "Тандем",
   "ГП",
@@ -298,6 +298,19 @@ function formatDateFilterLabel(value: string): string {
 
 function normalizeRoleOrderLabel(value: string): string {
   return value.trim().toLowerCase().replace(/ё/g, "е")
+}
+
+function getRoleOrderLabel(role: string): string {
+  const normalized = normalizeRoleOrderLabel(formatRoleName(role) || role)
+
+  switch (normalized) {
+    case "сквадной":
+      return "sl"
+    case "hat":
+      return "тандем"
+    default:
+      return normalized
+  }
 }
 
 function DateFilterPicker({
@@ -2284,8 +2297,8 @@ export default function YearReviewPage() {
   )
 
   const orderedRoleLeaderboards = [...nonEmptyRoleLeaderboards].sort((left, right) => {
-    const leftLabel = normalizeRoleOrderLabel(formatRoleName(left.role) || left.role)
-    const rightLabel = normalizeRoleOrderLabel(formatRoleName(right.role) || right.role)
+    const leftLabel = getRoleOrderLabel(left.role)
+    const rightLabel = getRoleOrderLabel(right.role)
     const leftIndex = roleOrderIndex.get(leftLabel)
     const rightIndex = roleOrderIndex.get(rightLabel)
 
