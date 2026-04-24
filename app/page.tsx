@@ -232,6 +232,7 @@ const LEADERBOARD_PREVIEW_LIMIT = 10
 const VEHICLE_LEADERBOARD_PREVIEW_LIMIT = 5
 const LOADING_SHOWCASE_INTERVAL_MS = 3600
 const LOADING_SHOWCASE_FADE_MS = 900
+const LOADING_SHOWCASE_ITEMS_COUNT = 3
 
 type LeaderboardCardConfig = {
   key: string
@@ -1008,13 +1009,13 @@ export default function YearReviewPage() {
   }, [])
 
   useEffect(() => {
-    if (!loading || loadingShowcaseItems.length <= 1) return
+    if (!loading || LOADING_SHOWCASE_ITEMS_COUNT <= 1) return
 
     let fadeTimeoutId: number | null = null
     const intervalId = window.setInterval(() => {
       setLoadingShowcaseVisible(false)
       fadeTimeoutId = window.setTimeout(() => {
-        setLoadingShowcaseIndex((current) => (current + 1) % loadingShowcaseItems.length)
+        setLoadingShowcaseIndex((current) => (current + 1) % LOADING_SHOWCASE_ITEMS_COUNT)
         setLoadingShowcaseVisible(true)
       }, LOADING_SHOWCASE_FADE_MS)
     }, LOADING_SHOWCASE_INTERVAL_MS)
@@ -1025,7 +1026,7 @@ export default function YearReviewPage() {
         window.clearTimeout(fadeTimeoutId)
       }
     }
-  }, [loading, loadingShowcaseItems.length])
+  }, [loading])
 
   const loadData = useCallback(async (forceRefresh = false, resetCache = false) => {
     const cached = readCachedData()
