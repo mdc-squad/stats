@@ -66,7 +66,9 @@ const HOLIDAYS_BY_MONTH_DAY: Record<string, { label: string; nonWorking: boolean
   "03-08": { label: "Женский день", nonWorking: true },
   "03-15": { label: "День Конституции РБ", nonWorking: false },
   "04-02": { label: "День единения народов", nonWorking: false },
+  "04-09": { label: "День основания DCAI", nonWorking: false },
   "04-12": { label: "День космонавтики", nonWorking: false },
+  "04-29": { label: "День основания Mors De Caelo", nonWorking: false },
   "05-01": { label: "Праздник Весны и Труда / День труда", nonWorking: true },
   "05-09": { label: "День Победы", nonWorking: true },
   "05-13": { label: "День Государственного флага РБ", nonWorking: false },
@@ -78,7 +80,7 @@ const HOLIDAYS_BY_MONTH_DAY: Record<string, { label: string; nonWorking: boolean
   "09-17": { label: "День народного единства РБ", nonWorking: false },
   "11-04": { label: "День народного единства РФ", nonWorking: true },
   "11-07": { label: "День Октябрьской революции", nonWorking: true },
-  "12-12": { label: "День Конституции РФ", nonWorking: false },
+  "12-12": { label: "День Конституции РФ • День основания GRAVE", nonWorking: false },
   "12-25": { label: "Католическое Рождество", nonWorking: true },
 }
 const EVENT_TYPE_ICONS: Array<[string, LucideIcon]> = [
