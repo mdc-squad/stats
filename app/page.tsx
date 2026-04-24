@@ -2012,7 +2012,7 @@ export default function YearReviewPage() {
           <div
             className={cn(
               "mx-auto flex h-56 w-56 items-center justify-center p-4 transition-all ease-in-out",
-              loadingShowcaseVisible ? "scale-100 opacity-100 blur-0" : "scale-[0.985] opacity-0 blur-[2px]",
+              loadingShowcaseVisible ? "translate-y-0 scale-100 rotate-0 opacity-100" : "translate-y-3 scale-[0.96] -rotate-3 opacity-0",
             )}
             style={{ transitionDuration: `${LOADING_SHOWCASE_FADE_MS}ms` }}
           >
@@ -2025,11 +2025,11 @@ export default function YearReviewPage() {
           <div
             className={cn(
               "space-y-1 transition-all ease-in-out",
-              loadingShowcaseVisible ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
+              loadingShowcaseVisible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0",
             )}
             style={{ transitionDuration: `${LOADING_SHOWCASE_FADE_MS}ms` }}
           >
-            <p className="text-lg font-semibold text-christmas-snow">{currentLoadingShowcase.title}</p>
+            <p className="text-xl font-semibold text-christmas-snow">{currentLoadingShowcase.title}</p>
           </div>
           <div className="space-y-2">
             <p className="text-christmas-gold">{syncProgress?.message ?? seasonalTheme.loadingLabel}</p>
