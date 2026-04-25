@@ -3,21 +3,42 @@ import { withBasePath } from "./base-path"
 const STEAM_PROFILE_URL = "https://steamcommunity.com/profiles"
 const STEAM_ID_PATTERN = /^\d{17}$/
 const PROFILE_REQUEST_TIMEOUT_MS = 6000
-const DEFAULT_STEAM_PROFILE_PROXY_BASE = "https://api.codetabs.com/v1/proxy/?quest="
-const STEAM_PROFILE_PROXY_BASE =
-  process.env.NEXT_PUBLIC_STEAM_PROFILE_PROXY_BASE ?? DEFAULT_STEAM_PROFILE_PROXY_BASE
+const DEFAULT_STEAM_PROFILE_PROXY_BASE = "https://r.jina.ai/http://steamcommunity.com/profiles"
+const STEAM_PROFILE_PROXY_BASE = (process.env.NEXT_PUBLIC_STEAM_PROFILE_PROXY_BASE ?? DEFAULT_STEAM_PROFILE_PROXY_BASE).replace(/\/$/, "")
 
 const avatarUrlCache = new Map<string, string | null>()
 const pendingAvatarRequests = new Map<string, Promise<string | null>>()
 
-function buildProfileXmlProxyUrl(steamId: string): string {
-  const profileUrl = `${STEAM_PROFILE_URL}/${steamId}?xml=1`
-  return `${STEAM_PROFILE_PROXY_BASE}${encodeURIComponent(profileUrl)}`
+function buildProfileProxyUrl(steamId: string): string {
+  if (STEAM_PROFILE_PROXY_BASE.includes("{PROFILE_URL}")) {
+    return STEAM_PROFILE_PROXY_BASE.replace("{PROFILE_URL}", encodeURIComponent(`${STEAM_PROFILE_URL}/${steamId}`))
+  }
+
+  if (STEAM_PROFILE_PROXY_BASE.includes("{STEAM_ID}")) {
+    return STEAM_PROFILE_PROXY_BASE.replace("{STEAM_ID}", steamId)
+  }
+
+  return `${STEAM_PROFILE_PROXY_BASE}/${steamId}`
 }
 
 function extractAvatarUrlFromXml(xmlPayload: string): string | null {
   const avatarMatch = xmlPayload.match(/<avatarFull>\s*<!\[CDATA\[(.+?)\]\]>\s*<\/avatarFull>/i)
   return avatarMatch?.[1]?.trim() || null
+}
+
+function extractAvatarUrlFromProfilePayload(payload: string): string | null {
+  const xmlAvatar = extractAvatarUrlFromXml(payload)
+  if (xmlAvatar) {
+    return xmlAvatar
+  }
+
+  const markdownAvatarMatch = payload.match(/https:\/\/avatars\.fastly\.steamstatic\.com\/[a-f0-9]+_full\.(?:jpg|png)/i)
+  if (markdownAvatarMatch?.[0]) {
+    return markdownAvatarMatch[0]
+  }
+
+  const genericAvatarMatch = payload.match(/https:\/\/avatars\.fastly\.steamstatic\.com\/[a-f0-9]+(?:_full|_medium)?\.(?:jpg|png)/i)
+  return genericAvatarMatch?.[0] ?? null
 }
 
 async function fetchTextWithTimeout(url: string, timeoutMs: number): Promise<string> {
@@ -57,8 +78,8 @@ export async function resolveSteamAvatarUrl(steamId: string): Promise<string | n
 
   const request = (async () => {
     try {
-      const xmlPayload = await fetchTextWithTimeout(buildProfileXmlProxyUrl(normalizedSteamId), PROFILE_REQUEST_TIMEOUT_MS)
-      const avatarUrl = extractAvatarUrlFromXml(xmlPayload)
+      const profilePayload = await fetchTextWithTimeout(buildProfileProxyUrl(normalizedSteamId), PROFILE_REQUEST_TIMEOUT_MS)
+      const avatarUrl = extractAvatarUrlFromProfilePayload(profilePayload)
       avatarUrlCache.set(normalizedSteamId, avatarUrl)
       return avatarUrl
     } catch {

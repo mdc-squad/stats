@@ -978,6 +978,7 @@ export default function YearReviewPage() {
   const [syncProgress, setSyncProgress] = useState<SyncProgressState | null>(null)
   const [loadingShowcaseIndex, setLoadingShowcaseIndex] = useState(0)
   const [loadingShowcaseVisible, setLoadingShowcaseVisible] = useState(true)
+  const [loadingShowcaseReady, setLoadingShowcaseReady] = useState(false)
   const [, setLastSyncReport] = useState<SyncReport | null>(null)
   const rawDataRef = useRef<MDCData | null>(null)
   const calendarSectionRef = useRef<HTMLDivElement | null>(null)
@@ -1009,7 +1010,7 @@ export default function YearReviewPage() {
   }, [])
 
   useEffect(() => {
-    if (!loading || LOADING_SHOWCASE_ITEMS_COUNT <= 1) return
+    if (!loading || !loadingShowcaseReady || LOADING_SHOWCASE_ITEMS_COUNT <= 1) return
 
     let fadeTimeoutId: number | null = null
     const intervalId = window.setInterval(() => {
@@ -1027,7 +1028,7 @@ export default function YearReviewPage() {
       }
       setLoadingShowcaseVisible(true)
     }
-  }, [loading])
+  }, [loading, loadingShowcaseReady])
 
   const loadData = useCallback(async (forceRefresh = false, resetCache = false) => {
     const cached = readCachedData()
@@ -1240,6 +1241,34 @@ export default function YearReviewPage() {
     ],
     [],
   )
+
+  useEffect(() => {
+    let isActive = true
+
+    const preloadImages = async () => {
+      await Promise.allSettled(
+        loadingShowcaseItems.map(
+          (item) =>
+            new Promise<void>((resolve) => {
+              const image = new window.Image()
+              image.onload = () => resolve()
+              image.onerror = () => resolve()
+              image.src = item.emblemSrc
+            }),
+        ),
+      )
+
+      if (isActive) {
+        setLoadingShowcaseReady(true)
+      }
+    }
+
+    void preloadImages()
+
+    return () => {
+      isActive = false
+    }
+  }, [loadingShowcaseItems])
 
   const currentLoadingShowcase = loadingShowcaseItems[loadingShowcaseIndex % loadingShowcaseItems.length] ?? loadingShowcaseItems[0]
 
