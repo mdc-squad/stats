@@ -1,11 +1,11 @@
 import { withBasePath } from "./base-path"
 
 const STEAM_PROFILE_URL = "https://steamcommunity.com/profiles"
-const STEAMID_IO_LOOKUP_URL = "https://steamid.io/lookup"
 const STEAM_ID_PATTERN = /^\d{17}$/
 const PROFILE_REQUEST_TIMEOUT_MS = 12000
 const DEFAULT_STEAM_PROFILE_PROXY_BASE = "https://r.jina.ai/http://steamcommunity.com/profiles"
 const STEAM_PROFILE_PROXY_BASE = (process.env.NEXT_PUBLIC_STEAM_PROFILE_PROXY_BASE ?? DEFAULT_STEAM_PROFILE_PROXY_BASE).replace(/\/$/, "")
+const STEAMID_IO_PROXY_URL = "https://r.jina.ai/http://steamid.io/lookup"
 const STEAM_AVATAR_CACHE_KEY = "mdc-steam-avatar-cache-v1"
 const STEAM_AVATAR_SUCCESS_TTL_MS = 14 * 24 * 60 * 60 * 1000
 const STEAM_AVATAR_FAILURE_TTL_MS = 12 * 60 * 60 * 1000
@@ -33,8 +33,8 @@ function buildProfileProxyUrl(steamId: string, includeXml = false): string {
   return `${STEAM_PROFILE_PROXY_BASE}/${steamId}${includeXml ? "/?xml=1" : ""}`
 }
 
-function buildSteamIdIoLookupUrl(steamId: string): string {
-  return `${STEAMID_IO_LOOKUP_URL}/${steamId}`
+function buildSteamIdIoProxyUrl(steamId: string): string {
+  return `${STEAMID_IO_PROXY_URL}/${steamId}`
 }
 
 function extractAvatarUrlFromXml(xmlPayload: string): string | null {
@@ -133,13 +133,14 @@ function storeCachedAvatarUrl(steamId: string, url: string | null) {
   writePersistentAvatarCache(persistentCache)
 }
 
-async function fetchTextWithTimeout(url: string, timeoutMs: number): Promise<string> {
+async function fetchTextWithTimeout(url: string, timeoutMs: number, headers?: HeadersInit): Promise<string> {
   const abortController = new AbortController()
   const timeout = setTimeout(() => abortController.abort(), timeoutMs)
 
   try {
     const response = await fetch(url, {
       cache: "force-cache",
+      headers,
       signal: abortController.signal,
     })
 
@@ -171,15 +172,20 @@ export async function resolveSteamAvatarUrl(steamId: string): Promise<string | n
 
   const request = (async () => {
     try {
-      const candidateUrls = [
-        buildProfileProxyUrl(normalizedSteamId, false),
-        buildProfileProxyUrl(normalizedSteamId, true),
-        buildSteamIdIoLookupUrl(normalizedSteamId),
+      const candidateSources = [
+        { url: buildProfileProxyUrl(normalizedSteamId, false) },
+        { url: buildProfileProxyUrl(normalizedSteamId, true) },
+        {
+          url: buildSteamIdIoProxyUrl(normalizedSteamId),
+          headers: {
+            "x-respond-with": "html",
+          },
+        },
       ]
 
-      for (const candidateUrl of candidateUrls) {
+      for (const candidateSource of candidateSources) {
         try {
-          const profilePayload = await fetchTextWithTimeout(candidateUrl, PROFILE_REQUEST_TIMEOUT_MS)
+          const profilePayload = await fetchTextWithTimeout(candidateSource.url, PROFILE_REQUEST_TIMEOUT_MS, candidateSource.headers)
           const avatarUrl = extractAvatarUrlFromProfilePayload(profilePayload)
           if (avatarUrl) {
             storeCachedAvatarUrl(normalizedSteamId, avatarUrl)
