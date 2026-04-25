@@ -1,6 +1,7 @@
 import { withBasePath } from "./base-path"
 
 const STEAM_PROFILE_URL = "https://steamcommunity.com/profiles"
+const STEAMID_IO_LOOKUP_URL = "https://steamid.io/lookup"
 const STEAM_ID_PATTERN = /^\d{17}$/
 const PROFILE_REQUEST_TIMEOUT_MS = 12000
 const DEFAULT_STEAM_PROFILE_PROXY_BASE = "https://r.jina.ai/http://steamcommunity.com/profiles"
@@ -29,7 +30,11 @@ function buildProfileProxyUrl(steamId: string, includeXml = false): string {
     return STEAM_PROFILE_PROXY_BASE.replace("{STEAM_ID}", steamId)
   }
 
-  return `${STEAM_PROFILE_PROXY_BASE}/${steamId}${includeXml ? "?xml=1" : ""}`
+  return `${STEAM_PROFILE_PROXY_BASE}/${steamId}${includeXml ? "/?xml=1" : ""}`
+}
+
+function buildSteamIdIoLookupUrl(steamId: string): string {
+  return `${STEAMID_IO_LOOKUP_URL}/${steamId}`
 }
 
 function extractAvatarUrlFromXml(xmlPayload: string): string | null {
@@ -41,6 +46,16 @@ function extractAvatarUrlFromProfilePayload(payload: string): string | null {
   const xmlAvatar = extractAvatarUrlFromXml(payload)
   if (xmlAvatar) {
     return xmlAvatar
+  }
+
+  const schemaAvatarMatch = payload.match(/"thumbnailURL"\s*:\s*"([^"]+)"/i)
+  if (schemaAvatarMatch?.[1]) {
+    return schemaAvatarMatch[1].trim()
+  }
+
+  const legacySteamAvatarMatch = payload.match(/https:\/\/steamcdn-a\.akamaihd\.net\/steamcommunity\/public\/images\/avatars\/[a-z0-9]{2}\/[a-z0-9]+\.(?:jpg|png|jpeg|webp)/i)
+  if (legacySteamAvatarMatch?.[0]) {
+    return legacySteamAvatarMatch[0]
   }
 
   const markdownAvatarMatch = payload.match(/https:\/\/avatars(?:\.[a-z0-9-]+)?\.steamstatic\.com\/[a-f0-9]+_full\.(?:jpg|png|jpeg|webp)/i)
@@ -156,7 +171,11 @@ export async function resolveSteamAvatarUrl(steamId: string): Promise<string | n
 
   const request = (async () => {
     try {
-      const candidateUrls = [buildProfileProxyUrl(normalizedSteamId, false), buildProfileProxyUrl(normalizedSteamId, true)]
+      const candidateUrls = [
+        buildProfileProxyUrl(normalizedSteamId, false),
+        buildProfileProxyUrl(normalizedSteamId, true),
+        buildSteamIdIoLookupUrl(normalizedSteamId),
+      ]
 
       for (const candidateUrl of candidateUrls) {
         try {
