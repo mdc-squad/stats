@@ -1224,19 +1224,22 @@ export default function YearReviewPage() {
         id: "clan",
         title: "Mors De Caelo",
         emblemSrc: withBasePath("/mdc-clan-emblem.png"),
-        emblemAlt: "Эмблема клана MDC",
+        emblemAlt: "MDC emblem",
+        offsetClassName: "",
       },
       {
         id: "grave",
         title: "GRAVE",
         emblemSrc: withBasePath("/grave-emblem.png"),
-        emblemAlt: "Эмблема GRAVE",
+        emblemAlt: "GRAVE emblem",
+        offsetClassName: "translate-x-2",
       },
       {
         id: "coalition",
         title: "De Caelo Ad Infernos",
         emblemSrc: withBasePath("/dcia-emblem.png"),
-        emblemAlt: "Эмблема коалиции DCAI",
+        emblemAlt: "DCAI emblem",
+        offsetClassName: "",
       },
     ],
     [],
@@ -2049,7 +2052,7 @@ export default function YearReviewPage() {
               <img
                 src={currentLoadingShowcase.emblemSrc}
                 alt={currentLoadingShowcase.emblemAlt}
-                className="h-full w-full object-contain"
+                className={cn("h-full w-full object-contain", currentLoadingShowcase.offsetClassName)}
               />
             </div>
             <div
