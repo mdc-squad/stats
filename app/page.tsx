@@ -2039,25 +2039,27 @@ export default function YearReviewPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-full max-w-md px-4 text-center space-y-6">
-          <div
-            className={cn(
-              "mx-auto flex h-56 w-56 items-center justify-center p-4 transition-all duration-300",
-              loadingShowcaseVisible ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
-            )}
-          >
-            <img
-              src={currentLoadingShowcase.emblemSrc}
-              alt={currentLoadingShowcase.emblemAlt}
-              className="h-full w-full object-contain"
-            />
-          </div>
-          <div
-            className={cn(
-              "space-y-1 transition-all duration-300",
-              loadingShowcaseVisible ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
-            )}
-          >
-            <p className="text-xl font-semibold text-christmas-snow">{currentLoadingShowcase.title}</p>
+          <div className="flex flex-col items-center justify-center space-y-2">
+            <div
+              className={cn(
+                "mx-auto flex h-56 w-56 items-center justify-center p-4 transition-all duration-300",
+                loadingShowcaseVisible ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
+              )}
+            >
+              <img
+                src={currentLoadingShowcase.emblemSrc}
+                alt={currentLoadingShowcase.emblemAlt}
+                className="h-full w-full object-contain"
+              />
+            </div>
+            <div
+              className={cn(
+                "w-full text-center transition-all duration-300",
+                loadingShowcaseVisible ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
+              )}
+            >
+              <p className="text-xl font-semibold text-christmas-snow">{currentLoadingShowcase.title}</p>
+            </div>
           </div>
           <div className="space-y-2">
             <p className="text-christmas-gold">{syncProgress?.message ?? seasonalTheme.loadingLabel}</p>
