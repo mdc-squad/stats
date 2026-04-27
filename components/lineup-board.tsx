@@ -8,6 +8,7 @@ import { SpecializationIcon, getSpecializationLabel } from "@/components/special
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { withBasePath } from "@/lib/base-path"
 import { cn } from "@/lib/utils"
 
 const LINEUP_API_BASE = (process.env.NEXT_PUBLIC_MDC_API_BASE ?? "https://api.hungryfishteam.org/gas/mdc").replace(/\/$/, "")
@@ -48,36 +49,36 @@ const SQUAD_STYLES: Record<SquadName, { header: string; cell: string; number: st
 }
 
 const VEHICLE_ICON_BY_LABEL: Record<string, string> = {
-  "соплай груз": "/lineup-vehicle-icons/1.png",
-  "пехотка груз": "/lineup-vehicle-icons/2.png",
-  "пехотка с пул": "/lineup-vehicle-icons/3.png",
-  "соплай джип": "/lineup-vehicle-icons/4.png",
-  "мрап": "/lineup-vehicle-icons/5.png",
-  "мрап рвс": "/lineup-vehicle-icons/6.png",
-  "пехотка джип": "/lineup-vehicle-icons/7.png",
-  "вертолет тр": "/lineup-vehicle-icons/8.png",
-  "пво груз": "/lineup-vehicle-icons/9.png",
-  "арт джип": "/lineup-vehicle-icons/10.png",
-  "пвт джип": "/lineup-vehicle-icons/11.png",
-  "мотоцикл": "/lineup-vehicle-icons/12.png",
-  "пехотка гус": "/lineup-vehicle-icons/13.png",
-  "соплайка гус": "/lineup-vehicle-icons/14.png",
-  "пехотка гус с пул": "/lineup-vehicle-icons/15.png",
-  "msv гус": "/lineup-vehicle-icons/16.png",
-  "арт гус": "/lineup-vehicle-icons/17.png",
-  "мр гус": "/lineup-vehicle-icons/18.png",
-  "пво гус": "/lineup-vehicle-icons/19.png",
-  "бтр гус": "/lineup-vehicle-icons/20.png",
-  "бмп гус": "/lineup-vehicle-icons/21.png",
-  "сау гус": "/lineup-vehicle-icons/22.png",
-  "танк": "/lineup-vehicle-icons/23.png",
-  "бтр кол отк": "/lineup-vehicle-icons/24.png",
-  "мр кол": "/lineup-vehicle-icons/25.png",
-  "бтр кол": "/lineup-vehicle-icons/26.png",
-  "бмп кол": "/lineup-vehicle-icons/27.png",
-  "соплайка лодка": "/lineup-vehicle-icons/28.png",
-  "пехотка лодка": "/lineup-vehicle-icons/29.png",
-  "лодка с пул": "/lineup-vehicle-icons/30.png",
+  "соплай груз": withBasePath("/lineup-vehicle-icons/1.png"),
+  "пехотка груз": withBasePath("/lineup-vehicle-icons/2.png"),
+  "пехотка с пул": withBasePath("/lineup-vehicle-icons/3.png"),
+  "соплай джип": withBasePath("/lineup-vehicle-icons/4.png"),
+  "мрап": withBasePath("/lineup-vehicle-icons/5.png"),
+  "мрап рвс": withBasePath("/lineup-vehicle-icons/6.png"),
+  "пехотка джип": withBasePath("/lineup-vehicle-icons/7.png"),
+  "вертолет тр": withBasePath("/lineup-vehicle-icons/8.png"),
+  "пво груз": withBasePath("/lineup-vehicle-icons/9.png"),
+  "арт джип": withBasePath("/lineup-vehicle-icons/10.png"),
+  "пвт джип": withBasePath("/lineup-vehicle-icons/11.png"),
+  "мотоцикл": withBasePath("/lineup-vehicle-icons/12.png"),
+  "пехотка гус": withBasePath("/lineup-vehicle-icons/13.png"),
+  "соплайка гус": withBasePath("/lineup-vehicle-icons/14.png"),
+  "пехотка гус с пул": withBasePath("/lineup-vehicle-icons/15.png"),
+  "msv гус": withBasePath("/lineup-vehicle-icons/16.png"),
+  "арт гус": withBasePath("/lineup-vehicle-icons/17.png"),
+  "мр гус": withBasePath("/lineup-vehicle-icons/18.png"),
+  "пво гус": withBasePath("/lineup-vehicle-icons/19.png"),
+  "бтр гус": withBasePath("/lineup-vehicle-icons/20.png"),
+  "бмп гус": withBasePath("/lineup-vehicle-icons/21.png"),
+  "сау гус": withBasePath("/lineup-vehicle-icons/22.png"),
+  "танк": withBasePath("/lineup-vehicle-icons/23.png"),
+  "бтр кол отк": withBasePath("/lineup-vehicle-icons/24.png"),
+  "мр кол": withBasePath("/lineup-vehicle-icons/25.png"),
+  "бтр кол": withBasePath("/lineup-vehicle-icons/26.png"),
+  "бмп кол": withBasePath("/lineup-vehicle-icons/27.png"),
+  "соплайка лодка": withBasePath("/lineup-vehicle-icons/28.png"),
+  "пехотка лодка": withBasePath("/lineup-vehicle-icons/29.png"),
+  "лодка с пул": withBasePath("/lineup-vehicle-icons/30.png"),
 }
 
 function isMeaningful(value: unknown) {
