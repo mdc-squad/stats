@@ -1065,7 +1065,7 @@ export default function YearReviewPage() {
     try {
       const normalizedData = await fetchAllData({
         forceRefresh,
-        publish: forceRefresh || resetCache,
+        publish: true,
         onProgress: (progress) => {
           latestProgress = progress
           setSyncProgress((current) => ({
