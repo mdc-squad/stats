@@ -982,8 +982,7 @@ function normalizeClan(raw: UnknownRecord): Clan {
 }
 
 async function fetchJsonWithOptions(url: string, options: FetchApiOptions = {}): Promise<unknown> {
-  const publishValue =
-    options.publish === undefined ? undefined : options.publish ? "true" : "false"
+  const publishValue = options.publish ? "true" : undefined
   const requestUrl = withQueryParams(url, {
     publish: publishValue,
   })
@@ -1389,7 +1388,7 @@ export async function fetchPlayerByNickname(
   }
 
   const url = withQueryParams(`${API_BASE}/player?playerNickname=${encodeURIComponent(normalizedNickname)}`, {
-    publish: options.publish === undefined ? undefined : options.publish ? "true" : "false",
+    publish: options.publish ? "true" : undefined,
   })
   const response = await fetch(url, options.forceRefresh ? { cache: "no-store" } : undefined)
   if (!response.ok) {
