@@ -127,6 +127,13 @@ function hasAssignedPlayer(player: LineupPlayer) {
   return [player.nickname, player.tag, player.role, player.specialist, player.vehicle].some(isMeaningful)
 }
 
+function hasSquadContent(rows: LineupPlayer[] | undefined) {
+  return (rows ?? []).some((row) => {
+    if (isHeaderRow(row) || isServiceRow(row)) return false
+    return [row.vehicle, row.role, row.specialist, row.tag, row.nickname, row.vehicle_icon, row.role_icon, row.specialist_icon, row.vehicle_color].some(isMeaningful)
+  })
+}
+
 function normalizeRows(rows: LineupPlayer[] | undefined) {
   const cleanRows = (rows ?? []).filter((row) => !isHeaderRow(row) && !isServiceRow(row) && !isSquadMarkerRow(row))
   const byNumber = new Map<number, LineupPlayer>()
@@ -244,7 +251,7 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
               )}
             >
               <div className="flex items-center justify-center">
-                <span className={cn("flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold text-slate-950", style.accent)}>
+                <span className={cn("flex h-7 w-7 items-center justify-center rounded-full text-xs font-extrabold text-slate-950", style.accent)}>
                   {Number(player.number) || index + 1}
                 </span>
               </div>
@@ -339,7 +346,7 @@ export function LineupBoard() {
   const currentSide = lineup?.[side] ?? {}
   const title = parseMatchTitle(lineup?.name, side)
   const titleMeta = splitMatchTitle(title)
-  const visibleSquads = SQUAD_ORDER.filter((squadName) => normalizeRows(currentSide[squadName] ?? []).some(hasAssignedPlayer))
+  const visibleSquads = SQUAD_ORDER.filter((squadName) => hasSquadContent(currentSide[squadName] ?? []))
   return (
     <Card className="overflow-hidden border-christmas-gold/20 bg-card/60">
       <CardContent className="space-y-4 p-4">
