@@ -5,7 +5,7 @@ import { User } from "lucide-react"
 import { getSteamAvatarFallbackUrl, resolveSteamAvatarUrl } from "@/lib/steam-avatar"
 
 interface PlayerAvatarProps {
-  steamId: string
+  steamId?: string | null
   nickname: string
   size?: "sm" | "md" | "lg"
   className?: string
@@ -29,7 +29,7 @@ export function PlayerAvatar({ steamId, nickname, size = "md", className = "" }:
 
   useEffect(() => {
     let isActive = true
-    const normalizedSteamId = steamId.trim()
+    const normalizedSteamId = typeof steamId === "string" ? steamId.trim() : ""
 
     setError(false)
     setAvatarUrl(null)

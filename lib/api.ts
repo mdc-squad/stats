@@ -311,21 +311,21 @@ function applyTeamsToData(data: MDCData, teamsPayload: unknown): MDCData {
   }
 }
 
-function normalizeClanRosterTag(value: string): string {
-  return value
+function normalizeClanRosterTag(value: unknown): string {
+  return toString(value, "")
     .trim()
     .replace(/^[^0-9A-Za-zА-Яа-яЁё]+/u, "")
     .replace(/\s+/g, " ")
     .toLowerCase()
 }
 
-function isRecognizedMdcRosterTag(value: string): boolean {
+function isRecognizedMdcRosterTag(value: unknown): boolean {
   const normalized = normalizeClanRosterTag(value)
   return normalized === "mdc︱" || normalized === "mdck︱" || normalized === "неактив"
 }
 
-function normalizeKey(value: string): string {
-  return value.trim().toLowerCase()
+function normalizeKey(value: unknown): string {
+  return toString(value, "").trim().toLowerCase()
 }
 
 function withQueryParams(url: string, params: Record<string, string | undefined>): string {
@@ -1383,7 +1383,7 @@ export async function fetchPlayerByNickname(
   playerNickname: string,
   options: FetchApiOptions = {},
 ): Promise<Record<string, unknown> | null> {
-  const normalizedNickname = playerNickname.trim()
+  const normalizedNickname = toString(playerNickname, "").trim()
   if (!normalizedNickname) {
     return null
   }

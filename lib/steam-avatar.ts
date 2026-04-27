@@ -154,8 +154,8 @@ async function fetchTextWithTimeout(url: string, timeoutMs: number, headers?: He
   }
 }
 
-export async function resolveSteamAvatarUrl(steamId: string): Promise<string | null> {
-  const normalizedSteamId = steamId.trim()
+export async function resolveSteamAvatarUrl(steamId: string | null | undefined): Promise<string | null> {
+  const normalizedSteamId = typeof steamId === "string" ? steamId.trim() : ""
   if (!normalizedSteamId || !STEAM_ID_PATTERN.test(normalizedSteamId)) {
     return null
   }
