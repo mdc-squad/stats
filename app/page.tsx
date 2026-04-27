@@ -31,6 +31,7 @@ import { SeasonalHeader } from "@/components/seasonal-header"
 import { OverallStatsPanel } from "@/components/overall-stats-panel"
 import { EventsExplorer } from "@/components/events-explorer"
 import { GamesCalendar } from "@/components/games-calendar"
+import { LineupBoard } from "@/components/lineup-board"
 import {
   type MDCData,
   type Player,
@@ -2490,6 +2491,12 @@ export default function YearReviewPage() {
               Календарь
             </TabsTrigger>
             <TabsTrigger
+              value="lineup"
+              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-lime-500/30 bg-lime-500/10 text-christmas-snow data-[state=active]:bg-lime-500 data-[state=active]:border-lime-500 data-[state=active]:text-slate-950 hover:bg-lime-500/20 transition-all"
+            >
+              Лайнап
+            </TabsTrigger>
+            <TabsTrigger
               value="summary"
               className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-violet-500/30 bg-violet-500/10 text-christmas-snow data-[state=active]:bg-violet-500 data-[state=active]:border-violet-500 data-[state=active]:text-white hover:bg-violet-500/20 transition-all"
             >
@@ -2535,6 +2542,10 @@ export default function YearReviewPage() {
 
           <TabsContent value="calendar" className="space-y-4" ref={calendarSectionRef}>
             <GamesCalendar games={pastGames} onOpenGame={(eventId) => handleOpenGame(eventId, "")} focusedEventId={calendarFocusEventId} />
+          </TabsContent>
+
+          <TabsContent value="lineup" className="space-y-4">
+            <LineupBoard />
           </TabsContent>
 
           <TabsContent value="summary" className="space-y-4">
