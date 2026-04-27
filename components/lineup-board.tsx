@@ -41,21 +41,22 @@ const SQUAD_STYLES: Record<
   SquadName,
   {
     border: string
-    badge: string
     text: string
     glow: string
     accent: string
     panel: string
+    rowBorder: string
+    rowHover: string
   }
 > = {
-  GREEN: { border: "border-emerald-500/35", badge: "bg-emerald-500/15 text-emerald-200", text: "text-emerald-200", glow: "from-emerald-500/18 via-emerald-500/6 to-transparent", accent: "bg-emerald-500", panel: "bg-emerald-500/6" },
-  RED: { border: "border-red-500/35", badge: "bg-red-500/15 text-red-200", text: "text-red-200", glow: "from-red-500/18 via-red-500/6 to-transparent", accent: "bg-red-500", panel: "bg-red-500/6" },
-  YELLOW: { border: "border-yellow-500/35", badge: "bg-yellow-500/15 text-yellow-200", text: "text-yellow-200", glow: "from-yellow-500/18 via-yellow-500/6 to-transparent", accent: "bg-yellow-500", panel: "bg-yellow-500/6" },
-  BLUE: { border: "border-cyan-500/35", badge: "bg-cyan-500/15 text-cyan-200", text: "text-cyan-200", glow: "from-cyan-500/18 via-cyan-500/6 to-transparent", accent: "bg-cyan-500", panel: "bg-cyan-500/6" },
-  PURPLE: { border: "border-violet-500/35", badge: "bg-violet-500/15 text-violet-200", text: "text-violet-200", glow: "from-violet-500/18 via-violet-500/6 to-transparent", accent: "bg-violet-500", panel: "bg-violet-500/6" },
-  ORANGE: { border: "border-orange-500/35", badge: "bg-orange-500/15 text-orange-200", text: "text-orange-200", glow: "from-orange-500/18 via-orange-500/6 to-transparent", accent: "bg-orange-500", panel: "bg-orange-500/6" },
-  BROWN: { border: "border-amber-700/35", badge: "bg-amber-700/15 text-amber-200", text: "text-amber-200", glow: "from-amber-700/18 via-amber-700/6 to-transparent", accent: "bg-amber-700", panel: "bg-amber-700/6" },
-  BLACK: { border: "border-zinc-500/35", badge: "bg-zinc-400/15 text-zinc-200", text: "text-zinc-200", glow: "from-zinc-400/18 via-zinc-400/6 to-transparent", accent: "bg-zinc-500", panel: "bg-zinc-400/6" },
+  GREEN: { border: "border-emerald-500/35", text: "text-emerald-200", glow: "from-emerald-500/18 via-emerald-500/6 to-transparent", accent: "bg-emerald-500", panel: "bg-emerald-500/6", rowBorder: "border-emerald-500/25", rowHover: "hover:border-emerald-400/45" },
+  RED: { border: "border-red-500/35", text: "text-red-200", glow: "from-red-500/18 via-red-500/6 to-transparent", accent: "bg-red-500", panel: "bg-red-500/6", rowBorder: "border-red-500/25", rowHover: "hover:border-red-400/45" },
+  YELLOW: { border: "border-yellow-500/35", text: "text-yellow-200", glow: "from-yellow-500/18 via-yellow-500/6 to-transparent", accent: "bg-yellow-500", panel: "bg-yellow-500/6", rowBorder: "border-yellow-500/25", rowHover: "hover:border-yellow-400/45" },
+  BLUE: { border: "border-cyan-500/35", text: "text-cyan-200", glow: "from-cyan-500/18 via-cyan-500/6 to-transparent", accent: "bg-cyan-500", panel: "bg-cyan-500/6", rowBorder: "border-cyan-500/25", rowHover: "hover:border-cyan-400/45" },
+  PURPLE: { border: "border-violet-500/35", text: "text-violet-200", glow: "from-violet-500/18 via-violet-500/6 to-transparent", accent: "bg-violet-500", panel: "bg-violet-500/6", rowBorder: "border-violet-500/25", rowHover: "hover:border-violet-400/45" },
+  ORANGE: { border: "border-orange-500/35", text: "text-orange-200", glow: "from-orange-500/18 via-orange-500/6 to-transparent", accent: "bg-orange-500", panel: "bg-orange-500/6", rowBorder: "border-orange-500/25", rowHover: "hover:border-orange-400/45" },
+  BROWN: { border: "border-amber-700/35", text: "text-amber-200", glow: "from-amber-700/18 via-amber-700/6 to-transparent", accent: "bg-amber-700", panel: "bg-amber-700/6", rowBorder: "border-amber-700/25", rowHover: "hover:border-amber-600/45" },
+  BLACK: { border: "border-zinc-500/35", text: "text-zinc-200", glow: "from-zinc-400/18 via-zinc-400/6 to-transparent", accent: "bg-zinc-500", panel: "bg-zinc-400/6", rowBorder: "border-zinc-500/25", rowHover: "hover:border-zinc-400/45" },
 }
 
 const VEHICLE_ICON_BY_LABEL: Record<string, string> = {
@@ -200,49 +201,13 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
   const style = SQUAD_STYLES[name]
   const normalizedRows = normalizeRows(rows)
   const filledRows = normalizedRows.filter(hasAssignedPlayer)
-  const freeSlots = Math.max(0, 9 - filledRows.length)
-  const topVehicles = Array.from(
-    filledRows.reduce((acc, player) => {
-      const key = isMeaningful(player.vehicle) ? String(player.vehicle) : ""
-      if (key) {
-        acc.set(key, (acc.get(key) ?? 0) + 1)
-      }
-      return acc
-    }, new Map<string, number>()),
-  )
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"))
-    .slice(0, 3)
 
   return (
     <div className={cn("overflow-hidden rounded-[18px] border bg-background/40 shadow-[0_18px_40px_rgba(0,0,0,0.25)] backdrop-blur-sm", style.border)}>
       <div className={cn("relative overflow-hidden border-b border-white/8", style.panel)}>
         <div className={cn("absolute inset-0 bg-gradient-to-r", style.glow)} />
-        <div className="relative flex items-start justify-between gap-3 px-4 py-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className={cn("text-lg font-bold tracking-[0.22em]", style.text)}>{name}</span>
-              <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", style.badge)}>
-                {filledRows.length}/9
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {filledRows.length > 0 ? `Занято ${filledRows.length} слотов` : "Состав пока не заполнен"}
-            </p>
-          </div>
-          {topVehicles.length > 0 ? (
-            <div className="flex shrink-0 items-center gap-1.5">
-              {topVehicles.map(([vehicle]) => (
-                <Tooltip key={`${name}-${vehicle}`}>
-                  <TooltipTrigger asChild>
-                    <span>
-                      <VehicleIconBadge vehicle={vehicle} color={name} />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">{vehicle}</TooltipContent>
-                </Tooltip>
-              ))}
-            </div>
-          ) : null}
+        <div className="relative px-4 py-3">
+          <span className={cn("text-lg font-bold tracking-[0.22em]", style.text)}>{name}</span>
         </div>
       </div>
 
@@ -258,7 +223,11 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
           return (
             <div
               key={`${name}-${index}-${nickname || tag || vehicleText}`}
-              className="grid grid-cols-[auto_auto_auto_auto_minmax(0,1fr)] items-center gap-2 rounded-xl border border-white/8 bg-black/20 px-3 py-2.5 transition-colors hover:border-white/15"
+              className={cn(
+                "grid grid-cols-[auto_auto_auto_auto_minmax(0,1fr)] items-center gap-2 rounded-xl border bg-black/20 px-3 py-2.5 transition-colors",
+                style.rowBorder,
+                style.rowHover,
+              )}
             >
               <div className="flex items-center justify-center">
                 <span className={cn("flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold text-slate-950", style.accent)}>
@@ -317,15 +286,9 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
         })
         ) : (
           <div className="rounded-xl border border-dashed border-white/10 bg-black/15 px-4 py-6 text-center text-sm text-muted-foreground">
-            Для этого отряда лайнап пока не заполнен.
+            Отряд не сформирован.
           </div>
         )}
-
-        {freeSlots > 0 && filledRows.length > 0 ? (
-          <div className="rounded-xl border border-dashed border-white/10 bg-black/10 px-3 py-2 text-center text-xs text-muted-foreground">
-            Свободных слотов: {freeSlots}
-          </div>
-        ) : null}
       </div>
     </div>
   )
@@ -362,6 +325,7 @@ export function LineupBoard() {
   const currentSide = lineup?.[side] ?? {}
   const title = parseMatchTitle(lineup?.name, side)
   const titleMeta = splitMatchTitle(title)
+  const visibleSquads = SQUAD_ORDER.filter((squadName) => normalizeRows(currentSide[squadName] ?? []).some(hasAssignedPlayer))
   return (
     <Card className="overflow-hidden border-christmas-gold/20 bg-card/60">
       <CardContent className="space-y-4 p-4">
@@ -412,7 +376,7 @@ export function LineupBoard() {
         ) : (
           <div className="space-y-4">
             <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
-              {SQUAD_ORDER.map((squadName) => (
+              {visibleSquads.map((squadName) => (
                 <SquadTable key={`${side}-${squadName}`} name={squadName} rows={currentSide[squadName] ?? []} />
               ))}
             </div>
