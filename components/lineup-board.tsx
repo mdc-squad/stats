@@ -272,7 +272,7 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span className="flex h-7 w-7 items-center justify-center">
-                        <RoleIcon role={role} className="h-5 w-5" />
+                        <RoleIcon role={role} className="h-6 w-6" />
                       </span>
                     </TooltipTrigger>
                     <TooltipContent side="top">{formatRoleName(role) || role}</TooltipContent>
