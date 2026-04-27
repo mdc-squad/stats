@@ -259,7 +259,7 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
                 {vehicleText ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span>
+                      <span className="flex h-7 w-7 items-center justify-center leading-none">
                         <VehicleIconBadge vehicle={vehicleText} color={player.vehicle_color} />
                       </span>
                     </TooltipTrigger>
@@ -271,8 +271,8 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
                 {role ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span className="flex h-7 w-7 items-center justify-center">
-                        <RoleIcon role={role} className="h-6 w-6" />
+                      <span className="flex h-7 w-7 items-center justify-center leading-none">
+                        <RoleIcon role={role} className="h-7 w-7" />
                       </span>
                     </TooltipTrigger>
                     <TooltipContent side="top">{formatRoleName(role) || role}</TooltipContent>
