@@ -109,12 +109,26 @@ function isServiceRow(player: LineupPlayer) {
   return Number.isFinite(number) && number < 1
 }
 
+function isSquadMarkerRow(player: LineupPlayer) {
+  const vehicle = String(player.vehicle ?? "").trim().toUpperCase()
+  const vehicleIcon = String(player.vehicle_icon ?? "").trim().toUpperCase()
+  const role = String(player.role ?? "").trim()
+  const specialist = String(player.specialist ?? "").trim()
+  const tag = String(player.tag ?? "").trim()
+  const nickname = String(player.nickname ?? "").trim()
+
+  const isMarker = SQUAD_ORDER.includes(vehicle as SquadName) || SQUAD_ORDER.includes(vehicleIcon as SquadName)
+  if (!isMarker) return false
+
+  return !role && !specialist && !tag && !nickname
+}
+
 function hasAssignedPlayer(player: LineupPlayer) {
   return [player.nickname, player.tag, player.role, player.specialist, player.vehicle].some(isMeaningful)
 }
 
 function normalizeRows(rows: LineupPlayer[] | undefined) {
-  const cleanRows = (rows ?? []).filter((row) => !isHeaderRow(row) && !isServiceRow(row))
+  const cleanRows = (rows ?? []).filter((row) => !isHeaderRow(row) && !isServiceRow(row) && !isSquadMarkerRow(row))
   const byNumber = new Map<number, LineupPlayer>()
 
   cleanRows.forEach((row, index) => {
