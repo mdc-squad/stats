@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Image from "next/image"
-import { RefreshCw, Users } from "lucide-react"
+import { RefreshCw } from "lucide-react"
 import { RoleIcon, formatRoleName } from "@/components/role-icon"
 import { SpecializationIcon, getSpecializationLabel } from "@/components/specialization-icon"
 import { Button } from "@/components/ui/button"
@@ -362,9 +362,6 @@ export function LineupBoard() {
   const currentSide = lineup?.[side] ?? {}
   const title = parseMatchTitle(lineup?.name, side)
   const titleMeta = splitMatchTitle(title)
-  const totalPlayers = SQUAD_ORDER.reduce((sum, squadName) => sum + normalizeRows(currentSide[squadName] ?? []).filter(hasAssignedPlayer).length, 0)
-  const activeSquads = SQUAD_ORDER.reduce((sum, squadName) => sum + (normalizeRows(currentSide[squadName] ?? []).some(hasAssignedPlayer) ? 1 : 0), 0)
-
   return (
     <Card className="overflow-hidden border-christmas-gold/20 bg-card/60">
       <CardContent className="space-y-4 p-4">
@@ -414,28 +411,6 @@ export function LineupBoard() {
           <div className="rounded-md border border-border/50 bg-background/30 px-3 py-8 text-center text-sm text-muted-foreground">Загрузка лайнапа...</div>
         ) : (
           <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-2xl border border-christmas-gold/15 bg-background/30 px-4 py-3">
-                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-christmas-gold/80">
-                  <Users className="h-3.5 w-3.5" />
-                  <span>Занято слотов</span>
-                </div>
-                <p className="mt-2 text-lg font-semibold text-christmas-snow">{totalPlayers} / 72</p>
-              </div>
-              <div className="rounded-2xl border border-christmas-gold/15 bg-background/30 px-4 py-3">
-                <div className="text-[11px] uppercase tracking-[0.22em] text-christmas-gold/80">Активных отрядов</div>
-                <p className="mt-2 text-lg font-semibold text-christmas-snow">{activeSquads} / 8</p>
-              </div>
-              <div className="rounded-2xl border border-christmas-gold/15 bg-background/30 px-4 py-3">
-                <div className="text-[11px] uppercase tracking-[0.22em] text-christmas-gold/80">Текущая сторона</div>
-                <p className="mt-2 text-lg font-semibold text-christmas-snow">{getMatchupLabel(lineup?.name, side)}</p>
-              </div>
-              <div className="rounded-2xl border border-christmas-gold/15 bg-background/30 px-4 py-3">
-                <div className="text-[11px] uppercase tracking-[0.22em] text-christmas-gold/80">Свободных мест</div>
-                <p className="mt-2 text-lg font-semibold text-christmas-snow">{72 - totalPlayers}</p>
-              </div>
-            </div>
-
             <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
               {SQUAD_ORDER.map((squadName) => (
                 <SquadTable key={`${side}-${squadName}`} name={squadName} rows={currentSide[squadName] ?? []} />
