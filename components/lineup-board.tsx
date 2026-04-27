@@ -210,10 +210,10 @@ function VehicleIconBadge({ vehicle, color }: { vehicle: string; color?: string 
   const icon = getVehicleIconAsset(vehicle)
   return (
     <span
-      className="inline-flex h-6 w-6 items-center justify-center rounded-[3px] border border-white/20 shadow-sm"
+      className="inline-flex h-7 w-7 items-center justify-center rounded-[4px] border border-white/20 shadow-sm"
       style={{ backgroundColor: getVehicleColor(color) }}
     >
-      {icon ? <Image src={icon} alt="" width={18} height={18} className="h-[18px] w-[18px] object-contain" unoptimized /> : null}
+      {icon ? <Image src={icon} alt="" width={20} height={20} className="h-5 w-5 object-contain" unoptimized /> : null}
     </span>
   )
 }
@@ -271,8 +271,8 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
                 {role ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span>
-                        <RoleIcon role={role} className="h-6 w-6" />
+                      <span className="flex h-7 w-7 items-center justify-center">
+                        <RoleIcon role={role} className="h-5 w-5" />
                       </span>
                     </TooltipTrigger>
                     <TooltipContent side="top">{formatRoleName(role) || role}</TooltipContent>
