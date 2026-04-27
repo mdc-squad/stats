@@ -1,8 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useState } from "react"
 import Image from "next/image"
-import { RefreshCw } from "lucide-react"
+import { RefreshCw, Users } from "lucide-react"
 import { RoleIcon, formatRoleName } from "@/components/role-icon"
 import { SpecializationIcon, getSpecializationLabel } from "@/components/specialization-icon"
 import { Button } from "@/components/ui/button"
@@ -37,15 +37,25 @@ type LineupPayload = {
   siteTwo?: Partial<Record<SquadName, LineupPlayer[]>>
 }
 
-const SQUAD_STYLES: Record<SquadName, { header: string; cell: string; number: string; ring: string }> = {
-  GREEN: { header: "bg-emerald-800", cell: "bg-emerald-200/85 text-slate-950", number: "bg-emerald-700 text-white", ring: "border-emerald-500/60" },
-  RED: { header: "bg-red-800", cell: "bg-red-200/85 text-slate-950", number: "bg-red-700 text-white", ring: "border-red-500/60" },
-  YELLOW: { header: "bg-yellow-600", cell: "bg-yellow-200/90 text-slate-950", number: "bg-yellow-600 text-white", ring: "border-yellow-400/70" },
-  BLUE: { header: "bg-cyan-700", cell: "bg-cyan-200/80 text-slate-950", number: "bg-cyan-700 text-white", ring: "border-cyan-400/60" },
-  PURPLE: { header: "bg-violet-800", cell: "bg-violet-200/80 text-slate-950", number: "bg-violet-800 text-white", ring: "border-violet-500/60" },
-  ORANGE: { header: "bg-orange-600", cell: "bg-orange-200/85 text-slate-950", number: "bg-orange-600 text-white", ring: "border-orange-400/70" },
-  BROWN: { header: "bg-red-950", cell: "bg-red-300/75 text-slate-950", number: "bg-red-950 text-white", ring: "border-red-900/80" },
-  BLACK: { header: "bg-zinc-700", cell: "bg-zinc-400/75 text-slate-950", number: "bg-zinc-700 text-white", ring: "border-zinc-500/80" },
+const SQUAD_STYLES: Record<
+  SquadName,
+  {
+    border: string
+    badge: string
+    text: string
+    glow: string
+    accent: string
+    panel: string
+  }
+> = {
+  GREEN: { border: "border-emerald-500/35", badge: "bg-emerald-500/15 text-emerald-200", text: "text-emerald-200", glow: "from-emerald-500/18 via-emerald-500/6 to-transparent", accent: "bg-emerald-500", panel: "bg-emerald-500/6" },
+  RED: { border: "border-red-500/35", badge: "bg-red-500/15 text-red-200", text: "text-red-200", glow: "from-red-500/18 via-red-500/6 to-transparent", accent: "bg-red-500", panel: "bg-red-500/6" },
+  YELLOW: { border: "border-yellow-500/35", badge: "bg-yellow-500/15 text-yellow-200", text: "text-yellow-200", glow: "from-yellow-500/18 via-yellow-500/6 to-transparent", accent: "bg-yellow-500", panel: "bg-yellow-500/6" },
+  BLUE: { border: "border-cyan-500/35", badge: "bg-cyan-500/15 text-cyan-200", text: "text-cyan-200", glow: "from-cyan-500/18 via-cyan-500/6 to-transparent", accent: "bg-cyan-500", panel: "bg-cyan-500/6" },
+  PURPLE: { border: "border-violet-500/35", badge: "bg-violet-500/15 text-violet-200", text: "text-violet-200", glow: "from-violet-500/18 via-violet-500/6 to-transparent", accent: "bg-violet-500", panel: "bg-violet-500/6" },
+  ORANGE: { border: "border-orange-500/35", badge: "bg-orange-500/15 text-orange-200", text: "text-orange-200", glow: "from-orange-500/18 via-orange-500/6 to-transparent", accent: "bg-orange-500", panel: "bg-orange-500/6" },
+  BROWN: { border: "border-amber-700/35", badge: "bg-amber-700/15 text-amber-200", text: "text-amber-200", glow: "from-amber-700/18 via-amber-700/6 to-transparent", accent: "bg-amber-700", panel: "bg-amber-700/6" },
+  BLACK: { border: "border-zinc-500/35", badge: "bg-zinc-400/15 text-zinc-200", text: "text-zinc-200", glow: "from-zinc-400/18 via-zinc-400/6 to-transparent", accent: "bg-zinc-500", panel: "bg-zinc-400/6" },
 }
 
 const VEHICLE_ICON_BY_LABEL: Record<string, string> = {
@@ -96,6 +106,10 @@ function isHeaderRow(player: LineupPlayer) {
 function isServiceRow(player: LineupPlayer) {
   const number = Number(player.number)
   return Number.isFinite(number) && number < 1
+}
+
+function hasAssignedPlayer(player: LineupPlayer) {
+  return [player.nickname, player.tag, player.role, player.specialist, player.vehicle].some(isMeaningful)
 }
 
 function normalizeRows(rows: LineupPlayer[] | undefined) {
@@ -162,6 +176,14 @@ function getVehicleIconAsset(vehicle: string | number | null | undefined) {
   return VEHICLE_ICON_BY_LABEL[normalizeVehicleKey(vehicle)] ?? null
 }
 
+function splitMatchTitle(title: string) {
+  const parts = title.split("|").map((part) => part.trim()).filter(Boolean)
+  return {
+    lead: parts[0] ?? title,
+    details: parts.slice(1),
+  }
+}
+
 function VehicleIconBadge({ vehicle, color }: { vehicle: string; color?: string | null }) {
   const icon = getVehicleIconAsset(vehicle)
   return (
@@ -174,18 +196,59 @@ function VehicleIconBadge({ vehicle, color }: { vehicle: string; color?: string 
   )
 }
 
-function LineupCell({ children, className }: { children?: ReactNode; className?: string }) {
-  return <div className={cn("flex min-h-8 items-center border-r border-black/35 px-1.5", className)}>{children}</div>
-}
-
 function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
   const style = SQUAD_STYLES[name]
+  const normalizedRows = normalizeRows(rows)
+  const filledRows = normalizedRows.filter(hasAssignedPlayer)
+  const freeSlots = Math.max(0, 9 - filledRows.length)
+  const topVehicles = Array.from(
+    filledRows.reduce((acc, player) => {
+      const key = isMeaningful(player.vehicle) ? String(player.vehicle) : ""
+      if (key) {
+        acc.set(key, (acc.get(key) ?? 0) + 1)
+      }
+      return acc
+    }, new Map<string, number>()),
+  )
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"))
+    .slice(0, 3)
 
   return (
-    <div className={cn("min-w-[360px] overflow-hidden border border-black/55", style.ring)}>
-      <div className={cn("flex h-9 items-center justify-center border-b border-black/50 text-lg font-bold text-white", style.header)}>{name}</div>
-      <div>
-        {normalizeRows(rows).map((player, index) => {
+    <div className={cn("overflow-hidden rounded-[18px] border bg-background/40 shadow-[0_18px_40px_rgba(0,0,0,0.25)] backdrop-blur-sm", style.border)}>
+      <div className={cn("relative overflow-hidden border-b border-white/8", style.panel)}>
+        <div className={cn("absolute inset-0 bg-gradient-to-r", style.glow)} />
+        <div className="relative flex items-start justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className={cn("text-lg font-bold tracking-[0.22em]", style.text)}>{name}</span>
+              <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", style.badge)}>
+                {filledRows.length}/9
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {filledRows.length > 0 ? `Занято ${filledRows.length} слотов` : "Состав пока не заполнен"}
+            </p>
+          </div>
+          {topVehicles.length > 0 ? (
+            <div className="flex shrink-0 items-center gap-1.5">
+              {topVehicles.map(([vehicle]) => (
+                <Tooltip key={`${name}-${vehicle}`}>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <VehicleIconBadge vehicle={vehicle} color={name} />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">{vehicle}</TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="space-y-2 p-3">
+        {filledRows.length > 0 ? (
+          filledRows.map((player, index) => {
           const nickname = isMeaningful(player.nickname) ? String(player.nickname) : ""
           const tag = isMeaningful(player.tag) ? String(player.tag) : ""
           const vehicleText = isMeaningful(player.vehicle) ? String(player.vehicle) : ""
@@ -193,41 +256,76 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
           const specialist = isMeaningful(player.specialist) ? String(player.specialist) : ""
 
           return (
-            <div key={`${name}-${index}`} className={cn("grid min-h-8 grid-cols-[32px_32px_32px_32px_minmax(94px,1fr)_minmax(130px,1.35fr)] border-b border-black/45 last:border-b-0", style.cell)}>
-              <LineupCell className={cn("justify-center px-0 text-xs font-semibold", style.number)}>{index + 1}</LineupCell>
-              <LineupCell className="justify-center px-0">
+            <div
+              key={`${name}-${index}-${nickname || tag || vehicleText}`}
+              className="grid grid-cols-[auto_auto_auto_auto_minmax(0,1fr)] items-center gap-2 rounded-xl border border-white/8 bg-black/20 px-3 py-2.5 transition-colors hover:border-white/15"
+            >
+              <div className="flex items-center justify-center">
+                <span className={cn("flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold text-slate-950", style.accent)}>
+                  {Number(player.number) || index + 1}
+                </span>
+              </div>
+              <div className="flex items-center justify-center">
                 {vehicleText ? (
                   <Tooltip>
-                    <TooltipTrigger asChild><span><VehicleIconBadge vehicle={vehicleText} color={player.vehicle_color} /></span></TooltipTrigger>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <VehicleIconBadge vehicle={vehicleText} color={player.vehicle_color} />
+                      </span>
+                    </TooltipTrigger>
                     <TooltipContent side="top">{vehicleText}</TooltipContent>
                   </Tooltip>
                 ) : null}
-              </LineupCell>
-              <LineupCell className="justify-center px-0">
+              </div>
+              <div className="flex items-center justify-center">
                 {role ? (
                   <Tooltip>
-                    <TooltipTrigger asChild><span><RoleIcon role={role} className="h-6 w-6" /></span></TooltipTrigger>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <RoleIcon role={role} className="h-6 w-6" />
+                      </span>
+                    </TooltipTrigger>
                     <TooltipContent side="top">{formatRoleName(role) || role}</TooltipContent>
                   </Tooltip>
                 ) : null}
-              </LineupCell>
-              <LineupCell className="justify-center px-0">
+              </div>
+              <div className="flex items-center justify-center">
                 {specialist ? (
                   <Tooltip>
-                    <TooltipTrigger asChild><span><SpecializationIcon specialization={specialist} className="text-xl" /></span></TooltipTrigger>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <SpecializationIcon specialization={specialist} className="text-xl" />
+                      </span>
+                    </TooltipTrigger>
                     <TooltipContent side="top">{getSpecializationLabel(specialist)}</TooltipContent>
                   </Tooltip>
                 ) : null}
-              </LineupCell>
-              <LineupCell className="justify-end gap-1 text-right text-sm font-semibold">
-                {tag ? <span className="truncate">{tag}</span> : null}
-              </LineupCell>
-              <LineupCell className="min-w-0 text-base font-semibold">
-                {nickname ? <span className="truncate">{nickname}</span> : null}
-              </LineupCell>
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  {tag ? <span className={cn("shrink-0", style.text)}>{tag}</span> : null}
+                  {nickname ? <span className="truncate text-christmas-snow">{nickname}</span> : <span className="text-muted-foreground">Игрок не указан</span>}
+                </div>
+                <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                  {role ? <span className="truncate">{formatRoleName(role) || role}</span> : null}
+                  {role && specialist ? <span className="text-white/20">•</span> : null}
+                  {specialist ? <span className="truncate">{getSpecializationLabel(specialist)}</span> : null}
+                </div>
+              </div>
             </div>
           )
-        })}
+        })
+        ) : (
+          <div className="rounded-xl border border-dashed border-white/10 bg-black/15 px-4 py-6 text-center text-sm text-muted-foreground">
+            Для этого отряда лайнап пока не заполнен.
+          </div>
+        )}
+
+        {freeSlots > 0 && filledRows.length > 0 ? (
+          <div className="rounded-xl border border-dashed border-white/10 bg-black/10 px-3 py-2 text-center text-xs text-muted-foreground">
+            Свободных слотов: {freeSlots}
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -263,13 +361,30 @@ export function LineupBoard() {
 
   const currentSide = lineup?.[side] ?? {}
   const title = parseMatchTitle(lineup?.name, side)
+  const titleMeta = splitMatchTitle(title)
+  const totalPlayers = SQUAD_ORDER.reduce((sum, squadName) => sum + normalizeRows(currentSide[squadName] ?? []).filter(hasAssignedPlayer).length, 0)
+  const activeSquads = SQUAD_ORDER.reduce((sum, squadName) => sum + (normalizeRows(currentSide[squadName] ?? []).some(hasAssignedPlayer) ? 1 : 0), 0)
 
   return (
     <Card className="overflow-hidden border-christmas-gold/20 bg-card/60">
       <CardContent className="space-y-4 p-4">
         <div className="grid gap-3 xl:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)_minmax(240px,1fr)] xl:items-center">
           <div className="hidden xl:block" />
-          <h2 className="min-w-0 truncate text-center text-xl font-bold text-christmas-snow">{title}</h2>
+          <div className="min-w-0 text-center">
+            <h2 className="truncate text-xl font-bold text-christmas-snow">{titleMeta.lead}</h2>
+            {titleMeta.details.length > 0 ? (
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                {titleMeta.details.map((detail) => (
+                  <span
+                    key={detail}
+                    className="rounded-full border border-christmas-gold/20 bg-background/35 px-2.5 py-1 text-xs font-medium text-muted-foreground"
+                  >
+                    {detail}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <div className="flex flex-wrap items-center justify-center gap-2 xl:justify-end">
             <div className="grid grid-cols-2 overflow-hidden rounded-md border border-christmas-gold/30">
               {(["siteOne", "siteTwo"] as const).map((sideKey) => (
@@ -298,8 +413,30 @@ export function LineupBoard() {
         {loading && !lineup ? (
           <div className="rounded-md border border-border/50 bg-background/30 px-3 py-8 text-center text-sm text-muted-foreground">Загрузка лайнапа...</div>
         ) : (
-          <div className="overflow-x-auto rounded-md border border-border/60 bg-black/80 p-1">
-            <div className="grid min-w-[1460px] grid-cols-4 gap-0">
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-2xl border border-christmas-gold/15 bg-background/30 px-4 py-3">
+                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-christmas-gold/80">
+                  <Users className="h-3.5 w-3.5" />
+                  <span>Занято слотов</span>
+                </div>
+                <p className="mt-2 text-lg font-semibold text-christmas-snow">{totalPlayers} / 72</p>
+              </div>
+              <div className="rounded-2xl border border-christmas-gold/15 bg-background/30 px-4 py-3">
+                <div className="text-[11px] uppercase tracking-[0.22em] text-christmas-gold/80">Активных отрядов</div>
+                <p className="mt-2 text-lg font-semibold text-christmas-snow">{activeSquads} / 8</p>
+              </div>
+              <div className="rounded-2xl border border-christmas-gold/15 bg-background/30 px-4 py-3">
+                <div className="text-[11px] uppercase tracking-[0.22em] text-christmas-gold/80">Текущая сторона</div>
+                <p className="mt-2 text-lg font-semibold text-christmas-snow">{getMatchupLabel(lineup?.name, side)}</p>
+              </div>
+              <div className="rounded-2xl border border-christmas-gold/15 bg-background/30 px-4 py-3">
+                <div className="text-[11px] uppercase tracking-[0.22em] text-christmas-gold/80">Свободных мест</div>
+                <p className="mt-2 text-lg font-semibold text-christmas-snow">{72 - totalPlayers}</p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
               {SQUAD_ORDER.map((squadName) => (
                 <SquadTable key={`${side}-${squadName}`} name={squadName} rows={currentSide[squadName] ?? []} />
               ))}
