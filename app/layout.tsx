@@ -14,10 +14,10 @@ export const metadata: Metadata = {
   generator: "v0.app",
   icons: {
     icon: [
-      { url: withBasePath("/icon-dark-32x32.png"), type: "image/png" },
+      { url: withBasePath("/icon-dark-32x32.svg"), type: "image/svg+xml" },
       { url: withBasePath("/icon.svg"), type: "image/svg+xml" },
     ],
-    apple: withBasePath("/apple-icon.png"),
+    apple: withBasePath("/apple-icon.svg"),
   },
 }
 
