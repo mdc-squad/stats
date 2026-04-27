@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useState, type ReactNode } from "react"
-import { RefreshCw, Swords } from "lucide-react"
+import Image from "next/image"
+import { RefreshCw } from "lucide-react"
 import { RoleIcon, formatRoleName } from "@/components/role-icon"
 import { SpecializationIcon, getSpecializationLabel } from "@/components/specialization-icon"
 import { Button } from "@/components/ui/button"
@@ -44,6 +45,39 @@ const SQUAD_STYLES: Record<SquadName, { header: string; cell: string; number: st
   ORANGE: { header: "bg-orange-600", cell: "bg-orange-200/85 text-slate-950", number: "bg-orange-600 text-white", ring: "border-orange-400/70" },
   BROWN: { header: "bg-red-950", cell: "bg-red-300/75 text-slate-950", number: "bg-red-950 text-white", ring: "border-red-900/80" },
   BLACK: { header: "bg-zinc-700", cell: "bg-zinc-400/75 text-slate-950", number: "bg-zinc-700 text-white", ring: "border-zinc-500/80" },
+}
+
+const VEHICLE_ICON_BY_LABEL: Record<string, string> = {
+  "соплай груз": "/lineup-vehicle-icons/1.png",
+  "пехотка груз": "/lineup-vehicle-icons/2.png",
+  "пехотка с пул": "/lineup-vehicle-icons/3.png",
+  "соплай джип": "/lineup-vehicle-icons/4.png",
+  "мрап": "/lineup-vehicle-icons/5.png",
+  "мрап рвс": "/lineup-vehicle-icons/6.png",
+  "пехотка джип": "/lineup-vehicle-icons/7.png",
+  "вертолет тр": "/lineup-vehicle-icons/8.png",
+  "пво груз": "/lineup-vehicle-icons/9.png",
+  "арт джип": "/lineup-vehicle-icons/10.png",
+  "пвт джип": "/lineup-vehicle-icons/11.png",
+  "мотоцикл": "/lineup-vehicle-icons/12.png",
+  "пехотка гус": "/lineup-vehicle-icons/13.png",
+  "соплайка гус": "/lineup-vehicle-icons/14.png",
+  "пехотка гус с пул": "/lineup-vehicle-icons/15.png",
+  "msv гус": "/lineup-vehicle-icons/16.png",
+  "арт гус": "/lineup-vehicle-icons/17.png",
+  "мр гус": "/lineup-vehicle-icons/18.png",
+  "пво гус": "/lineup-vehicle-icons/19.png",
+  "бтр гус": "/lineup-vehicle-icons/20.png",
+  "бмп гус": "/lineup-vehicle-icons/21.png",
+  "сау гус": "/lineup-vehicle-icons/22.png",
+  "танк": "/lineup-vehicle-icons/23.png",
+  "бтр кол отк": "/lineup-vehicle-icons/24.png",
+  "мр кол": "/lineup-vehicle-icons/25.png",
+  "бтр кол": "/lineup-vehicle-icons/26.png",
+  "бмп кол": "/lineup-vehicle-icons/27.png",
+  "соплайка лодка": "/lineup-vehicle-icons/28.png",
+  "пехотка лодка": "/lineup-vehicle-icons/29.png",
+  "лодка с пул": "/lineup-vehicle-icons/30.png",
 }
 
 function isMeaningful(value: unknown) {
@@ -98,24 +132,45 @@ function getMatchupLabel(name: string | null | undefined, side: LineupSideKey) {
   return title.split("|").map((part) => part.trim()).filter(Boolean).at(-1) ?? (side === "siteOne" ? "Сторона 1" : "Сторона 2")
 }
 
-function getFactionFlag(matchup: string) {
-  const faction = matchup.split(/\s+vs\s+/i)[0]?.trim().toUpperCase()
-  const flags: Record<string, string> = {
-    AFU: "🇺🇦",
-    CAF: "🇨🇦",
-    IMF: "🏴",
-    PLA: "🇨🇳",
-    RGF: "🇷🇺",
-    USA: "🇺🇸",
-  }
-  return flags[faction] ?? ""
+function normalizeVehicleKey(value: string | number | null | undefined) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/^(\d+)\s*[.)-]?\s*/, "")
+    .replace(/\./g, "")
+    .replace(/\s+/g, " ")
 }
 
-function getVehicleIcon(value: string | null | undefined) {
-  const text = String(value ?? "").trim()
-  if (!text || text.toLowerCase() === "cellimage") return ""
-  if (/^(red|green|yellow|blue|purple|orange|brown|black)$/i.test(text)) return ""
-  return text
+function getVehicleColor(value: string | null | undefined) {
+  const normalized = String(value ?? "").trim().toUpperCase()
+  const colors: Record<string, string> = {
+    BLACK: "#3f3f46",
+    BLUE: "#0891b2",
+    BROWN: "#7f1d1d",
+    GREEN: "#047857",
+    ORANGE: "#ea580c",
+    PURPLE: "#6d28d9",
+    RED: "#b91c1c",
+    YELLOW: "#ca8a04",
+  }
+  return colors[normalized] ?? "#52525b"
+}
+
+function getVehicleIconAsset(vehicle: string | number | null | undefined) {
+  return VEHICLE_ICON_BY_LABEL[normalizeVehicleKey(vehicle)] ?? null
+}
+
+function VehicleIconBadge({ vehicle, color }: { vehicle: string; color?: string | null }) {
+  const icon = getVehicleIconAsset(vehicle)
+  return (
+    <span
+      className="inline-flex h-6 w-6 items-center justify-center rounded-[3px] border border-white/20 shadow-sm"
+      style={{ backgroundColor: getVehicleColor(color) }}
+    >
+      {icon ? <Image src={icon} alt="" width={18} height={18} className="h-[18px] w-[18px] object-contain" unoptimized /> : null}
+    </span>
+  )
 }
 
 function LineupCell({ children, className }: { children?: ReactNode; className?: string }) {
@@ -132,7 +187,6 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
         {normalizeRows(rows).map((player, index) => {
           const nickname = isMeaningful(player.nickname) ? String(player.nickname) : ""
           const tag = isMeaningful(player.tag) ? String(player.tag) : ""
-          const vehicleIcon = getVehicleIcon(player.vehicle_icon)
           const vehicleText = isMeaningful(player.vehicle) ? String(player.vehicle) : ""
           const role = isMeaningful(player.role) ? String(player.role) : ""
           const specialist = isMeaningful(player.specialist) ? String(player.specialist) : ""
@@ -141,14 +195,9 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
             <div key={`${name}-${index}`} className={cn("grid min-h-8 grid-cols-[32px_32px_32px_32px_minmax(94px,1fr)_minmax(130px,1.35fr)] border-b border-black/45 last:border-b-0", style.cell)}>
               <LineupCell className={cn("justify-center px-0 text-xs font-semibold", style.number)}>{index + 1}</LineupCell>
               <LineupCell className="justify-center px-0">
-                {vehicleIcon ? (
+                {vehicleText ? (
                   <Tooltip>
-                    <TooltipTrigger asChild><span className="text-base leading-none">{vehicleIcon}</span></TooltipTrigger>
-                    <TooltipContent side="top">{vehicleText || "Техника"}</TooltipContent>
-                  </Tooltip>
-                ) : vehicleText ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild><span className="h-3 w-3 rounded-full border border-black/40" style={{ backgroundColor: player.vehicle_color ?? "transparent" }} /></TooltipTrigger>
+                    <TooltipTrigger asChild><span><VehicleIconBadge vehicle={vehicleText} color={player.vehicle_color} /></span></TooltipTrigger>
                     <TooltipContent side="top">{vehicleText}</TooltipContent>
                   </Tooltip>
                 ) : null}
@@ -213,19 +262,14 @@ export function LineupBoard() {
 
   const currentSide = lineup?.[side] ?? {}
   const title = parseMatchTitle(lineup?.name, side)
-  const matchupLabel = getMatchupLabel(lineup?.name, side)
-  const factionFlag = getFactionFlag(matchupLabel)
 
   return (
     <Card className="overflow-hidden border-christmas-gold/20 bg-card/60">
       <CardContent className="space-y-4 p-4">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
-            <Swords className="h-6 w-6 shrink-0 text-christmas-gold" />
-            <h2 className="truncate text-xl font-bold text-christmas-snow">{title}</h2>
-          </div>
-          {factionFlag ? <div className="hidden min-w-16 rounded-sm bg-black/70 px-3 py-1 text-center text-3xl leading-none ring-1 ring-white/20 md:block">{factionFlag}</div> : null}
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="grid gap-3 xl:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)_minmax(240px,1fr)] xl:items-center">
+          <div className="hidden xl:block" />
+          <h2 className="min-w-0 truncate text-center text-xl font-bold text-christmas-snow">{title}</h2>
+          <div className="flex flex-wrap items-center justify-center gap-2 xl:justify-end">
             <div className="grid grid-cols-2 overflow-hidden rounded-md border border-christmas-gold/30">
               {(["siteOne", "siteTwo"] as const).map((sideKey) => (
                 <button
