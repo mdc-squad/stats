@@ -213,6 +213,8 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
         const label = playerSquadLabel(p, squadDomain)
         if (!label) return
         ensure(label)
+        const squad = bySquad.get(label)
+        if (!squad?.players.has(p.player_id)) return
         if (!grouped.has(label)) grouped.set(label, [])
         grouped.get(label)!.push(p)
       })
@@ -253,7 +255,8 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
       const avgTbf = playersRanked.length ? playersRanked.reduce((s, p) => s + p.avgTbf, 0) / playersRanked.length : 0
       const avgRating = playersRanked.length ? playersRanked.reduce((s, p) => s + p.avgRating, 0) / playersRanked.length : 0
       return { label: squad.label, games: squad.games, wins: squad.wins, kills: squad.kills, deaths: squad.deaths, downs: squad.downs, revives: squad.revives, heals: squad.heals, vehicle: squad.vehicle, mvpCount: squad.mvpCount, avgRevives: squad.games ? squad.revives / squad.games : 0, avgHeals: squad.games ? squad.heals / squad.games : 0, avgDowns: squad.games ? squad.downs / squad.games : 0, avgKills: squad.games ? squad.kills / squad.games : 0, avgDeaths: squad.games ? squad.deaths / squad.games : 0, avgVehicle: squad.games ? squad.vehicle / squad.games : 0, avgElo: squad.games ? squad.elo / squad.games : 0, avgTbf, avgRating, kd: ratio(squad.kills, squad.deaths), kda: ratio(squad.kills + squad.downs, squad.deaths), playersRanked, leader: playersRanked.find((p) => p.isSquadLeader) ?? null, roleSlices: [...squad.roles.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru")).slice(0, 8).map(([label, count], i) => ({ label, count, color: ROLE_COLORS[i % ROLE_COLORS.length] })), specializationSlices: [...squad.specializations.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru")).slice(0, 8).map(([label, count], i) => ({ label, count, color: ROLE_COLORS[(i + 2) % ROLE_COLORS.length] })), recent: recent.slice(0, 10), allMatches: recent, bestMatch: [...squad.matches].sort((a, b) => b.avgElo - a.avgElo)[0] ?? null }
-    }).sort((a, b) => squadOrderIndex(a.label) - squadOrderIndex(b.label) || b.games - a.games || b.avgElo - a.avgElo || a.label.localeCompare(b.label, "ru"))
+    }).filter((squad) => squad.playersRanked.length > 0)
+      .sort((a, b) => squadOrderIndex(a.label) - squadOrderIndex(b.label) || b.games - a.games || b.avgElo - a.avgElo || a.label.localeCompare(b.label, "ru"))
 
     const chartLines = squads.filter((s) => s.games > 0).map((s, i) => ({ label: s.label, key: `squad_${i}`, color: SQUAD_COLORS[getSquadToneKey(s.label)] }))
     const keyByLabel = new Map(chartLines.map((l) => [l.label, l.key]))
