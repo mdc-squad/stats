@@ -300,8 +300,8 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
                 ) : null}
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  {tag ? <span className={cn("shrink-0", style.text)}>{tag}</span> : null}
+                <div className="flex items-center gap-2 text-sm font-semibold text-christmas-snow">
+                  {tag ? <span className="shrink-0">{tag}</span> : null}
                   {nickname ? <span className="truncate text-christmas-snow">{nickname}</span> : <span className="text-muted-foreground">Игрок не указан</span>}
                 </div>
                 <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">

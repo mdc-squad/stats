@@ -1237,7 +1237,7 @@ export default function YearReviewPage() {
       },
       {
         id: "nklv",
-        title: "Сибирский анклав",
+        title: "Сибирский Анклав",
         emblemSrc: withBasePath("/nklv-emblem.png"),
         emblemAlt: "NKLV emblem",
         offsetClassName: "",

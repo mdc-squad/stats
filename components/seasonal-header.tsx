@@ -513,11 +513,11 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayers
     preparedSlides.push(
       {
         id: "nklv",
-        title: "Сибирский анклав",
+        title: "Сибирский Анклав",
         subtitle: theme.subtitle,
         tagline: "[NKLV]",
         emblemSrc: withBasePath("/nklv-emblem.png"),
-        emblemAlt: "Эмблема Сибирского анклава",
+        emblemAlt: "Эмблема Сибирского Анклава",
         heroLabel: "[NKLV]",
         playersLabel: "NKLV",
         playersValue: String(nklvPlayersCount),

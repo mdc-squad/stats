@@ -194,10 +194,27 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
     const playersById = new Map(players.map((p) => [p.player_id, p]))
     type MP = Omit<SquadPlayerSummary, "avgElo" | "avgTbf" | "avgRating" | "kd" | "kda" | "popularRole" | "specialization"> & { elo: number; roles: string[]; specs: string[] }
     type MS = Omit<SquadSummary, "avgRevives" | "avgHeals" | "avgDowns" | "avgKills" | "avgDeaths" | "avgVehicle" | "avgElo" | "avgTbf" | "avgRating" | "kd" | "kda" | "playersRanked" | "leader" | "roleSlices" | "specializationSlices" | "recent" | "allMatches" | "bestMatch"> & { elo: number; players: Map<string, MP>; roles: Map<string, number>; specializations: Map<string, number>; matches: SquadMatchSummary[] }
+    type ChartSquad = { label: string; matches: SquadMatchSummary[] }
     const bySquad = new Map<string, MS>()
+    const chartBySquad = new Map<string, ChartSquad>()
     const ensure = (label: string) => {
       if (!bySquad.has(label)) bySquad.set(label, { label, games: 0, wins: 0, kills: 0, deaths: 0, downs: 0, revives: 0, heals: 0, vehicle: 0, elo: 0, mvpCount: 0, players: new Map(), roles: new Map(), specializations: new Map(), matches: [] })
       return bySquad.get(label)!
+    }
+    const ensureChart = (label: string) => {
+      if (!chartBySquad.has(label)) chartBySquad.set(label, { label, matches: [] })
+      return chartBySquad.get(label)!
+    }
+    const buildMatchSummary = (game: PastGameSummary, group: PastGamePlayerStat[]): SquadMatchSummary => {
+      const count = group.length
+      const kills = group.reduce((s, p) => s + p.kills, 0)
+      const deaths = group.reduce((s, p) => s + p.deaths, 0)
+      const downs = group.reduce((s, p) => s + p.downs, 0)
+      const revives = group.reduce((s, p) => s + p.revives, 0)
+      const heals = group.reduce((s, p) => s + p.heals, 0)
+      const vehicle = group.reduce((s, p) => s + p.vehicle, 0)
+      const avgElo = count > 0 ? group.reduce((s, p) => s + p.elo, 0) / count : 0
+      return { eventId: game.event_id, startedAt: game.started_at, map: game.map || "Карта не указана", mode: game.mode, opponent: game.opponent, faction: game.faction_matchup || game.faction_1, result: game.result, isWin: game.is_win, players: count, kills, deaths, downs, revives, heals, vehicle, avgElo, kd: ratio(kills, deaths), kda: ratio(kills + downs, deaths), isMvp: false }
     }
     const addRoster = (label: string, p: Player) => {
       const s = ensure(label)
@@ -208,29 +225,37 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
     players.forEach((p) => getSquadLabels(p.teams ?? [], squadDomain).filter(isVisibleSquadLabel).forEach((label) => addRoster(label, p)))
 
     games.forEach((game) => {
-      const grouped = new Map<string, PastGamePlayerStat[]>()
+      const groupedAll = new Map<string, PastGamePlayerStat[]>()
       game.players.forEach((p) => {
         const label = playerSquadLabel(p, squadDomain)
         if (!label) return
         ensure(label)
+        ensureChart(label)
+        if (!groupedAll.has(label)) groupedAll.set(label, [])
+        groupedAll.get(label)!.push(p)
+      })
+
+      const chartMatchSummaries: Array<{ chart: ChartSquad; match: SquadMatchSummary }> = []
+      groupedAll.forEach((group, label) => {
+        const chart = ensureChart(label)
+        const match = buildMatchSummary(game, group)
+        chart.matches.push(match)
+        chartMatchSummaries.push({ chart, match })
+      })
+      const bestChart = [...chartMatchSummaries].sort((a, b) => b.match.avgElo - a.match.avgElo)[0]
+      if (bestChart) bestChart.match.isMvp = true
+
+      const grouped = new Map<string, PastGamePlayerStat[]>()
+      groupedAll.forEach((group, label) => {
         const squad = bySquad.get(label)
-        if (!squad?.players.has(p.player_id)) return
-        if (!grouped.has(label)) grouped.set(label, [])
-        grouped.get(label)!.push(p)
+        const rosterGroup = group.filter((p) => squad?.players.has(p.player_id))
+        if (rosterGroup.length > 0) grouped.set(label, rosterGroup)
       })
       const matchSummaries: Array<{ squad: MS; match: SquadMatchSummary }> = []
       grouped.forEach((group, label) => {
         const squad = ensure(label)
-        const count = group.length
-        const kills = group.reduce((s, p) => s + p.kills, 0)
-        const deaths = group.reduce((s, p) => s + p.deaths, 0)
-        const downs = group.reduce((s, p) => s + p.downs, 0)
-        const revives = group.reduce((s, p) => s + p.revives, 0)
-        const heals = group.reduce((s, p) => s + p.heals, 0)
-        const vehicle = group.reduce((s, p) => s + p.vehicle, 0)
-        const avgElo = count > 0 ? group.reduce((s, p) => s + p.elo, 0) / count : 0
-        const match: SquadMatchSummary = { eventId: game.event_id, startedAt: game.started_at, map: game.map || "Карта не указана", mode: game.mode, opponent: game.opponent, faction: game.faction_matchup || game.faction_1, result: game.result, isWin: game.is_win, players: count, kills, deaths, downs, revives, heals, vehicle, avgElo, kd: ratio(kills, deaths), kda: ratio(kills + downs, deaths), isMvp: false }
-        squad.games += 1; squad.wins += game.is_win ? 1 : 0; squad.kills += kills; squad.deaths += deaths; squad.downs += downs; squad.revives += revives; squad.heals += heals; squad.vehicle += vehicle; squad.elo += avgElo; squad.matches.push(match); matchSummaries.push({ squad, match })
+        const match = buildMatchSummary(game, group)
+        squad.games += 1; squad.wins += game.is_win ? 1 : 0; squad.kills += match.kills; squad.deaths += match.deaths; squad.downs += match.downs; squad.revives += match.revives; squad.heals += match.heals; squad.vehicle += match.vehicle; squad.elo += match.avgElo; squad.matches.push(match); matchSummaries.push({ squad, match })
         group.forEach((gp) => {
           if (!squad.players.has(gp.player_id)) return
           const sp = squad.players.get(gp.player_id)!
@@ -258,14 +283,17 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
     }).filter((squad) => squad.playersRanked.length > 0)
       .sort((a, b) => squadOrderIndex(a.label) - squadOrderIndex(b.label) || b.games - a.games || b.avgElo - a.avgElo || a.label.localeCompare(b.label, "ru"))
 
-    const chartLines = squads.filter((s) => s.games > 0).map((s, i) => ({ label: s.label, key: `squad_${i}`, color: SQUAD_COLORS[getSquadToneKey(s.label)] }))
+    const chartSquads = [...chartBySquad.values()]
+      .filter((s) => s.matches.length > 0)
+      .sort((a, b) => squadOrderIndex(a.label) - squadOrderIndex(b.label) || a.label.localeCompare(b.label, "ru"))
+    const chartLines = chartSquads.map((s, i) => ({ label: s.label, key: `squad_${i}`, color: SQUAD_COLORS[getSquadToneKey(s.label)] }))
     const keyByLabel = new Map(chartLines.map((l) => [l.label, l.key]))
     const rows = new Map<string, Record<string, string | number>>()
-    squads.forEach((s) => {
+    chartSquads.forEach((s) => {
       const key = keyByLabel.get(s.label)
       if (!key) return
       let mvpTotal = 0
-      s.allMatches.slice().reverse().forEach((m) => { if (!rows.has(m.eventId)) rows.set(m.eventId, { eventId: m.eventId, date: fDate(m.startedAt), fullDate: m.startedAt, eventLabel: m.map }); if (chartMetric === "mvpCount") mvpTotal += m.isMvp ? 1 : 0; rows.get(m.eventId)![key] = chartMetric === "mvpCount" ? mvpTotal : matchMetric(m, chartMetric) })
+      s.matches.slice().sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()).forEach((m) => { if (!rows.has(m.eventId)) rows.set(m.eventId, { eventId: m.eventId, date: fDate(m.startedAt), fullDate: m.startedAt, eventLabel: m.map }); if (chartMetric === "mvpCount") mvpTotal += m.isMvp ? 1 : 0; rows.get(m.eventId)![key] = chartMetric === "mvpCount" ? mvpTotal : matchMetric(m, chartMetric) })
     })
     const chartData = [...rows.values()].sort((a, b) => new Date(String(a.fullDate)).getTime() - new Date(String(b.fullDate)).getTime())
     return { squads, chartData, chartLines }

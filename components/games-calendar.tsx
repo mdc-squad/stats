@@ -78,7 +78,7 @@ const HOLIDAYS_BY_MONTH_DAY: Record<string, { label: string; nonWorking: boolean
   "08-22": { label: "День флага РФ", nonWorking: false },
   "09-01": { label: "День знаний", nonWorking: false },
   "09-17": { label: "День народного единства РБ", nonWorking: false },
-  "11-01": { label: "День основания Сибирского анклава", nonWorking: false },
+  "11-01": { label: "День основания Сибирского Анклава", nonWorking: false },
   "11-04": { label: "День народного единства РФ", nonWorking: true },
   "11-07": { label: "День Октябрьской революции", nonWorking: true },
   "12-12": { label: "День Конституции РФ • День основания GRAVE", nonWorking: false },
