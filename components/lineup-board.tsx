@@ -1,12 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, type CSSProperties } from "react"
 import Image from "next/image"
 import { RefreshCw } from "lucide-react"
 import { RoleIcon, formatRoleName } from "@/components/role-icon"
 import { SpecializationIcon, getSpecializationLabel } from "@/components/specialization-icon"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { withBasePath } from "@/lib/base-path"
 import { cn } from "@/lib/utils"
@@ -92,6 +93,17 @@ const VEHICLE_ICON_BY_LABEL: Record<string, string> = {
   "лодка с пул": withBasePath("/lineup-vehicle-icons/29.png"),
 }
 
+const VEHICLE_COLOR_LABELS: Record<string, string> = {
+  BLACK: "BLACK",
+  BLUE: "BLUE",
+  BROWN: "BROWN",
+  GREEN: "GREEN",
+  ORANGE: "ORANGE",
+  PURPLE: "PURPLE",
+  RED: "RED",
+  YELLOW: "YELLOW",
+}
+
 function isMeaningful(value: unknown) {
   if (value === null || value === undefined) return false
   const text = String(value).trim()
@@ -124,30 +136,19 @@ function isSquadMarkerRow(player: LineupPlayer) {
 }
 
 function hasAssignedPlayer(player: LineupPlayer) {
-  return [player.nickname, player.tag, player.role, player.specialist, player.vehicle].some(isMeaningful)
+  return [player.nickname, player.tag].some(isMeaningful)
 }
 
 function hasSquadContent(rows: LineupPlayer[] | undefined) {
-  return (rows ?? []).some((row) => {
-    if (isHeaderRow(row) || isServiceRow(row)) return false
-    return [row.vehicle, row.role, row.specialist, row.tag, row.nickname, row.vehicle_icon, row.role_icon, row.specialist_icon, row.vehicle_color].some(isMeaningful)
-  })
+  return normalizeRows(rows).some(hasAssignedPlayer)
 }
 
 function normalizeRows(rows: LineupPlayer[] | undefined) {
   const cleanRows = (rows ?? []).filter((row) => !isHeaderRow(row) && !isServiceRow(row) && !isSquadMarkerRow(row))
-  const byNumber = new Map<number, LineupPlayer>()
+  const filledRows = cleanRows.filter(hasAssignedPlayer).slice(0, 9)
+  const normalizedFilledRows = filledRows.map((row, index) => ({ ...row, number: index + 1 }))
 
-  cleanRows.forEach((row, index) => {
-    const number = Number(row.number)
-    const fallbackNumber = index + 1
-    const rowNumber = Number.isFinite(number) && number >= 1 && number <= 9 ? number : fallbackNumber
-    if (rowNumber >= 1 && rowNumber <= 9 && !byNumber.has(rowNumber)) {
-      byNumber.set(rowNumber, { ...row, number: rowNumber })
-    }
-  })
-
-  return Array.from({ length: 9 }, (_, index) => byNumber.get(index + 1) ?? { number: index + 1 })
+  return Array.from({ length: 9 }, (_, index) => normalizedFilledRows[index] ?? { number: index + 1 })
 }
 
 function parseMatchTitle(name: string | null | undefined, side: LineupSideKey) {
@@ -198,6 +199,13 @@ function getVehicleIconAsset(vehicle: string | number | null | undefined) {
   return VEHICLE_ICON_BY_LABEL[normalizeVehicleKey(vehicle)] ?? null
 }
 
+function getVehicleTooltip(vehicle: string | number | null | undefined, color: string | null | undefined) {
+  const label = normalizeVehicleKey(vehicle)
+  const colorLabel = VEHICLE_COLOR_LABELS[String(color ?? "").trim().toUpperCase()]
+
+  return [label, colorLabel ? `отряд: ${colorLabel}` : null].filter(Boolean).join(" • ")
+}
+
 function splitMatchTitle(title: string) {
   const parts = title.split("|").map((part) => part.trim()).filter(Boolean)
   return {
@@ -245,13 +253,13 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
             <div
               key={`${name}-${index}-${nickname || tag || vehicleText}`}
               className={cn(
-                "grid grid-cols-[auto_auto_auto_auto_minmax(0,1fr)] items-center gap-2 rounded-xl border bg-black/20 px-3 py-2.5 transition-colors",
+                "grid grid-cols-[28px_28px_28px_28px_minmax(0,1fr)] items-center gap-2 rounded-xl border bg-black/20 px-3 py-2.5 transition-colors",
                 style.rowBorder,
                 style.rowHover,
               )}
             >
               <div className="flex items-center justify-center">
-                <span className={cn("flex h-7 w-7 items-center justify-center rounded-full text-xs font-extrabold text-slate-950", style.accent)}>
+                <span className={cn("flex h-7 w-7 items-center justify-center rounded-full text-[15px] font-black leading-none text-slate-950", style.accent)}>
                   {Number(player.number) || index + 1}
                 </span>
               </div>
@@ -263,7 +271,7 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
                         <VehicleIconBadge vehicle={vehicleText} color={player.vehicle_color} />
                       </span>
                     </TooltipTrigger>
-                    <TooltipContent side="top">{vehicleText}</TooltipContent>
+                    <TooltipContent side="top">{getVehicleTooltip(vehicleText, player.vehicle_color)}</TooltipContent>
                   </Tooltip>
                 ) : null}
               </div>
@@ -347,53 +355,68 @@ export function LineupBoard() {
   const title = parseMatchTitle(lineup?.name, side)
   const titleMeta = splitMatchTitle(title)
   const visibleSquads = SQUAD_ORDER.filter((squadName) => hasSquadContent(currentSide[squadName] ?? []))
+  const hasAnyFilledSquad = SQUAD_ORDER.some((squadName) => hasSquadContent(currentSide[squadName] ?? []))
+  const isInitialLoading = loading && !lineup
+
   return (
     <Card className="overflow-hidden border-christmas-gold/20 bg-card/60">
       <CardContent className="space-y-4 p-4">
-        <div className="grid gap-3 xl:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)_minmax(240px,1fr)] xl:items-center">
-          <div className="hidden xl:block" />
-          <div className="min-w-0 text-center">
-            <h2 className="truncate text-xl font-bold text-christmas-snow">{titleMeta.lead}</h2>
-            {titleMeta.details.length > 0 ? (
-              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-                {titleMeta.details.map((detail) => (
-                  <span
-                    key={detail}
-                    className="rounded-full border border-christmas-gold/20 bg-background/35 px-2.5 py-1 text-xs font-medium text-muted-foreground"
+        {isInitialLoading ? (
+          <div className="mx-auto w-full max-w-2xl rounded-xl border border-christmas-gold/25 bg-background/35 px-4 py-6 text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-christmas-gold">Загрузка лайнапа</p>
+            <div className="mt-4" style={{ "--primary": "var(--christmas-gold)" } as CSSProperties}>
+              <Progress value={72} className="h-2 bg-muted/30" />
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">Получаем ближайшую игру и составы отрядов.</p>
+          </div>
+        ) : (
+          <div className="grid gap-3 xl:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)_minmax(240px,1fr)] xl:items-center">
+            <div className="hidden xl:block" />
+            <div className="min-w-0 text-center">
+              <h2 className="truncate text-xl font-bold text-christmas-snow">{titleMeta.lead}</h2>
+              {titleMeta.details.length > 0 ? (
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                  {titleMeta.details.map((detail) => (
+                    <span
+                      key={detail}
+                      className="rounded-full border border-christmas-gold/20 bg-background/35 px-2.5 py-1 text-xs font-medium text-muted-foreground"
+                    >
+                      {detail}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2 xl:justify-end">
+              <div className="grid grid-cols-2 overflow-hidden rounded-md border border-christmas-gold/30">
+                {(["siteOne", "siteTwo"] as const).map((sideKey) => (
+                  <button
+                    key={sideKey}
+                    type="button"
+                    onClick={() => setSide(sideKey)}
+                    className={cn(
+                      "px-3 py-2 text-sm font-semibold transition-colors",
+                      side === sideKey ? "bg-christmas-gold text-slate-950" : "bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold",
+                    )}
                   >
-                    {detail}
-                  </span>
+                    {getMatchupLabel(lineup?.name, sideKey)}
+                  </button>
                 ))}
               </div>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-2 xl:justify-end">
-            <div className="grid grid-cols-2 overflow-hidden rounded-md border border-christmas-gold/30">
-              {(["siteOne", "siteTwo"] as const).map((sideKey) => (
-                <button
-                  key={sideKey}
-                  type="button"
-                  onClick={() => setSide(sideKey)}
-                  className={cn(
-                    "px-3 py-2 text-sm font-semibold transition-colors",
-                    side === sideKey ? "bg-christmas-gold text-slate-950" : "bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold",
-                  )}
-                >
-                  {getMatchupLabel(lineup?.name, sideKey)}
-                </button>
-              ))}
+              <Button type="button" variant="outline" className="border-christmas-gold/30 text-christmas-gold hover:bg-christmas-gold/10 hover:text-christmas-gold" onClick={() => void loadLineup()} disabled={loading}>
+                <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
+                Обновить
+              </Button>
             </div>
-            <Button type="button" variant="outline" className="border-christmas-gold/30 text-christmas-gold hover:bg-christmas-gold/10 hover:text-christmas-gold" onClick={() => void loadLineup()} disabled={loading}>
-              <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
-              Обновить
-            </Button>
           </div>
-        </div>
+        )}
 
         {error ? <div className="rounded-md border border-christmas-red/40 bg-christmas-red/10 px-3 py-2 text-sm text-christmas-red">Ошибка загрузки лайнапа: {error}</div> : null}
 
-        {loading && !lineup ? (
-          <div className="rounded-md border border-border/50 bg-background/30 px-3 py-8 text-center text-sm text-muted-foreground">Загрузка лайнапа...</div>
+        {isInitialLoading ? null : !hasAnyFilledSquad ? (
+          <div className="rounded-xl border border-christmas-gold/25 bg-background/35 px-4 py-10 text-center text-sm font-medium text-muted-foreground">
+            Лайнап на ближайшую игру ещё не сформирован, зайдите похже.
+          </div>
         ) : (
           <div className="space-y-4">
             <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">

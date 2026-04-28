@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils"
 interface SeasonalHeaderProps {
   mdcPlayersCount: number
   gravePlayersCount: number
+  nklvPlayersCount: number
   theme: SeasonalTheme
   futureEvents?: PastGameSummary[]
   onOpenCalendarEvent?: (event: PastGameSummary) => void
@@ -48,7 +49,7 @@ interface ClanFoundationInfo {
 }
 
 interface HeaderSlide {
-  id: "mdc" | "grave" | "dcia"
+  id: "mdc" | "grave" | "nklv" | "dcia"
   overline?: string | null
   title: string
   subtitle: string
@@ -81,6 +82,12 @@ const GRAVE_FOUNDATION: ClanFoundationInfo = {
   day: 12,
 }
 
+const NKLV_FOUNDATION: ClanFoundationInfo = {
+  year: 2022,
+  monthIndex: 10,
+  day: 1,
+}
+
 const DCIA_FOUNDATION: ClanFoundationInfo = {
   year: 2026,
   monthIndex: 3,
@@ -89,6 +96,7 @@ const DCIA_FOUNDATION: ClanFoundationInfo = {
 
 const CLAN_FOUNDATION_LABEL = "29.04.2023"
 const GRAVE_FOUNDATION_LABEL = "12.12.2024"
+const NKLV_FOUNDATION_LABEL = "01.11.2022"
 const DCIA_FOUNDATION_LABEL = "09.04.2026"
 const CLAN_MOTTO = "С неба смерть и в этом сила, Mdc - непобедима!"
 const ANNIVERSARY_WINDOW_DAYS = 62
@@ -119,7 +127,7 @@ function pluralize(value: number, one: string, few: string, many: string) {
 }
 
 function toUtcDate(year: number, monthIndex: number, day: number) {
-  return new Date(Date.UTC(year, monthIndex, day))
+  return new Date(year, monthIndex, day)
 }
 
 function daysBetween(from: Date, to: Date) {
@@ -145,12 +153,12 @@ function formatAgeLabel(years: number, months: number) {
 }
 
 function getClanTimeline(referenceDate: Date, foundation: ClanFoundationInfo): ClanTimelineInfo {
-  const today = toUtcDate(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth(), referenceDate.getUTCDate())
+  const today = toUtcDate(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate())
 
-  let years = today.getUTCFullYear() - foundation.year
-  let months = today.getUTCMonth() - foundation.monthIndex
+  let years = today.getFullYear() - foundation.year
+  let months = today.getMonth() - foundation.monthIndex
 
-  if (today.getUTCDate() < foundation.day) {
+  if (today.getDate() < foundation.day) {
     months -= 1
   }
 
@@ -162,11 +170,11 @@ function getClanTimeline(referenceDate: Date, foundation: ClanFoundationInfo): C
   const ageLabel = formatAgeLabel(Math.max(years, 0), Math.max(months, 0))
 
   const hasReachedAnniversaryThisYear =
-    today.getUTCMonth() > foundation.monthIndex ||
-    (today.getUTCMonth() === foundation.monthIndex && today.getUTCDate() >= foundation.day)
+    today.getMonth() > foundation.monthIndex ||
+    (today.getMonth() === foundation.monthIndex && today.getDate() >= foundation.day)
 
-  const lastAnniversaryYear = hasReachedAnniversaryThisYear ? today.getUTCFullYear() : today.getUTCFullYear() - 1
-  const nextAnniversaryYear = hasReachedAnniversaryThisYear ? today.getUTCFullYear() + 1 : today.getUTCFullYear()
+  const lastAnniversaryYear = hasReachedAnniversaryThisYear ? today.getFullYear() : today.getFullYear() - 1
+  const nextAnniversaryYear = hasReachedAnniversaryThisYear ? today.getFullYear() + 1 : today.getFullYear()
 
   const lastAnniversaryDate = toUtcDate(lastAnniversaryYear, foundation.monthIndex, foundation.day)
   const nextAnniversaryDate = toUtcDate(nextAnniversaryYear, foundation.monthIndex, foundation.day)
@@ -306,7 +314,7 @@ function formatTickerEvent(group: TickerEventGroup): string {
   ].filter(Boolean).join(" | ")
 }
 
-export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futureEvents = [], onOpenCalendarEvent }: SeasonalHeaderProps) {
+export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayersCount, theme, futureEvents = [], onOpenCalendarEvent }: SeasonalHeaderProps) {
   const ThemeIcon = ICON_BY_THEME[theme.icon] ?? Sparkles
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const fadeTimeoutRef = useRef<number | null>(null)
@@ -321,7 +329,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
   const [volume, setVolume] = useState(DEFAULT_ANTHEM_VOLUME)
   const [tickerMetrics, setTickerMetrics] = useState({ viewportWidth: 0, trackWidth: 0 })
 
-  const coalitionPlayersCount = mdcPlayersCount + gravePlayersCount
+  const coalitionPlayersCount = mdcPlayersCount + gravePlayersCount + nklvPlayersCount
   const tickerEvents = useMemo(
     () =>
       [...futureEvents]
@@ -446,10 +454,12 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
 
   const mdcTimeline = referenceDate ? getClanTimeline(referenceDate, CLAN_FOUNDATION) : null
   const graveTimeline = referenceDate ? getClanTimeline(referenceDate, GRAVE_FOUNDATION) : null
+  const nklvTimeline = referenceDate ? getClanTimeline(referenceDate, NKLV_FOUNDATION) : null
   const dciaTimeline = referenceDate ? getClanTimeline(referenceDate, DCIA_FOUNDATION) : null
 
   const clanAgeLabel = mdcTimeline ? mdcTimeline.ageLabel : "Возраст клана"
   const graveAgeLabel = graveTimeline ? graveTimeline.ageLabel : "Возраст GRAVE"
+  const nklvAgeLabel = nklvTimeline ? nklvTimeline.ageLabel : "Возраст NKLV"
   const dciaAgeLabel = dciaTimeline ? dciaTimeline.ageLabel : "Возраст коалиции"
 
   const slides = useMemo<HeaderSlide[]>(() => {
@@ -497,6 +507,30 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
           celebrationLabel: graveTimeline?.celebrationLabel ?? null,
           showAnthem: false,
         },
+      )
+    }
+
+    preparedSlides.push(
+      {
+        id: "nklv",
+        title: "Сибирский анклав",
+        subtitle: theme.subtitle,
+        tagline: "[NKLV]",
+        emblemSrc: withBasePath("/nklv-emblem.png"),
+        emblemAlt: "Эмблема Сибирского анклава",
+        heroLabel: "[NKLV]",
+        playersLabel: "NKLV",
+        playersValue: String(nklvPlayersCount),
+        dateLabel: "Основан",
+        dateValue: NKLV_FOUNDATION_LABEL,
+        extraStat: {
+          icon: Sparkles,
+          label: "Возраст",
+          value: nklvAgeLabel,
+        },
+        celebrationLabel: nklvTimeline?.celebrationLabel ?? null,
+        showAnthem: false,
+      },
         {
           id: "dcia",
           title: "De Caelo Ad Infernos",
@@ -517,8 +551,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
           celebrationLabel: dciaTimeline?.celebrationLabel ?? null,
           showAnthem: false,
         },
-      )
-    }
+    )
 
     return preparedSlides
   }, [
@@ -531,6 +564,9 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
     graveTimeline?.celebrationLabel,
     mdcPlayersCount,
     mdcTimeline?.celebrationLabel,
+    nklvAgeLabel,
+    nklvPlayersCount,
+    nklvTimeline?.celebrationLabel,
     theme.subtitle,
   ])
 
@@ -756,7 +792,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, theme, futu
                 ) : null}
 
                 {currentSlide.celebrationLabel ? (
-                  <div className="inline-flex items-center gap-2 rounded-2xl border border-christmas-red/20 bg-christmas-red/10 px-3 py-2 text-xs font-medium text-christmas-snow shadow-lg shadow-black/10">
+                  <div className="inline-flex items-center gap-2 rounded-2xl border border-christmas-gold/60 bg-gradient-to-r from-christmas-gold/25 via-christmas-red/15 to-christmas-green/20 px-3 py-2 text-xs font-semibold text-christmas-snow shadow-[0_0_24px_rgba(234,179,8,0.18)]">
                     <Sparkles className="h-3.5 w-3.5 text-christmas-gold" />
                     <span>{currentSlide.celebrationLabel}</span>
                   </div>

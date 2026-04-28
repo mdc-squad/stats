@@ -233,13 +233,13 @@ const LEADERBOARD_PREVIEW_LIMIT = 10
 const VEHICLE_LEADERBOARD_PREVIEW_LIMIT = 5
 const LOADING_SHOWCASE_INTERVAL_MS = 5000
 const LOADING_SHOWCASE_FADE_MS = 280
-const LOADING_SHOWCASE_ITEMS_COUNT = 3
+const LOADING_SHOWCASE_ITEMS_COUNT = 4
 
 type LeaderboardCardConfig = {
   key: string
   render: (isCollapsed: boolean, onToggle: () => void) => ReactNode
 }
-const DEFAULT_TAG_FILTER_TOKENS = ["mdc", "grave"]
+const DEFAULT_TAG_FILTER_TOKENS = ["mdc", "grave", "nklv"]
 const HIDDEN_TAG_FILTER_TOKENS = ["ветеран", "неактив"]
 const MDC_TAG_FILTER_VALUE = "__tag_group__mdc"
 const MDC_TAG_FILTER_LABEL = "Mdc︱"
@@ -1236,6 +1236,13 @@ export default function YearReviewPage() {
         offsetClassName: "translate-x-2",
       },
       {
+        id: "nklv",
+        title: "Сибирский анклав",
+        emblemSrc: withBasePath("/nklv-emblem.png"),
+        emblemAlt: "NKLV emblem",
+        offsetClassName: "",
+      },
+      {
         id: "coalition",
         title: "De Caelo Ad Infernos",
         emblemSrc: withBasePath("/dcia-emblem.png"),
@@ -1561,6 +1568,10 @@ export default function YearReviewPage() {
   )
   const graveRosterCount = useMemo(
     () => (rawData ? rawData.players.filter((player) => matchesTagToken(player.tag, "grave")).length : 0),
+    [rawData],
+  )
+  const nklvRosterCount = useMemo(
+    () => (rawData ? rawData.players.filter((player) => matchesTagToken(player.tag, "nklv")).length : 0),
     [rawData],
   )
   const competitiveClanPlayers = useMemo(
@@ -2442,6 +2453,7 @@ export default function YearReviewPage() {
       <SeasonalHeader
         mdcPlayersCount={mdcRosterCount}
         gravePlayersCount={graveRosterCount}
+        nklvPlayersCount={nklvRosterCount}
         theme={seasonalTheme}
         futureEvents={futureEvents}
         onOpenCalendarEvent={(event) => handleOpenCalendarEvent(event.event_id)}
@@ -2492,7 +2504,7 @@ export default function YearReviewPage() {
             </TabsTrigger>
             <TabsTrigger
               value="lineup"
-              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-lime-500/30 bg-lime-500/10 text-christmas-snow data-[state=active]:bg-lime-500 data-[state=active]:border-lime-500 data-[state=active]:text-slate-950 hover:bg-lime-500/20 transition-all"
+              className="flex-1 min-w-[140px] py-3 px-4 text-sm font-medium rounded-lg border-2 border-yellow-400/35 bg-yellow-400/10 text-christmas-snow data-[state=active]:bg-yellow-400 data-[state=active]:border-yellow-400 data-[state=active]:text-slate-950 hover:bg-yellow-400/20 transition-all"
             >
               Лайнап
             </TabsTrigger>
