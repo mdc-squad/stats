@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react"
 import { AchievementBadges } from "@/components/achievement-badges"
 import { PlayerProgressChart } from "@/components/charts/player-progress-chart"
+import { FactionIcon } from "@/components/faction-icon"
 import { PlayerMatchHistory } from "@/components/player-match-history"
 import { PlayerRadarChart } from "@/components/player-radar-chart"
 import { RoleIcon } from "@/components/role-icon"
@@ -631,7 +632,10 @@ export function PlayerCard({
                           variant="outline"
                           className="border-christmas-green/25 bg-background/35 text-christmas-snow"
                         >
-                          {entry.label} • {entry.count}
+                          <span className="inline-flex items-center gap-1.5">
+                            <FactionIcon faction={entry.label} />
+                            <span>• {entry.count}</span>
+                          </span>
                         </Badge>
                       ))
                     ) : (

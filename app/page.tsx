@@ -32,6 +32,7 @@ import { OverallStatsPanel } from "@/components/overall-stats-panel"
 import { EventsExplorer } from "@/components/events-explorer"
 import { GamesCalendar } from "@/components/games-calendar"
 import { LineupBoard } from "@/components/lineup-board"
+import { getFactionIconSrc } from "@/components/faction-icon"
 import {
   type MDCData,
   type Player,
@@ -545,7 +546,7 @@ function useDataTabFilters(rawData: MDCData | null, enabled: boolean, includeTag
     () =>
       Array.from(new Set((tagFilteredData?.events ?? []).map((event) => event.faction_1?.trim() ?? "").filter(Boolean)))
         .sort((left, right) => left.localeCompare(right, "ru"))
-        .map((value) => ({ value, label: value })),
+        .map((value) => ({ value, label: value, iconSrc: getFactionIconSrc(value), iconAlt: value })),
     [tagFilteredData],
   )
 
@@ -1412,7 +1413,7 @@ export default function YearReviewPage() {
     () =>
       Array.from(new Set((tagFilteredData?.events ?? []).map((event) => event.faction_1?.trim() ?? "").filter(Boolean)))
         .sort((left, right) => left.localeCompare(right, "ru"))
-        .map((value) => ({ value, label: value })),
+        .map((value) => ({ value, label: value, iconSrc: getFactionIconSrc(value), iconAlt: value })),
     [tagFilteredData],
   )
 

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import type { LucideIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { FactionIcon, getFactionIconSrc } from "@/components/faction-icon"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { getMetricIcon } from "@/lib/app-icons"
@@ -616,7 +617,7 @@ function ChartValuesPanel({
           <div key={entry.key} className="flex items-center gap-2 text-xs">
             <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
-              <span className="truncate text-christmas-snow">{entry.name}</span>
+              <SeriesNameLabel name={entry.name} className="truncate text-christmas-snow" />
             </span>
             <span className="shrink-0 font-medium text-christmas-snow">{formatChartValue(metric, entry)}</span>
           </div>
@@ -624,6 +625,10 @@ function ChartValuesPanel({
       </div>
     </div>
   )
+}
+
+function SeriesNameLabel({ name, className }: { name: string; className?: string }) {
+  return getFactionIconSrc(name) ? <FactionIcon faction={name} className={className} /> : <span className={className}>{name}</span>
 }
 
 function ChartDynamicsPanel({
@@ -671,7 +676,7 @@ function ChartDynamicsPanel({
         {dynamics.map((entry) => (
           <div key={entry.key} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
-            <span className="text-christmas-snow">{entry.name}</span>
+            <SeriesNameLabel name={entry.name} className="text-christmas-snow" />
             <span className="text-muted-foreground">
               {formatChartValue(metric, { name: entry.name, value: entry.from })} → {formatChartValue(metric, { name: entry.name, value: entry.to })}
             </span>
@@ -1032,7 +1037,7 @@ export function EventsAnalyticsPanel({
                   className="gap-2 border-border/60 bg-background/30 px-2 py-1 text-muted-foreground"
                 >
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: series.color }} />
-                  <span className="text-christmas-snow">{series.label}</span>
+                  <SeriesNameLabel name={series.label} className="text-christmas-snow" />
                   <span>{series.matches} игр</span>
                 </Badge>
               ))}

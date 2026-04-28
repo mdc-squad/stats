@@ -4,6 +4,7 @@ import { useState } from "react"
 import { ArrowUpRight, Medal } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
+import { FactionMatchup } from "@/components/faction-icon"
 import { Button } from "@/components/ui/button"
 import { RoleIcon } from "@/components/role-icon"
 import { SpecializationIcon, getSpecializationLabel, normalizeSpecializationKey } from "@/components/specialization-icon"
@@ -202,7 +203,7 @@ export function PlayerMatchHistory({
                   {game.map}
                   {game.mode ? ` • ${game.mode}` : ""}
                 </span>
-                {matchup && <span className="text-xs text-muted-foreground">{matchup}</span>}
+                {matchup && <FactionMatchup value={matchup} className="text-xs text-muted-foreground" />}
                 {game.opponent && <span className="text-xs text-muted-foreground">Соперник: {game.opponent}</span>}
                 <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                   <RoleIcon role={primaryRole} className="h-4 w-4" />

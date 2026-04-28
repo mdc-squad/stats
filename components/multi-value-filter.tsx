@@ -13,6 +13,8 @@ export interface MultiValueFilterOption {
   label: string
   meta?: string
   dotClassName?: string
+  iconSrc?: string | null
+  iconAlt?: string
 }
 
 interface MultiValueFilterProps {
@@ -104,6 +106,7 @@ export function MultiValueFilter({
                       )}
                     />
                     {option.dotClassName ? <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", option.dotClassName)} /> : null}
+                    {option.iconSrc ? <img src={option.iconSrc} alt={option.iconAlt ?? option.label} className="h-4 w-7 shrink-0 rounded-[2px] border border-white/15 object-cover" /> : null}
                     <span className="truncate">{option.label}</span>
                     {option.meta && <span className="ml-auto text-xs text-muted-foreground">{option.meta}</span>}
                   </CommandItem>
@@ -123,6 +126,7 @@ export function MultiValueFilter({
               className="text-xs bg-christmas-gold/10 text-christmas-snow border-christmas-gold/30"
             >
               {option.dotClassName ? <span className={cn("mr-1 h-2 w-2 rounded-full", option.dotClassName)} /> : null}
+              {option.iconSrc ? <img src={option.iconSrc} alt={option.iconAlt ?? option.label} className="mr-1 h-3.5 w-6 rounded-[2px] border border-white/15 object-cover" /> : null}
               {option.label}
               <button type="button" className="ml-1 hover:text-christmas-red" onClick={() => toggleValue(option.value)}>
                 <X className="h-3 w-3" />

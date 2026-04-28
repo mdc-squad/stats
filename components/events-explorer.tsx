@@ -8,6 +8,7 @@ import { Calendar as DatePickerCalendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EventsAnalyticsPanel } from "@/components/events-analytics-panel"
 import { GameSliceLeaderboards } from "@/components/game-slice-leaderboards"
+import { FactionMatchup, getFactionIconSrc } from "@/components/faction-icon"
 import { MultiValueFilter, type MultiValueFilterOption } from "@/components/multi-value-filter"
 import { Input } from "@/components/ui/input"
 import { PlayerAvatar } from "@/components/player-avatar"
@@ -494,7 +495,7 @@ export function EventsExplorer({
     () =>
       Array.from(new Set(games.map((game) => game.faction_1).filter(Boolean) as string[]))
         .sort((left, right) => left.localeCompare(right, "ru"))
-        .map((value) => ({ value, label: value })),
+        .map((value) => ({ value, label: value, iconSrc: getFactionIconSrc(value), iconAlt: value })),
     [games],
   )
 
@@ -1102,7 +1103,12 @@ export function EventsExplorer({
                               <p className="text-xs leading-relaxed text-muted-foreground">
                                 {time ? `${date} ${time}` : date}
                                 {sizeLabel ? ` • ${sizeLabel}` : ""}
-                                {matchup ? ` • ${matchup}` : ""}
+                                {matchup ? (
+                                  <>
+                                    <span> • </span>
+                                    <FactionMatchup value={matchup} className="inline-flex" />
+                                  </>
+                                ) : null}
                                 {game.opponent ? ` • ${game.opponent}` : ""}
                                 {game.opponent_strength ? ` • ${game.opponent_strength}` : ""}
                               </p>

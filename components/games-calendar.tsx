@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { FactionMatchup } from "@/components/faction-icon"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getMetricIcon } from "@/lib/app-icons"
 import { getEventSizeLabel, type PastGameSummary } from "@/lib/data-utils"
@@ -473,7 +474,10 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
                   : "border-border/60 bg-background/35 text-muted-foreground hover:border-christmas-gold/40 hover:text-christmas-snow",
               )}
             >
-              {`${index + 1}. ${matchupLabel(game)}`}
+              <span className="inline-flex items-center justify-center gap-1.5">
+                <span>{index + 1}.</span>
+                <FactionMatchup value={matchupLabel(game)} showLabels />
+              </span>
             </button>
           ))}
         </div>
@@ -488,7 +492,10 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
             <span>Режим: <span className="text-christmas-snow">{selectedGame.mode || "Не указан"}</span></span>
             <span>Оппонент: <span className="text-christmas-snow">{selectedGame.opponent || "Не указан"}</span></span>
             {selectedGame.opponent_strength ? <span>Сила соперника: <span className="text-christmas-snow">{selectedGame.opponent_strength}</span></span> : null}
-            <span>Фракции: <span className="text-christmas-snow">{matchup || "Не указаны"}</span></span>
+            <span className="inline-flex items-center justify-center gap-1.5">
+              Фракции:
+              {matchup ? <FactionMatchup value={matchup} className="text-christmas-snow" /> : <span className="text-christmas-snow">Не указаны</span>}
+            </span>
             {!planned ? <span>Результат: <span className="text-christmas-snow">{resultLabel(selectedGame)}</span></span> : null}
             {isSideSwap && aggregateDiff !== null ? <span>Общая разница тикетов: <span className="text-christmas-snow">{aggregateDiff > 0 ? "+" : ""}{aggregateDiff}</span></span> : null}
           </>
@@ -528,8 +535,11 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
         <div className="border-t border-border/60 pt-2">
           <p className="mb-1 text-muted-foreground">Матчи в группе: {games.length}</p>
           {games.map((game) => (
-            <p key={game.event_id} className="truncate text-center text-muted-foreground">
-              {game.faction_matchup || [game.faction_1, game.faction_2].filter(Boolean).join(" vs ") || game.event_id}
+            <p key={game.event_id} className="flex justify-center text-center text-muted-foreground">
+              <FactionMatchup
+                value={game.faction_matchup || [game.faction_1, game.faction_2].filter(Boolean).join(" vs ") || game.event_id}
+                showLabels
+              />
             </p>
           ))}
         </div>
@@ -885,8 +895,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
                                         ) : null}
                                       </div>
                                       <div className="flex min-w-0 items-center justify-center gap-1.5">
-                                        <Flag className="h-3 w-3 shrink-0" />
-                                        <span className="truncate">{matchupLabel(item.primary)}</span>
+                                        <FactionMatchup value={matchupLabel(item.primary)} className="justify-center" />
                                       </div>
                                     </>
                                   ) : null}

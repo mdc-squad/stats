@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react"
 import Image from "next/image"
 import { RefreshCw } from "lucide-react"
+import { FactionMatchup } from "@/components/faction-icon"
 import { RoleIcon, formatRoleName } from "@/components/role-icon"
 import { SpecializationIcon, getSpecializationLabel } from "@/components/specialization-icon"
 import { Button } from "@/components/ui/button"
@@ -383,7 +384,7 @@ export function LineupBoard() {
                       key={detail}
                       className="rounded-full border border-christmas-gold/20 bg-background/35 px-2.5 py-1 text-xs font-medium text-muted-foreground"
                     >
-                      {detail}
+                      {detail.includes(" vs ") ? <FactionMatchup value={detail} /> : detail}
                     </span>
                   ))}
                 </div>
@@ -401,7 +402,11 @@ export function LineupBoard() {
                       side === sideKey ? "bg-christmas-gold text-slate-950" : "bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold",
                     )}
                   >
-                    {getMatchupLabel(lineup?.name, sideKey)}
+                    {getMatchupLabel(lineup?.name, sideKey).includes(" vs ") ? (
+                      <FactionMatchup value={getMatchupLabel(lineup?.name, sideKey)} showLabels />
+                    ) : (
+                      getMatchupLabel(lineup?.name, sideKey)
+                    )}
                   </button>
                 ))}
               </div>

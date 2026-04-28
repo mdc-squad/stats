@@ -16,6 +16,7 @@ import {
   Volume2,
 } from "lucide-react"
 import { Slider } from "@/components/ui/slider"
+import { FactionMatchup } from "@/components/faction-icon"
 import type { SeasonalTheme, SeasonalThemeIcon } from "@/lib/seasonal-theme"
 import type { PastGameSummary } from "@/lib/data-utils"
 import { withBasePath } from "@/lib/base-path"
@@ -308,10 +309,14 @@ function formatTickerEvent(group: TickerEventGroup): string {
     (primary.event_type || "EVENT").toUpperCase(),
     formatTickerDate(primary.started_at),
     !isLectureEvent(primary.event_type) ? primary.map : null,
-    primary.faction_matchup || [primary.faction_1, primary.faction_2].filter(Boolean).join(" vs "),
     primary.opponent,
     isSideSwap ? "смена сторон" : null,
   ].filter(Boolean).join(" | ")
+}
+
+function getTickerMatchup(group: TickerEventGroup): string {
+  const primary = group.primary
+  return primary.faction_matchup || [primary.faction_1, primary.faction_2].filter(Boolean).join(" vs ")
 }
 
 export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayersCount, theme, futureEvents = [], onOpenCalendarEvent }: SeasonalHeaderProps) {
@@ -846,7 +851,15 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayers
                     onClick={() => onOpenCalendarEvent?.(group.primary)}
                     className="inline-flex items-center text-left transition-colors hover:text-christmas-gold"
                   >
-                    <span className="px-10">{formatTickerEvent(group)}</span>
+                    <span className="inline-flex items-center gap-2 px-10">
+                      <span>{formatTickerEvent(group)}</span>
+                      {getTickerMatchup(group) ? (
+                        <>
+                          <span className="text-muted-foreground">|</span>
+                          <FactionMatchup value={getTickerMatchup(group)} />
+                        </>
+                      ) : null}
+                    </span>
                     <span className="text-christmas-gold/90">◆</span>
                   </button>
                 ))}
