@@ -875,31 +875,31 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayers
         }
         .birthday-balloon {
           position: absolute;
-          top: 18px;
+          top: 34px;
           z-index: 0;
-          width: 13px;
-          height: 17px;
+          width: 10px;
+          height: 13px;
           border-radius: 999px 999px 900px 900px;
-          opacity: 0.95;
+          opacity: 0.78;
           animation: birthday-balloon-float 2.8s ease-in-out infinite;
         }
         .birthday-balloon::after {
           content: "";
           position: absolute;
           left: 50%;
-          top: 16px;
+          top: 12px;
           width: 1px;
-          height: 12px;
+          height: 8px;
           background: rgba(248, 250, 252, 0.42);
           transform: translateX(-50%);
         }
         .birthday-balloon--left {
-          left: 7px;
+          left: 8px;
           background: linear-gradient(160deg, #38bdf8, #0ea5e9);
           box-shadow: 0 0 12px rgba(56, 189, 248, 0.32);
         }
         .birthday-balloon--right {
-          right: 7px;
+          right: 8px;
           background: linear-gradient(160deg, #fb7185, #e11d48);
           box-shadow: 0 0 12px rgba(251, 113, 133, 0.32);
           animation-delay: -1.2s;
@@ -908,19 +908,19 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayers
         .birthday-balloon--right::before {
           content: "";
           position: absolute;
-          top: -6px;
-          width: 9px;
-          height: 11px;
+          top: -4px;
+          width: 7px;
+          height: 9px;
           border-radius: 999px 999px 900px 900px;
           background: linear-gradient(160deg, #a78bfa, #7c3aed);
           box-shadow: 0 0 10px rgba(167, 139, 250, 0.28);
         }
         .birthday-balloon--left::before {
-          left: 12px;
+          left: 9px;
           background: linear-gradient(160deg, #34d399, #059669);
         }
         .birthday-balloon--right::before {
-          right: 12px;
+          right: 9px;
         }
         .birthday-confetti {
           position: absolute;
@@ -961,8 +961,8 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayers
           width: 10px;
           height: 3px;
           border-radius: 999px;
-          background: #fb7185;
-          box-shadow: 3px -5px 0 -1px #38bdf8, 5px -9px 0 -1px #34d399;
+          background: #facc15;
+          box-shadow: 3px -5px 0 -1px #fde047, 5px -9px 0 -1px #eab308;
         }
         @keyframes birthday-balloon-float {
           0%, 100% { transform: translateY(0) rotate(-3deg); }
