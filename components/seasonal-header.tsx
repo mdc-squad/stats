@@ -856,7 +856,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayers
                       {getTickerMatchup(group) ? (
                         <>
                           <span className="text-muted-foreground">|</span>
-                          <FactionMatchup value={getTickerMatchup(group)} />
+                          <FactionMatchup value={getTickerMatchup(group)} showLabels />
                         </>
                       ) : null}
                     </span>
