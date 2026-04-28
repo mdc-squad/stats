@@ -197,6 +197,7 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
     type ChartSquad = { label: string; matches: SquadMatchSummary[] }
     const bySquad = new Map<string, MS>()
     const chartBySquad = new Map<string, ChartSquad>()
+    const chartMvpCounts = new Map<string, number>()
     const ensure = (label: string) => {
       if (!bySquad.has(label)) bySquad.set(label, { label, games: 0, wins: 0, kills: 0, deaths: 0, downs: 0, revives: 0, heals: 0, vehicle: 0, elo: 0, mvpCount: 0, players: new Map(), roles: new Map(), specializations: new Map(), matches: [] })
       return bySquad.get(label)!
@@ -243,7 +244,10 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
         chartMatchSummaries.push({ chart, match })
       })
       const bestChart = [...chartMatchSummaries].sort((a, b) => b.match.avgElo - a.match.avgElo)[0]
-      if (bestChart) bestChart.match.isMvp = true
+      if (bestChart) {
+        bestChart.match.isMvp = true
+        chartMvpCounts.set(bestChart.chart.label, (chartMvpCounts.get(bestChart.chart.label) ?? 0) + 1)
+      }
 
       const grouped = new Map<string, PastGamePlayerStat[]>()
       groupedAll.forEach((group, label) => {
@@ -279,7 +283,7 @@ export function SquadOverview({ games, players, squadDomain, onOpenGame, onOpenP
       const recent = [...squad.matches].sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
       const avgTbf = playersRanked.length ? playersRanked.reduce((s, p) => s + p.avgTbf, 0) / playersRanked.length : 0
       const avgRating = playersRanked.length ? playersRanked.reduce((s, p) => s + p.avgRating, 0) / playersRanked.length : 0
-      return { label: squad.label, games: squad.games, wins: squad.wins, kills: squad.kills, deaths: squad.deaths, downs: squad.downs, revives: squad.revives, heals: squad.heals, vehicle: squad.vehicle, mvpCount: squad.mvpCount, avgRevives: squad.games ? squad.revives / squad.games : 0, avgHeals: squad.games ? squad.heals / squad.games : 0, avgDowns: squad.games ? squad.downs / squad.games : 0, avgKills: squad.games ? squad.kills / squad.games : 0, avgDeaths: squad.games ? squad.deaths / squad.games : 0, avgVehicle: squad.games ? squad.vehicle / squad.games : 0, avgElo: squad.games ? squad.elo / squad.games : 0, avgTbf, avgRating, kd: ratio(squad.kills, squad.deaths), kda: ratio(squad.kills + squad.downs, squad.deaths), playersRanked, leader: playersRanked.find((p) => p.isSquadLeader) ?? null, roleSlices: [...squad.roles.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru")).slice(0, 8).map(([label, count], i) => ({ label, count, color: ROLE_COLORS[i % ROLE_COLORS.length] })), specializationSlices: [...squad.specializations.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru")).slice(0, 8).map(([label, count], i) => ({ label, count, color: ROLE_COLORS[(i + 2) % ROLE_COLORS.length] })), recent: recent.slice(0, 10), allMatches: recent, bestMatch: [...squad.matches].sort((a, b) => b.avgElo - a.avgElo)[0] ?? null }
+      return { label: squad.label, games: squad.games, wins: squad.wins, kills: squad.kills, deaths: squad.deaths, downs: squad.downs, revives: squad.revives, heals: squad.heals, vehicle: squad.vehicle, mvpCount: chartMvpCounts.get(squad.label) ?? squad.mvpCount, avgRevives: squad.games ? squad.revives / squad.games : 0, avgHeals: squad.games ? squad.heals / squad.games : 0, avgDowns: squad.games ? squad.downs / squad.games : 0, avgKills: squad.games ? squad.kills / squad.games : 0, avgDeaths: squad.games ? squad.deaths / squad.games : 0, avgVehicle: squad.games ? squad.vehicle / squad.games : 0, avgElo: squad.games ? squad.elo / squad.games : 0, avgTbf, avgRating, kd: ratio(squad.kills, squad.deaths), kda: ratio(squad.kills + squad.downs, squad.deaths), playersRanked, leader: playersRanked.find((p) => p.isSquadLeader) ?? null, roleSlices: [...squad.roles.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru")).slice(0, 8).map(([label, count], i) => ({ label, count, color: ROLE_COLORS[i % ROLE_COLORS.length] })), specializationSlices: [...squad.specializations.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru")).slice(0, 8).map(([label, count], i) => ({ label, count, color: ROLE_COLORS[(i + 2) % ROLE_COLORS.length] })), recent: recent.slice(0, 10), allMatches: recent, bestMatch: [...squad.matches].sort((a, b) => b.avgElo - a.avgElo)[0] ?? null }
     }).filter((squad) => squad.playersRanked.length > 0)
       .sort((a, b) => squadOrderIndex(a.label) - squadOrderIndex(b.label) || b.games - a.games || b.avgElo - a.avgElo || a.label.localeCompare(b.label, "ru"))
 

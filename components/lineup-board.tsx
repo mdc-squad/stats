@@ -145,10 +145,9 @@ function hasSquadContent(rows: LineupPlayer[] | undefined) {
 
 function normalizeRows(rows: LineupPlayer[] | undefined) {
   const cleanRows = (rows ?? []).filter((row) => !isHeaderRow(row) && !isServiceRow(row) && !isSquadMarkerRow(row))
-  const filledRows = cleanRows.filter(hasAssignedPlayer).slice(0, 9)
-  const normalizedFilledRows = filledRows.map((row, index) => ({ ...row, number: index + 1 }))
+  const normalizedRows = cleanRows.slice(0, 9).map((row, index) => ({ ...row, number: index + 1 }))
 
-  return Array.from({ length: 9 }, (_, index) => normalizedFilledRows[index] ?? { number: index + 1 })
+  return Array.from({ length: 9 }, (_, index) => normalizedRows[index] ?? { number: index + 1 })
 }
 
 function parseMatchTitle(name: string | null | undefined, side: LineupSideKey) {
@@ -199,11 +198,15 @@ function getVehicleIconAsset(vehicle: string | number | null | undefined) {
   return VEHICLE_ICON_BY_LABEL[normalizeVehicleKey(vehicle)] ?? null
 }
 
+function capitalizeFirst(value: string) {
+  return value ? `${value[0].toLocaleUpperCase("ru-RU")}${value.slice(1)}` : value
+}
+
 function getVehicleTooltip(vehicle: string | number | null | undefined, color: string | null | undefined) {
-  const label = normalizeVehicleKey(vehicle)
+  const label = capitalizeFirst(normalizeVehicleKey(vehicle))
   const colorLabel = VEHICLE_COLOR_LABELS[String(color ?? "").trim().toUpperCase()]
 
-  return [label, colorLabel ? `отряд: ${colorLabel}` : null].filter(Boolean).join(" • ")
+  return [label, colorLabel ? `Отряд: ${colorLabel}` : null].filter(Boolean).join(" • ")
 }
 
 function splitMatchTitle(title: string) {
@@ -229,7 +232,7 @@ function VehicleIconBadge({ vehicle, color }: { vehicle: string; color?: string 
 function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
   const style = SQUAD_STYLES[name]
   const normalizedRows = normalizeRows(rows)
-  const filledRows = normalizedRows.filter(hasAssignedPlayer)
+  const hasPlayers = normalizedRows.some(hasAssignedPlayer)
 
   return (
     <div className={cn("overflow-hidden rounded-[18px] border bg-background/40 shadow-[0_18px_40px_rgba(0,0,0,0.25)] backdrop-blur-sm", style.border)}>
@@ -241,8 +244,8 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
       </div>
 
       <div className="space-y-2 p-3">
-        {filledRows.length > 0 ? (
-          filledRows.map((player, index) => {
+        {hasPlayers ? (
+          normalizedRows.map((player, index) => {
           const nickname = isMeaningful(player.nickname) ? String(player.nickname) : ""
           const tag = isMeaningful(player.tag) ? String(player.tag) : ""
           const vehicleText = isMeaningful(player.vehicle) ? String(player.vehicle) : ""
@@ -356,15 +359,14 @@ export function LineupBoard() {
   const titleMeta = splitMatchTitle(title)
   const visibleSquads = SQUAD_ORDER.filter((squadName) => hasSquadContent(currentSide[squadName] ?? []))
   const hasAnyFilledSquad = SQUAD_ORDER.some((squadName) => hasSquadContent(currentSide[squadName] ?? []))
-  const isInitialLoading = loading && !lineup
 
   return (
     <Card className="overflow-hidden border-christmas-gold/20 bg-card/60">
       <CardContent className="space-y-4 p-4">
-        {isInitialLoading ? (
-          <div className="mx-auto w-full max-w-2xl rounded-xl border border-christmas-gold/25 bg-background/35 px-4 py-6 text-center">
+        {loading ? (
+          <div className="flex min-h-[360px] w-full flex-col items-center justify-center px-4 py-10 text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.22em] text-christmas-gold">Загрузка лайнапа</p>
-            <div className="mt-4" style={{ "--primary": "var(--christmas-gold)" } as CSSProperties}>
+            <div className="mt-4 w-full max-w-3xl" style={{ "--primary": "var(--christmas-gold)" } as CSSProperties}>
               <Progress value={72} className="h-2 bg-muted/30" />
             </div>
             <p className="mt-3 text-xs text-muted-foreground">Получаем ближайшую игру и составы отрядов.</p>
@@ -413,9 +415,9 @@ export function LineupBoard() {
 
         {error ? <div className="rounded-md border border-christmas-red/40 bg-christmas-red/10 px-3 py-2 text-sm text-christmas-red">Ошибка загрузки лайнапа: {error}</div> : null}
 
-        {isInitialLoading ? null : !hasAnyFilledSquad ? (
+        {loading ? null : !hasAnyFilledSquad ? (
           <div className="rounded-xl border border-christmas-gold/25 bg-background/35 px-4 py-10 text-center text-sm font-medium text-muted-foreground">
-            Лайнап на ближайшую игру ещё не сформирован, зайдите похже.
+            Лайнап ещё не сформирован, зайдите позже.
           </div>
         ) : (
           <div className="space-y-4">

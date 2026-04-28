@@ -246,6 +246,7 @@ function buildLineupAvailability(payload: LineupPayload | null): LineupAvailabil
 }
 
 function gameHasLineup(item: CalendarGame, lineup: LineupAvailability | null): boolean {
+  if (!isPlannedGame(item.primary)) return false
   if (!lineup?.hasPlayers || !lineup.date) return false
 
   return item.games.some((game) => {
