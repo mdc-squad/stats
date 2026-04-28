@@ -944,13 +944,13 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayers
         .birthday-party-hat::before {
           content: "";
           position: absolute;
-          left: 2px;
-          top: 1px;
-          width: 0;
-          height: 0;
-          border-left: 5px solid transparent;
-          border-right: 5px solid transparent;
-          border-bottom: 12px solid #facc15;
+          left: 1px;
+          top: 0;
+          width: 12px;
+          height: 13px;
+          background:
+            linear-gradient(63deg, transparent 47%, #facc15 48%, #facc15 55%, transparent 56%),
+            linear-gradient(117deg, transparent 47%, #facc15 48%, #facc15 55%, transparent 56%);
           filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.35));
         }
         .birthday-party-hat::after {
