@@ -792,12 +792,19 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayers
                 ) : null}
 
                 {currentSlide.celebrationLabel ? (
-                  <div className="min-w-[120px] rounded-2xl border border-christmas-gold/50 bg-background/55 px-3 py-2 text-center shadow-[0_0_28px_rgba(234,179,8,0.14)] backdrop-blur-sm">
-                    <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-christmas-gold">
+                  <div className="birthday-card relative min-w-[142px] overflow-hidden rounded-2xl border border-christmas-gold/55 bg-background/60 px-3 py-2 text-center shadow-[0_0_30px_rgba(234,179,8,0.18)] backdrop-blur-sm">
+                    <span className="birthday-balloon birthday-balloon--left" />
+                    <span className="birthday-balloon birthday-balloon--right" />
+                    <span className="birthday-confetti left-[12%]" style={{ "--confetti-color": "#facc15", "--confetti-delay": "0s" } as CSSProperties} />
+                    <span className="birthday-confetti left-[30%]" style={{ "--confetti-color": "#38bdf8", "--confetti-delay": "0.45s" } as CSSProperties} />
+                    <span className="birthday-confetti left-[52%]" style={{ "--confetti-color": "#fb7185", "--confetti-delay": "0.2s" } as CSSProperties} />
+                    <span className="birthday-confetti left-[72%]" style={{ "--confetti-color": "#34d399", "--confetti-delay": "0.75s" } as CSSProperties} />
+                    <span className="birthday-confetti left-[88%]" style={{ "--confetti-color": "#a78bfa", "--confetti-delay": "0.35s" } as CSSProperties} />
+                    <div className="relative flex items-center justify-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-christmas-gold">
                       <Sparkles className="h-3.5 w-3.5" />
                       <span>День рождения</span>
                     </div>
-                    <p className="mt-1 text-sm font-bold text-christmas-snow">{currentSlide.celebrationLabel}</p>
+                    <p className="relative mt-1 text-sm font-bold text-christmas-snow">{currentSlide.celebrationLabel}</p>
                   </div>
                 ) : null}
               </div>
@@ -849,6 +856,63 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayers
           <style>{`@keyframes mdc-event-ticker { from { transform: translateX(var(--ticker-start)); } to { transform: translateX(var(--ticker-end)); } }`}</style>
         </div>
       ) : null}
+      <style>{`
+        .birthday-card {
+          isolation: isolate;
+        }
+        .birthday-balloon {
+          position: absolute;
+          top: 7px;
+          z-index: 0;
+          width: 10px;
+          height: 13px;
+          border-radius: 999px 999px 900px 900px;
+          opacity: 0.95;
+          animation: birthday-balloon-float 2.8s ease-in-out infinite;
+        }
+        .birthday-balloon::after {
+          content: "";
+          position: absolute;
+          left: 50%;
+          top: 12px;
+          width: 1px;
+          height: 12px;
+          background: rgba(248, 250, 252, 0.42);
+          transform: translateX(-50%);
+        }
+        .birthday-balloon--left {
+          left: 8px;
+          background: linear-gradient(160deg, #38bdf8, #0ea5e9);
+          box-shadow: 0 0 12px rgba(56, 189, 248, 0.32);
+        }
+        .birthday-balloon--right {
+          right: 8px;
+          background: linear-gradient(160deg, #fb7185, #e11d48);
+          box-shadow: 0 0 12px rgba(251, 113, 133, 0.32);
+          animation-delay: -1.2s;
+        }
+        .birthday-confetti {
+          position: absolute;
+          top: -10px;
+          z-index: 0;
+          width: 4px;
+          height: 8px;
+          border-radius: 2px;
+          background: var(--confetti-color);
+          opacity: 0.86;
+          animation: birthday-confetti-fall 2.6s linear infinite;
+          animation-delay: var(--confetti-delay);
+        }
+        @keyframes birthday-balloon-float {
+          0%, 100% { transform: translateY(0) rotate(-3deg); }
+          50% { transform: translateY(-4px) rotate(4deg); }
+        }
+        @keyframes birthday-confetti-fall {
+          0% { transform: translateY(-8px) rotate(0deg); opacity: 0; }
+          12% { opacity: 0.9; }
+          100% { transform: translateY(58px) rotate(240deg); opacity: 0; }
+        }
+      `}</style>
     </header>
   )
 }
