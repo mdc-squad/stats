@@ -2553,7 +2553,12 @@ export default function YearReviewPage() {
           </TabsList>
 
           <TabsContent value="calendar" className="space-y-4" ref={calendarSectionRef}>
-            <GamesCalendar games={pastGames} onOpenGame={(eventId) => handleOpenGame(eventId, "")} focusedEventId={calendarFocusEventId} />
+            <GamesCalendar
+              games={pastGames}
+              onOpenGame={(eventId) => handleOpenGame(eventId, "")}
+              onOpenLineup={() => setActiveTab("lineup")}
+              focusedEventId={calendarFocusEventId}
+            />
           </TabsContent>
 
           <TabsContent value="lineup" className="space-y-4">

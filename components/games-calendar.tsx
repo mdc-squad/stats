@@ -26,7 +26,26 @@ import {
 interface GamesCalendarProps {
   games: PastGameSummary[]
   onOpenGame: (eventId: string) => void
+  onOpenLineup?: () => void
   focusedEventId?: string | null
+}
+
+type LineupPlayer = {
+  nickname?: string | null
+  tag?: string | null
+}
+
+type LineupPayload = {
+  name?: string | null
+  siteOne?: Record<string, LineupPlayer[] | undefined>
+  siteTwo?: Record<string, LineupPlayer[] | undefined>
+}
+
+type LineupAvailability = {
+  date: Date | null
+  map: string
+  factionSet: string
+  hasPlayers: boolean
 }
 
 type CalendarGame = {
@@ -37,6 +56,8 @@ type CalendarGame = {
 }
 
 const WEEK_DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+const LINEUP_API_BASE = (process.env.NEXT_PUBLIC_MDC_API_BASE ?? "https://api.hungryfishteam.org/gas/mdc").replace(/\/$/, "")
+const LINEUP_API_URL = `${LINEUP_API_BASE}/lineup?publish=true`
 const WEEKDAY_GUIDE_OFFSET = 0
 const MONTH_NAMES = [
   "Январь",
@@ -172,8 +193,71 @@ function normalizeText(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase()
 }
 
+function normalizeMatchText(value: string | null | undefined): string {
+  return normalizeText(value)
+    .replace(/ё/g, "е")
+    .replace(/[^a-z0-9а-я]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
 function factionSetKey(game: PastGameSummary): string {
-  return [normalizeText(game.faction_1), normalizeText(game.faction_2)].sort().join(" vs ")
+  return [normalizeMatchText(game.faction_1), normalizeMatchText(game.faction_2)].sort().join(" vs ")
+}
+
+function factionSetFromMatchup(value: string | null | undefined): string {
+  const parts = String(value ?? "").split(/\s+vs\s+/i).map(normalizeMatchText).filter(Boolean)
+  return parts.length >= 2 ? parts.slice(0, 2).sort().join(" vs ") : ""
+}
+
+function parseLineupDate(value: string | null | undefined): Date | null {
+  const match = String(value ?? "").match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{1,2}):(\d{2})/)
+  if (!match) return null
+  const [, day, month, year, hour, minute] = match
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute))
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function sameMinute(left: Date | null, right: Date | null): boolean {
+  if (!left || !right) return false
+  return Math.abs(left.getTime() - right.getTime()) < 60_000
+}
+
+function hasLineupPlayers(payload: LineupPayload | null): boolean {
+  if (!payload) return false
+  return [payload.siteOne, payload.siteTwo].some((side) =>
+    Object.values(side ?? {}).some((rows) =>
+      (rows ?? []).some((row) => [row.nickname, row.tag].some((value) => String(value ?? "").trim().length > 0)),
+    ),
+  )
+}
+
+function buildLineupAvailability(payload: LineupPayload | null): LineupAvailability | null {
+  if (!payload?.name) return null
+  const parts = payload.name.split("|").map((part) => part.trim()).filter(Boolean)
+  const matchup = parts.find((part) => /\s+vs\s+/i.test(part)) ?? parts.at(-1) ?? ""
+
+  return {
+    date: parseLineupDate(payload.name),
+    map: normalizeMatchText(parts[2] ?? ""),
+    factionSet: factionSetFromMatchup(matchup),
+    hasPlayers: hasLineupPlayers(payload),
+  }
+}
+
+function gameHasLineup(item: CalendarGame, lineup: LineupAvailability | null): boolean {
+  if (!lineup?.hasPlayers || !lineup.date) return false
+
+  return item.games.some((game) => {
+    const gameDate = parseDate(game.started_at)
+    if (!sameMinute(lineup.date, gameDate)) return false
+
+    const gameMap = normalizeMatchText(game.map)
+    const mapMatches = !lineup.map || !gameMap || lineup.map.includes(gameMap) || gameMap.includes(lineup.map)
+    const factionsMatch = !lineup.factionSet || lineup.factionSet === factionSetKey(game)
+
+    return mapMatches && factionsMatch
+  })
 }
 
 function calendarGroupKey(game: PastGameSummary): string {
@@ -484,16 +568,38 @@ function HolidayLabel({ label }: { label: string }) {
   )
 }
 
-export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: GamesCalendarProps) {
+export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId = null }: GamesCalendarProps) {
   const [month, setMonth] = useState(() => {
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
   const [monthPickerOpen, setMonthPickerOpen] = useState(false)
   const [pickerYear, setPickerYear] = useState(() => new Date().getFullYear())
+  const [lineupAvailability, setLineupAvailability] = useState<LineupAvailability | null>(null)
   const focusedButtonRef = useRef<HTMLButtonElement | null>(null)
   const weekRefs = useRef<Array<HTMLDivElement | null>>([])
   const [weekdayGuide, setWeekdayGuide] = useState({ weekIndex: 0, top: 0 })
+
+  useEffect(() => {
+    let isActive = true
+
+    const loadLineupState = async () => {
+      try {
+        const response = await fetch(LINEUP_API_URL, { cache: "no-store" })
+        if (!response.ok) throw new Error(`API ${response.status}`)
+        const payload = (await response.json()) as LineupPayload
+        if (isActive) setLineupAvailability(buildLineupAvailability(payload))
+      } catch {
+        if (isActive) setLineupAvailability(null)
+      }
+    }
+
+    void loadLineupState()
+
+    return () => {
+      isActive = false
+    }
+  }, [])
 
   useEffect(() => {
     if (!focusedEventId) return
@@ -740,76 +846,87 @@ export function GamesCalendar({ games, onOpenGame, focusedEventId = null }: Game
                     </div>
                     <div className="flex-1 space-y-1.5">
                       {dayGames.map((item) => (
-                        <Tooltip key={item.key}>
-                          <TooltipTrigger asChild>
+                        <div key={item.key} className="space-y-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!isPlannedGame(item.primary)) {
+                                    onOpenGame(item.primary.event_id)
+                                  }
+                                }}
+                                ref={isCalendarItemFocused(item, focusedEventId) ? focusedButtonRef : null}
+                                className={cn(
+                                  "w-full rounded-md border px-2 py-1.5 text-left transition-colors hover:border-christmas-gold/60 hover:bg-christmas-gold/10",
+                                  resultTone(item),
+                                  isCalendarItemFocused(item, focusedEventId) && "ring-2 ring-fuchsia-400/85 ring-offset-1 ring-offset-background",
+                                )}
+                              >
+                                <div className="space-y-1 text-center text-[11px]">
+                                  <div className="flex min-w-0 items-center justify-center gap-1.5 font-semibold text-christmas-snow">
+                                    <span className="truncate">{item.primary.event_type}</span>
+                                    <span className="truncate">{formatTime(item.primary.started_at)}</span>
+                                    {!isLectureEvent(item.primary.event_type) && getEventSizeLabel(item.primary) ? <span className="truncate">{getEventSizeLabel(item.primary)}</span> : null}
+                                  </div>
+                                  {!isLectureEvent(item.primary.event_type) ? (
+                                    <>
+                                      <div className="flex min-w-0 items-center justify-center gap-1.5">
+                                        <MapPin className="h-3 w-3 shrink-0" />
+                                        <span className="truncate">{item.primary.map}</span>
+                                      </div>
+                                      <div className="flex min-w-0 items-center justify-center gap-1.5">
+                                        {item.primary.mode ? (
+                                          <>
+                                            <Gamepad2 className="h-3 w-3 shrink-0" />
+                                            <span className="truncate">{item.primary.mode}</span>
+                                          </>
+                                        ) : null}
+                                      </div>
+                                      <div className="flex min-w-0 items-center justify-center gap-1.5">
+                                        <Flag className="h-3 w-3 shrink-0" />
+                                        <span className="truncate">{matchupLabel(item.primary)}</span>
+                                      </div>
+                                    </>
+                                  ) : null}
+                                  {!isLectureEvent(item.primary.event_type) && !isPlannedGame(item.primary) && aggregateTicketDiff(item.games) !== null ? (
+                                    <div className="mt-1 rounded-md border border-christmas-gold/25 bg-background/35 px-2 py-1 text-center text-sm font-bold text-christmas-snow">
+                                      {`${aggregateTicketDiff(item.games)! > 0 ? "+" : ""}${aggregateTicketDiff(item.games)}`}
+                                    </div>
+                                  ) : null}
+                                  {!isLectureEvent(item.primary.event_type) && item.isSideSwap ? <div className="text-center text-[11px] text-muted-foreground">2 игры со сменой сторон</div> : !isLectureEvent(item.primary.event_type) && item.games.length > 1 ? <div className="text-center text-[11px] text-muted-foreground">{`${item.games.length} игры`}</div> : null}
+                                </div>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side={tooltipSide}
+                              sideOffset={8}
+                              collisionPadding={24}
+                              className="overflow-visible bg-transparent p-0 text-card-foreground shadow-none"
+                            >
+                              <CalendarGameTooltip item={item} />
+                            </TooltipContent>
+                          </Tooltip>
+                          {!isLectureEvent(item.primary.event_type) && isPlannedGame(item.primary) && item.primary.discord_url ? (
+                            <a
+                              href={item.primary.discord_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex w-full items-center justify-center rounded-md border border-sky-300/35 bg-sky-400/10 px-2 py-1 text-[10px] font-semibold uppercase text-sky-100 transition-colors hover:bg-sky-400/20"
+                            >
+                              Регистрация
+                            </a>
+                          ) : null}
+                          {onOpenLineup && gameHasLineup(item, lineupAvailability) ? (
                             <button
                               type="button"
-                              onClick={() => {
-                                if (!isPlannedGame(item.primary)) {
-                                  onOpenGame(item.primary.event_id)
-                                }
-                              }}
-                              ref={isCalendarItemFocused(item, focusedEventId) ? focusedButtonRef : null}
-                              className={cn(
-                                "w-full rounded-md border px-2 py-1.5 text-left transition-colors hover:border-christmas-gold/60 hover:bg-christmas-gold/10",
-                                resultTone(item),
-                                isCalendarItemFocused(item, focusedEventId) && "ring-2 ring-fuchsia-400/85 ring-offset-1 ring-offset-background",
-                              )}
+                              onClick={onOpenLineup}
+                              className="w-full rounded-md border border-christmas-gold/45 bg-christmas-gold/10 px-2 py-1 text-[10px] font-semibold uppercase text-christmas-gold transition-colors hover:bg-christmas-gold hover:text-slate-950"
                             >
-                              <div className="space-y-1 text-center text-[11px]">
-                                <div className="flex min-w-0 items-center justify-center gap-1.5 font-semibold text-christmas-snow">
-                                  <span className="truncate">{item.primary.event_type}</span>
-                                  <span className="truncate">{formatTime(item.primary.started_at)}</span>
-                                  {!isLectureEvent(item.primary.event_type) && getEventSizeLabel(item.primary) ? <span className="truncate">{getEventSizeLabel(item.primary)}</span> : null}
-                                </div>
-                                {!isLectureEvent(item.primary.event_type) ? (
-                                  <>
-                                    <div className="flex min-w-0 items-center justify-center gap-1.5">
-                                      <MapPin className="h-3 w-3 shrink-0" />
-                                      <span className="truncate">{item.primary.map}</span>
-                                    </div>
-                                    <div className="flex min-w-0 items-center justify-center gap-1.5">
-                                      {item.primary.mode ? (
-                                        <>
-                                          <Gamepad2 className="h-3 w-3 shrink-0" />
-                                          <span className="truncate">{item.primary.mode}</span>
-                                        </>
-                                      ) : null}
-                                    </div>
-                                    <div className="flex min-w-0 items-center justify-center gap-1.5">
-                                      <Flag className="h-3 w-3 shrink-0" />
-                                      <span className="truncate">{matchupLabel(item.primary)}</span>
-                                    </div>
-                                  </>
-                                ) : null}
-                                {!isLectureEvent(item.primary.event_type) && isPlannedGame(item.primary) && item.primary.discord_url ? (
-                                  <a
-                                    href={item.primary.discord_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    onClick={(event) => event.stopPropagation()}
-                                    className="mt-1 inline-flex w-full items-center justify-center rounded-md border border-sky-300/35 bg-sky-400/10 px-2 py-1 text-[10px] font-semibold uppercase text-sky-100 hover:bg-sky-400/20"
-                                  >
-                                    Регистрация
-                                  </a>
-                                ) : !isLectureEvent(item.primary.event_type) && aggregateTicketDiff(item.games) !== null ? (
-                                  <div className="mt-1 rounded-md border border-christmas-gold/25 bg-background/35 px-2 py-1 text-center text-sm font-bold text-christmas-snow">
-                                    {`${aggregateTicketDiff(item.games)! > 0 ? "+" : ""}${aggregateTicketDiff(item.games)}`}
-                                  </div>
-                                ) : null}
-                                {!isLectureEvent(item.primary.event_type) && item.isSideSwap ? <div className="text-center text-[11px] text-muted-foreground">2 игры со сменой сторон</div> : !isLectureEvent(item.primary.event_type) && item.games.length > 1 ? <div className="text-center text-[11px] text-muted-foreground">{`${item.games.length} игры`}</div> : null}
-                              </div>
+                              Лайнап
                             </button>
-                          </TooltipTrigger>
-                          <TooltipContent
-                            side={tooltipSide}
-                            sideOffset={8}
-                            collisionPadding={24}
-                            className="overflow-visible bg-transparent p-0 text-card-foreground shadow-none"
-                          >
-                            <CalendarGameTooltip item={item} />
-                          </TooltipContent>
-                        </Tooltip>
+                          ) : null}
+                        </div>
                       ))}
                     </div>
                     {holiday ? <HolidayLabel label={holiday.label} /> : null}

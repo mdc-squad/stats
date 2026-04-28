@@ -515,7 +515,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayers
         id: "nklv",
         title: "Сибирский Анклав",
         subtitle: theme.subtitle,
-        tagline: "[NKLV]",
+        tagline: null,
         emblemSrc: withBasePath("/nklv-emblem.png"),
         emblemAlt: "Эмблема Сибирского Анклава",
         heroLabel: "[NKLV]",
@@ -792,9 +792,12 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayers
                 ) : null}
 
                 {currentSlide.celebrationLabel ? (
-                  <div className="inline-flex items-center gap-2 rounded-2xl border border-christmas-gold/60 bg-gradient-to-r from-christmas-gold/25 via-christmas-red/15 to-christmas-green/20 px-3 py-2 text-xs font-semibold text-christmas-snow shadow-[0_0_24px_rgba(234,179,8,0.18)]">
-                    <Sparkles className="h-3.5 w-3.5 text-christmas-gold" />
-                    <span>{currentSlide.celebrationLabel}</span>
+                  <div className="min-w-[120px] rounded-2xl border border-christmas-gold/50 bg-background/55 px-3 py-2 text-center shadow-[0_0_28px_rgba(234,179,8,0.14)] backdrop-blur-sm">
+                    <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-christmas-gold">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>День рождения</span>
+                    </div>
+                    <p className="mt-1 text-sm font-bold text-christmas-snow">{currentSlide.celebrationLabel}</p>
                   </div>
                 ) : null}
               </div>
