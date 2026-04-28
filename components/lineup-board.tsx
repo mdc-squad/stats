@@ -136,12 +136,12 @@ function isSquadMarkerRow(player: LineupPlayer) {
   return !role && !specialist && !tag && !nickname
 }
 
-function hasAssignedPlayer(player: LineupPlayer) {
-  return [player.nickname, player.tag].some(isMeaningful)
+function hasLineupRowContent(player: LineupPlayer) {
+  return [player.nickname, player.tag, player.role, player.specialist, player.vehicle].some(isMeaningful)
 }
 
 function hasSquadContent(rows: LineupPlayer[] | undefined) {
-  return normalizeRows(rows).some(hasAssignedPlayer)
+  return normalizeRows(rows).some(hasLineupRowContent)
 }
 
 function normalizeRows(rows: LineupPlayer[] | undefined) {
@@ -207,7 +207,7 @@ function getVehicleTooltip(vehicle: string | number | null | undefined, color: s
   const label = capitalizeFirst(normalizeVehicleKey(vehicle))
   const colorLabel = VEHICLE_COLOR_LABELS[String(color ?? "").trim().toUpperCase()]
 
-  return [label, colorLabel ? `Отряд: ${colorLabel}` : null].filter(Boolean).join(" • ")
+  return [label, colorLabel].filter(Boolean).join(" • ")
 }
 
 function splitMatchTitle(title: string) {
@@ -233,7 +233,8 @@ function VehicleIconBadge({ vehicle, color }: { vehicle: string; color?: string 
 function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
   const style = SQUAD_STYLES[name]
   const normalizedRows = normalizeRows(rows)
-  const hasPlayers = normalizedRows.some(hasAssignedPlayer)
+  const displayRows = normalizedRows.filter(hasLineupRowContent)
+  const hasPlayers = displayRows.length > 0
 
   return (
     <div className={cn("overflow-hidden rounded-[18px] border bg-background/40 shadow-[0_18px_40px_rgba(0,0,0,0.25)] backdrop-blur-sm", style.border)}>
@@ -246,7 +247,7 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
 
       <div className="space-y-2 p-3">
         {hasPlayers ? (
-          normalizedRows.map((player, index) => {
+          displayRows.map((player, index) => {
           const nickname = isMeaningful(player.nickname) ? String(player.nickname) : ""
           const tag = isMeaningful(player.tag) ? String(player.tag) : ""
           const vehicleText = isMeaningful(player.vehicle) ? String(player.vehicle) : ""
@@ -304,11 +305,13 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
                 ) : null}
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-2 text-sm font-semibold text-christmas-snow">
-                  {tag ? <span className="shrink-0">{tag}</span> : null}
-                  {nickname ? <span className="truncate text-christmas-snow">{nickname}</span> : <span className="text-muted-foreground">Игрок не указан</span>}
-                </div>
-                <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                {tag || nickname ? (
+                  <div className="flex items-center gap-2 text-sm font-semibold text-christmas-snow">
+                    {tag ? <span className="shrink-0">{tag}</span> : null}
+                    {nickname ? <span className="truncate text-christmas-snow">{nickname}</span> : null}
+                  </div>
+                ) : null}
+                <div className={cn("flex items-center gap-2 text-[11px] text-muted-foreground", tag || nickname ? "mt-0.5" : "")}>
                   {role ? <span className="truncate">{formatRoleName(role) || role}</span> : null}
                   {role && specialist ? <span className="text-white/20">•</span> : null}
                   {specialist ? <span className="truncate">{getSpecializationLabel(specialist)}</span> : null}
@@ -360,11 +363,12 @@ export function LineupBoard() {
   const titleMeta = splitMatchTitle(title)
   const visibleSquads = SQUAD_ORDER.filter((squadName) => hasSquadContent(currentSide[squadName] ?? []))
   const hasAnyFilledSquad = SQUAD_ORDER.some((squadName) => hasSquadContent(currentSide[squadName] ?? []))
+  const isInitialLoading = loading && !lineup
 
   return (
     <Card className="overflow-hidden border-christmas-gold/20 bg-card/60">
       <CardContent className="space-y-4 p-4">
-        {loading ? (
+        {isInitialLoading ? (
           <div className="flex min-h-[360px] w-full flex-col items-center justify-center px-4 py-10 text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.22em] text-christmas-gold">Загрузка лайнапа</p>
             <div className="mt-4 w-full max-w-3xl" style={{ "--primary": "var(--christmas-gold)" } as CSSProperties}>
@@ -376,19 +380,30 @@ export function LineupBoard() {
           <div className="grid gap-3 xl:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)_minmax(240px,1fr)] xl:items-center">
             <div className="hidden xl:block" />
             <div className="min-w-0 text-center">
-              <h2 className="truncate text-xl font-bold text-christmas-snow">{titleMeta.lead}</h2>
-              {titleMeta.details.length > 0 ? (
-                <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-                  {titleMeta.details.map((detail) => (
-                    <span
-                      key={detail}
-                      className="rounded-full border border-christmas-gold/20 bg-background/35 px-2.5 py-1 text-xs font-medium text-muted-foreground"
-                    >
-                      {detail.includes(" vs ") ? <FactionMatchup value={detail} /> : detail}
-                    </span>
-                  ))}
+              {loading ? (
+                <div className="mx-auto max-w-sm rounded-lg border border-christmas-gold/20 bg-background/35 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-christmas-gold">Обновление лайнапа</p>
+                  <div className="mt-2" style={{ "--primary": "var(--christmas-gold)" } as CSSProperties}>
+                    <Progress value={68} className="h-1.5 bg-muted/30" />
+                  </div>
                 </div>
-              ) : null}
+              ) : (
+                <>
+                  <h2 className="truncate text-xl font-bold text-christmas-snow">{titleMeta.lead}</h2>
+                  {titleMeta.details.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                      {titleMeta.details.map((detail) => (
+                        <span
+                          key={detail}
+                          className="rounded-full border border-christmas-gold/20 bg-background/35 px-2.5 py-1 text-xs font-medium text-muted-foreground"
+                        >
+                          {detail.includes(" vs ") ? <FactionMatchup value={detail} /> : detail}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </>
+              )}
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2 xl:justify-end">
               <div className="grid grid-cols-2 overflow-hidden rounded-md border border-christmas-gold/30">
@@ -420,7 +435,7 @@ export function LineupBoard() {
 
         {error ? <div className="rounded-md border border-christmas-red/40 bg-christmas-red/10 px-3 py-2 text-sm text-christmas-red">Ошибка загрузки лайнапа: {error}</div> : null}
 
-        {loading ? null : !hasAnyFilledSquad ? (
+        {isInitialLoading ? null : !hasAnyFilledSquad ? (
           <div className="rounded-xl border border-christmas-gold/25 bg-background/35 px-4 py-10 text-center text-sm font-medium text-muted-foreground">
             Лайнап ещё не сформирован, зайдите позже.
           </div>
