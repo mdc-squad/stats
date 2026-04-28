@@ -806,7 +806,6 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayers
                     <span className="birthday-confetti left-[72%]" style={{ "--confetti-color": "#34d399", "--confetti-delay": "0.75s" } as CSSProperties} />
                     <span className="birthday-confetti left-[88%]" style={{ "--confetti-color": "#a78bfa", "--confetti-delay": "0.35s" } as CSSProperties} />
                     <div className="relative flex items-center justify-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-christmas-gold">
-                      <span className="birthday-party-hat" aria-hidden="true" />
                       <span>День рождения</span>
                     </div>
                     <p className="relative mt-1 text-sm font-bold text-christmas-snow">{currentSlide.celebrationLabel}</p>
@@ -933,36 +932,6 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayers
           opacity: 0.86;
           animation: birthday-confetti-fall 2.6s linear infinite;
           animation-delay: var(--confetti-delay);
-        }
-        .birthday-party-hat {
-          position: relative;
-          display: inline-block;
-          width: 14px;
-          height: 14px;
-          transform: rotate(-12deg);
-        }
-        .birthday-party-hat::before {
-          content: "";
-          position: absolute;
-          left: 1px;
-          top: 0;
-          width: 12px;
-          height: 13px;
-          background:
-            linear-gradient(63deg, transparent 47%, #facc15 48%, #facc15 55%, transparent 56%),
-            linear-gradient(117deg, transparent 47%, #facc15 48%, #facc15 55%, transparent 56%);
-          filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.35));
-        }
-        .birthday-party-hat::after {
-          content: "";
-          position: absolute;
-          left: 3px;
-          bottom: 0;
-          width: 10px;
-          height: 3px;
-          border-radius: 999px;
-          background: #facc15;
-          box-shadow: 3px -5px 0 -1px #fde047, 5px -9px 0 -1px #eab308;
         }
         @keyframes birthday-balloon-float {
           0%, 100% { transform: translateY(0) rotate(-3deg); }
