@@ -342,10 +342,13 @@ function LineupPlayerTooltip({ player }: { player: Player }) {
               key={metric.key}
               title={metric.label}
               aria-label={metric.label}
-              className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-md border border-border/50 bg-background/35 px-2 py-1.5 text-center"
+              className="group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-md border border-border/50 bg-background/35 px-2 py-1.5 text-center"
             >
               <Icon className="h-3.5 w-3.5 text-christmas-gold" />
               <span className="text-[11px] font-semibold text-christmas-snow">{formatLineupMetricValue(metric.getValue(player), metric.digits)}</span>
+              <span className="pointer-events-none absolute -top-7 left-1/2 z-20 max-w-[120px] -translate-x-1/2 whitespace-nowrap rounded-md border border-christmas-gold/30 bg-card px-2 py-1 text-[10px] font-medium text-christmas-snow opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                {metric.label}
+              </span>
               <span className="sr-only">{metric.label}</span>
             </div>
           )
@@ -689,7 +692,7 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
                   )
                 })}
               </div>
-              <Button type="button" variant="outline" className="h-10 shrink-0 border border-christmas-gold/60 bg-background/40 px-3 text-christmas-gold hover:border-christmas-gold hover:bg-christmas-gold/10 hover:text-christmas-gold" onClick={() => void loadLineup()} disabled={loading}>
+              <Button type="button" variant="outline" className="h-10 shrink-0 !border !border-christmas-gold/30 bg-background/40 px-3 text-christmas-gold hover:!border-christmas-gold/60 hover:bg-christmas-gold/10 hover:text-christmas-gold" onClick={() => void loadLineup()} disabled={loading}>
                 <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
                 Обновить
               </Button>
