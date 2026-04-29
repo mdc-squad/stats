@@ -1,11 +1,15 @@
 import { withBasePath } from "./base-path"
 
 const STEAM_PROFILE_URL = "https://steamcommunity.com/profiles"
+const STEAM_MINIPROFILE_URL = "https://steamcommunity.com/miniprofile"
 const STEAM_ID_PATTERN = /^\d{17}$/
+const STEAM_ID64_OFFSET = "76561197960265728"
 const PROFILE_REQUEST_TIMEOUT_MS = 30000
 const DEFAULT_STEAM_PROFILE_PROXY_BASE = "https://r.jina.ai/http://steamcommunity.com/profiles"
+const DEFAULT_STEAM_MINIPROFILE_PROXY_BASE = "https://r.jina.ai/http://steamcommunity.com/miniprofile"
 const STEAM_PROFILE_PROXY_BASE = (process.env.NEXT_PUBLIC_STEAM_PROFILE_PROXY_BASE ?? DEFAULT_STEAM_PROFILE_PROXY_BASE).replace(/\/$/, "")
-const STEAM_AVATAR_CACHE_KEY = "mdc-steam-avatar-cache-v6"
+const STEAM_MINIPROFILE_PROXY_BASE = (process.env.NEXT_PUBLIC_STEAM_MINIPROFILE_PROXY_BASE ?? DEFAULT_STEAM_MINIPROFILE_PROXY_BASE).replace(/\/$/, "")
+const STEAM_AVATAR_CACHE_KEY = "mdc-steam-avatar-cache-v7"
 const STEAM_AVATAR_SUCCESS_TTL_MS = 3 * 24 * 60 * 60 * 1000
 
 const avatarUrlCache = new Map<string, string | null>()
@@ -34,6 +38,33 @@ function buildProfileProxyUrl(steamId: string, includeXml = false): string {
   return `${STEAM_PROFILE_PROXY_BASE}/${steamId}${includeXml ? "/?xml=1" : ""}`
 }
 
+function steamId64ToAccountId(steamId: string): string | null {
+  try {
+    const accountId = BigInt(steamId) - BigInt(STEAM_ID64_OFFSET)
+    return accountId > BigInt(0) ? accountId.toString() : null
+  } catch {
+    return null
+  }
+}
+
+function buildMiniProfileProxyUrl(steamId: string): string | null {
+  const accountId = steamId64ToAccountId(steamId)
+  if (!accountId) {
+    return null
+  }
+
+  const miniProfileUrl = `${STEAM_MINIPROFILE_URL}/${accountId}/json`
+  if (STEAM_MINIPROFILE_PROXY_BASE.includes("{MINIPROFILE_URL}")) {
+    return STEAM_MINIPROFILE_PROXY_BASE.replace("{MINIPROFILE_URL}", encodeURIComponent(miniProfileUrl))
+  }
+
+  if (STEAM_MINIPROFILE_PROXY_BASE.includes("{ACCOUNT_ID}")) {
+    return STEAM_MINIPROFILE_PROXY_BASE.replace("{ACCOUNT_ID}", accountId)
+  }
+
+  return `${STEAM_MINIPROFILE_PROXY_BASE}/${accountId}/json`
+}
+
 function payloadBelongsToSteamId(payload: string, steamId: string): boolean {
   const normalizedPayload = payload.replace(/\s+/g, "")
   return (
@@ -44,16 +75,50 @@ function payloadBelongsToSteamId(payload: string, steamId: string): boolean {
   )
 }
 
+function normalizeSteamAvatarUrl(value: string | undefined): string | null {
+  const normalizedValue = value
+    ?.replace(/\\\//g, "/")
+    .replace(/&amp;/g, "&")
+    .trim()
+
+  if (!normalizedValue || !/^https:\/\/avatars\.[a-z0-9-]+\.steamstatic\.com\/.+\.(?:jpg|jpeg|png|webp)$/i.test(normalizedValue)) {
+    return null
+  }
+
+  return normalizedValue
+}
+
 function extractAvatarUrlFromXml(xmlPayload: string): string | null {
   const avatarMatch = xmlPayload.match(/<avatarFull>\s*<!\[CDATA\[(.+?)\]\]>\s*<\/avatarFull>/i)
-  return avatarMatch?.[1]?.trim() || null
+  return normalizeSteamAvatarUrl(avatarMatch?.[1])
+}
+
+function extractAvatarUrlFromMiniProfile(payload: string): string | null {
+  const avatarUrlMatch = payload.match(/"avatar_url"\s*:\s*"([^"]+)"/i)
+  const avatarUrl = normalizeSteamAvatarUrl(avatarUrlMatch?.[1])
+  if (avatarUrl) {
+    return avatarUrl
+  }
+
+  const firstSteamAvatarMatch = payload.match(/https:\\?\/\\?\/avatars\.[a-z0-9-]+\.steamstatic\.com\\?\/[^"')\s]+?\.(?:jpg|jpeg|png|webp)/i)
+  return normalizeSteamAvatarUrl(firstSteamAvatarMatch?.[0])
 }
 
 function extractAvatarUrlFromProfileMarkdown(payload: string): string | null {
-  const fullAvatarMatch = payload.match(
-    /https:\/\/avatars\.[a-z0-9-]+\.steamstatic\.com\/[a-f0-9]+_full\.(?:jpg|jpeg|png|webp)/i,
-  )
-  return fullAvatarMatch?.[0] ?? null
+  const namedFullAvatarMatch = payload.match(/"avatar_url_full"\s*:\s*"([^"]+)"/i)
+  const namedFullAvatar = normalizeSteamAvatarUrl(namedFullAvatarMatch?.[1])
+  if (namedFullAvatar) {
+    return namedFullAvatar
+  }
+
+  const fullAvatarMatch = payload.match(/https:\\?\/\\?\/avatars\.[a-z0-9-]+\.steamstatic\.com\\?\/[^"')\s]+?_full\.(?:jpg|jpeg|png|webp)/i)
+  const fullAvatar = normalizeSteamAvatarUrl(fullAvatarMatch?.[0])
+  if (fullAvatar) {
+    return fullAvatar
+  }
+
+  const firstSteamAvatarMatch = payload.match(/https:\\?\/\\?\/avatars\.[a-z0-9-]+\.steamstatic\.com\\?\/[^"')\s]+?\.(?:jpg|jpeg|png|webp)/i)
+  return normalizeSteamAvatarUrl(firstSteamAvatarMatch?.[0])
 }
 
 function canUseStorage() {
@@ -186,7 +251,9 @@ export async function resolveSteamAvatarUrl(steamId: string | null | undefined):
 
   const request = (async () => {
     try {
+      const miniProfileProxyUrl = buildMiniProfileProxyUrl(normalizedSteamId)
       const candidateSources: Array<{ url: string; validateSteamId: boolean; extractAvatar: (payload: string) => string | null; headers?: HeadersInit }> = [
+        ...(miniProfileProxyUrl ? [{ url: miniProfileProxyUrl, validateSteamId: false, extractAvatar: extractAvatarUrlFromMiniProfile }] : []),
         { url: buildProfileProxyUrl(normalizedSteamId, false), validateSteamId: true, extractAvatar: extractAvatarUrlFromProfileMarkdown },
         { url: buildProfileProxyUrl(normalizedSteamId, true), validateSteamId: true, extractAvatar: extractAvatarUrlFromXml },
       ]
