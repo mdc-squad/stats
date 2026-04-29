@@ -621,8 +621,7 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
             <p className="mt-3 text-xs text-muted-foreground">Получаем ближайшую игру и составы отрядов.</p>
           </div>
         ) : (
-          <div className="grid gap-3 xl:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)_minmax(240px,1fr)] xl:items-center">
-            <div className="hidden xl:block" />
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
             <div className="min-w-0 text-center">
               {loading ? (
                 <div className="w-full px-1 py-1.5">
@@ -655,8 +654,8 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
                 </>
               )}
             </div>
-            <div className="flex min-w-0 flex-nowrap items-stretch justify-center gap-2 overflow-x-auto pb-1 xl:justify-end">
-              <div className="grid min-w-0 shrink grid-cols-2 overflow-hidden rounded-md border border-christmas-gold/30">
+            <div className="flex min-w-0 flex-wrap items-stretch justify-center gap-2 xl:flex-nowrap xl:justify-end">
+              <div className="inline-flex h-10 shrink-0 overflow-hidden rounded-md border border-christmas-gold/30">
                 {(["siteOne", "siteTwo"] as const).map((sideKey) => {
                   const matchup = getMatchupLabel(lineup?.name, sideKey)
                   const isActiveSide = side === sideKey
@@ -667,7 +666,7 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
                       type="button"
                       onClick={() => setSide(sideKey)}
                       className={cn(
-                        "flex h-10 min-w-0 items-center justify-center px-2.5 text-xs font-semibold transition-colors sm:px-3 sm:text-sm",
+                        "flex h-10 w-[142px] min-w-[142px] items-center justify-center overflow-hidden px-2.5 text-xs font-semibold transition-colors sm:w-[154px] sm:min-w-[154px]",
                         isActiveSide ? "bg-christmas-gold text-slate-950" : "bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold",
                       )}
                     >
@@ -675,7 +674,7 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
                         <FactionMatchup
                           value={matchup}
                           showLabels
-                          className="justify-center whitespace-nowrap"
+                          className="max-w-full justify-center whitespace-nowrap"
                           separatorClassName={isActiveSide ? "text-slate-950" : undefined}
                         />
                       ) : (
