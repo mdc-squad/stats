@@ -393,7 +393,7 @@ function normalizeClanTag(value: string | null | undefined): string {
     .replace(/[^a-z0-9а-я]/gi, "")
 }
 
-function tagIncludesClan(value: string | null | undefined, clan: "mdc" | "grave"): boolean {
+function tagIncludesClan(value: string | null | undefined, clan: "mdc" | "grave" | "nklv"): boolean {
   return normalizeClanTag(value).includes(clan)
 }
 
@@ -1048,11 +1048,12 @@ export function EventsExplorer({
                 const visiblePlayers = getVisiblePlayersForGame(game)
                 const mdcMatchPlayers = visiblePlayers.filter((player) => tagIncludesClan(player.tag, "mdc")).length
                 const graveMatchPlayers = visiblePlayers.filter((player) => tagIncludesClan(player.tag, "grave")).length
+                const nklvMatchPlayers = visiblePlayers.filter((player) => tagIncludesClan(player.tag, "nklv")).length
                 const formatPlayers =
                   typeof game.team_size === "number" && Number.isFinite(game.team_size) && game.team_size > 0
                     ? game.team_size
                     : visiblePlayers.length
-                const mercMatchPlayers = Math.max(formatPlayers - mdcMatchPlayers - graveMatchPlayers, 0)
+                const mercMatchPlayers = Math.max(formatPlayers - mdcMatchPlayers - graveMatchPlayers - nklvMatchPlayers, 0)
                 const mvpLabel = game.topPerformer
                   ? `${game.topPerformer.tag ? `${game.topPerformer.tag} ` : ""}${game.topPerformer.nickname} • #${game.topPerformer.rank}`
                   : "Нет данных"
@@ -1130,7 +1131,7 @@ export function EventsExplorer({
                               <Users className="h-3.5 w-3.5 text-christmas-snow" />
                               <span className="text-muted-foreground">Состав</span>
                               <span className="font-semibold text-christmas-snow">
-                                MDC {mdcMatchPlayers} • GRAVE {graveMatchPlayers} • Мерки {mercMatchPlayers}
+                                MDC {mdcMatchPlayers} • GRAVE {graveMatchPlayers} • NKLV {nklvMatchPlayers} • Мерки {mercMatchPlayers}
                               </span>
                             </div>
 

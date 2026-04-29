@@ -2595,7 +2595,14 @@ export default function YearReviewPage() {
           </TabsContent>
 
           <TabsContent value="lineup" className="space-y-4">
-            <LineupBoard games={pastGames} />
+            <LineupBoard
+              games={pastGames}
+              players={data.players}
+              onOpenPlayer={(playerId) => {
+                setSelectedPlayersForChart([playerId])
+                setActiveTab("progress")
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="summary" className="space-y-4">

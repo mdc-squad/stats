@@ -250,3 +250,29 @@
 .calendar-holiday-scroll__text--moving {
   animation: calendarHolidayScroll 8s ease-in-out infinite;
 }
+
+@keyframes lineupNameScroll {
+  0%,
+  22% {
+    transform: translateX(0);
+  }
+  78%,
+  100% {
+    transform: translateX(var(--lineup-name-scroll-distance));
+  }
+}
+
+.lineup-name-scroll {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.lineup-name-scroll__text {
+  display: inline-block;
+  max-width: none;
+}
+
+.lineup-name-scroll__text--moving {
+  animation: lineupNameScroll 7s ease-in-out infinite;
+}

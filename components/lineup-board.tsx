@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import Image from "next/image"
 import { RefreshCw } from "lucide-react"
 import { FactionMatchup } from "@/components/faction-icon"
@@ -11,7 +11,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { withBasePath } from "@/lib/base-path"
-import type { PastGameSummary } from "@/lib/data-utils"
+import { getMetricIcon, type AppMetricIconKey } from "@/lib/app-icons"
+import type { PastGameSummary, Player } from "@/lib/data-utils"
 import { cn } from "@/lib/utils"
 
 const LINEUP_API_BASE = (process.env.NEXT_PUBLIC_MDC_API_BASE ?? "https://api.hungryfishteam.org/gas/mdc").replace(/\/$/, "")
@@ -42,6 +43,16 @@ type LineupPayload = {
 
 interface LineupBoardProps {
   games?: PastGameSummary[]
+  players?: Player[]
+  onOpenPlayer?: (playerId: string) => void
+}
+
+type LineupPlayerMetric = {
+  key: string
+  label: string
+  icon: AppMetricIconKey
+  getValue: (player: Player) => number
+  digits?: number
 }
 
 const SQUAD_STYLES: Record<
@@ -109,6 +120,18 @@ const VEHICLE_COLOR_LABELS: Record<string, string> = {
   RED: "RED",
   YELLOW: "YELLOW",
 }
+
+const LINEUP_PLAYER_METRICS: LineupPlayerMetric[] = [
+  { key: "events", label: "Игр", icon: "events", getValue: (player) => player.totals.events, digits: 0 },
+  { key: "avgRevives", label: "Поднятия", icon: "revives", getValue: (player) => player.totals.avgRevives, digits: 1 },
+  { key: "avgHeals", label: "Хил", icon: "heals", getValue: (player) => player.totals.avgHeals, digits: 1 },
+  { key: "avgVehicle", label: "Техника", icon: "vehicle", getValue: (player) => player.totals.avgVehicle, digits: 1 },
+  { key: "kd", label: "KD", icon: "kd", getValue: (player) => player.totals.kd, digits: 2 },
+  { key: "kda", label: "KDA", icon: "kda", getValue: (player) => player.totals.kda, digits: 2 },
+  { key: "elo", label: "ELO", icon: "elo", getValue: (player) => player.totals.elo, digits: 0 },
+  { key: "tbf", label: "ТБФ", icon: "tbf", getValue: (player) => player.totals.tbf, digits: 0 },
+  { key: "rating", label: "ОР", icon: "rating", getValue: (player) => player.totals.rating, digits: 0 },
+]
 
 function isMeaningful(value: unknown) {
   if (value === null || value === undefined) return false
@@ -215,6 +238,118 @@ function getVehicleTooltip(vehicle: string | number | null | undefined, color: s
   return [label, colorLabel].filter(Boolean).join(" • ")
 }
 
+function normalizePlayerLookupText(value: string | null | undefined): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^a-z0-9а-я]+/gi, "")
+}
+
+function formatLineupMetricValue(value: number, digits = 1) {
+  if (!Number.isFinite(value)) return digits === 0 ? "0" : (0).toFixed(digits)
+  return digits === 0 ? Math.round(value).toLocaleString("ru-RU") : value.toFixed(digits)
+}
+
+function buildPlayerLookup(players: Player[]) {
+  const lookup = new Map<string, Player>()
+
+  players.forEach((player) => {
+    const nicknameKey = normalizePlayerLookupText(player.nickname)
+    const tagKey = normalizePlayerLookupText(player.tag)
+    const combinedKey = normalizePlayerLookupText(`${player.tag} ${player.nickname}`)
+
+    if (nicknameKey) lookup.set(nicknameKey, player)
+    if (combinedKey) lookup.set(combinedKey, player)
+    if (tagKey && nicknameKey) lookup.set(`${tagKey}:${nicknameKey}`, player)
+  })
+
+  return lookup
+}
+
+function findLineupPlayer(playerLookup: Map<string, Player>, tag: string, nickname: string) {
+  const nicknameKey = normalizePlayerLookupText(nickname)
+  const tagKey = normalizePlayerLookupText(tag)
+  const combinedKey = normalizePlayerLookupText(`${tag} ${nickname}`)
+
+  return (
+    (tagKey && nicknameKey ? playerLookup.get(`${tagKey}:${nicknameKey}`) : undefined) ??
+    (combinedKey ? playerLookup.get(combinedKey) : undefined) ??
+    (nicknameKey ? playerLookup.get(nicknameKey) : undefined) ??
+    undefined
+  )
+}
+
+function ScrollingLineupText({ children, className }: { children: string; className?: string }) {
+  const containerRef = useRef<HTMLSpanElement | null>(null)
+  const textRef = useRef<HTMLSpanElement | null>(null)
+  const [scrollDistance, setScrollDistance] = useState(0)
+
+  useEffect(() => {
+    const updateScrollDistance = () => {
+      const container = containerRef.current
+      const text = textRef.current
+      if (!container || !text) return
+      setScrollDistance(Math.max(0, text.scrollWidth - container.clientWidth))
+    }
+
+    updateScrollDistance()
+    window.addEventListener("resize", updateScrollDistance)
+    return () => window.removeEventListener("resize", updateScrollDistance)
+  }, [children])
+
+  return (
+    <span ref={containerRef} className={cn("lineup-name-scroll min-w-0", className)}>
+      <span
+        ref={textRef}
+        className={cn("lineup-name-scroll__text", scrollDistance > 0 && "lineup-name-scroll__text--moving")}
+        style={scrollDistance > 0 ? ({ "--lineup-name-scroll-distance": `-${scrollDistance}px` } as CSSProperties) : undefined}
+      >
+        {children}
+      </span>
+    </span>
+  )
+}
+
+function LineupPlayerTooltip({ player }: { player: Player }) {
+  return (
+    <div className="w-[300px] rounded-lg border border-border bg-card p-3 text-card-foreground shadow-xl">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold text-christmas-snow">
+          {player.tag ? `${player.tag} ` : ""}
+          {player.nickname}
+        </p>
+        <div className="mt-1 flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
+          {player.favorites.role_1 ? (
+            <span className="inline-flex min-w-0 items-center gap-1">
+              <RoleIcon role={player.favorites.role_1} className="h-4 w-4" />
+              <span className="truncate">{formatRoleName(player.favorites.role_1) || player.favorites.role_1}</span>
+            </span>
+          ) : null}
+          {player.favorites.specialization ? (
+            <span className="inline-flex min-w-0 items-center gap-1">
+              <SpecializationIcon specialization={player.favorites.specialization} className="text-sm" />
+              <span className="truncate">{getSpecializationLabel(player.favorites.specialization)}</span>
+            </span>
+          ) : null}
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {LINEUP_PLAYER_METRICS.map((metric) => {
+          const Icon = getMetricIcon(metric.icon)
+          return (
+            <div key={metric.key} className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-md border border-border/50 bg-background/35 px-2 py-1.5 text-center">
+              <Icon className="h-3.5 w-3.5 text-christmas-gold" />
+              <span className="text-[11px] font-semibold text-christmas-snow">{formatLineupMetricValue(metric.getValue(player), metric.digits)}</span>
+              <span className="sr-only">{metric.label}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function splitMatchTitle(title: string) {
   const parts = title.split("|").map((part) => part.trim()).filter(Boolean)
   return {
@@ -288,7 +423,17 @@ function VehicleIconBadge({ vehicle, color }: { vehicle: string; color?: string 
   )
 }
 
-function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
+function SquadTable({
+  name,
+  rows,
+  playerLookup,
+  onOpenPlayer,
+}: {
+  name: SquadName
+  rows: LineupPlayer[]
+  playerLookup: Map<string, Player>
+  onOpenPlayer?: (playerId: string) => void
+}) {
   const style = SQUAD_STYLES[name]
   const normalizedRows = normalizeRows(rows)
   const displayRows = normalizedRows.filter(hasLineupRowContent)
@@ -311,6 +456,13 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
           const vehicleText = isMeaningful(player.vehicle) ? String(player.vehicle) : ""
           const role = isMeaningful(player.role) ? String(player.role) : ""
           const specialist = isMeaningful(player.specialist) ? String(player.specialist) : ""
+          const matchedPlayer = findLineupPlayer(playerLookup, tag, nickname)
+          const nameContent = (
+            <span className="flex w-full min-w-0 items-center gap-2">
+              {tag ? <span className="shrink-0">{tag}</span> : null}
+              {nickname ? <ScrollingLineupText className="flex-1 text-christmas-snow">{nickname}</ScrollingLineupText> : null}
+            </span>
+          )
 
           return (
             <div
@@ -365,8 +517,24 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
               <div className="min-w-0">
                 {tag || nickname ? (
                   <div className="flex items-center gap-2 text-sm font-semibold text-christmas-snow">
-                    {tag ? <span className="shrink-0">{tag}</span> : null}
-                    {nickname ? <span className="truncate text-christmas-snow">{nickname}</span> : null}
+                    {matchedPlayer ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => onOpenPlayer?.(matchedPlayer.player_id)}
+                            className="block w-full min-w-0 text-left transition-colors hover:text-christmas-gold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-christmas-gold"
+                          >
+                            {nameContent}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="border-0 bg-transparent p-0 text-card-foreground">
+                          <LineupPlayerTooltip player={matchedPlayer} />
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      nameContent
+                    )}
                   </div>
                 ) : null}
                 <div className={cn("flex items-center gap-2 text-[11px] text-muted-foreground", tag || nickname ? "mt-0.5" : "")}>
@@ -388,7 +556,7 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
   )
 }
 
-export function LineupBoard({ games = [] }: LineupBoardProps) {
+export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBoardProps) {
   const [lineup, setLineup] = useState<LineupPayload | null>(null)
   const [side, setSide] = useState<LineupSideKey>("siteOne")
   const [loading, setLoading] = useState(true)
@@ -435,6 +603,7 @@ export function LineupBoard({ games = [] }: LineupBoardProps) {
   const title = parseMatchTitle(lineup?.name, side)
   const titleMeta = splitMatchTitle(title)
   const calendarGame = useMemo(() => findCalendarGameForLineup(lineup, games), [games, lineup])
+  const playerLookup = useMemo(() => buildPlayerLookup(players), [players])
   const opponent = calendarGame?.opponent?.trim() ?? ""
   const visibleSquads = SQUAD_ORDER.filter((squadName) => hasSquadContent(currentSide[squadName] ?? []))
   const hasAnyFilledSquad = SQUAD_ORDER.some((squadName) => hasSquadContent(currentSide[squadName] ?? []))
@@ -534,7 +703,13 @@ export function LineupBoard({ games = [] }: LineupBoardProps) {
           <div className="space-y-4">
             <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
               {visibleSquads.map((squadName) => (
-                <SquadTable key={`${side}-${squadName}`} name={squadName} rows={currentSide[squadName] ?? []} />
+                <SquadTable
+                  key={`${side}-${squadName}`}
+                  name={squadName}
+                  rows={currentSide[squadName] ?? []}
+                  playerLookup={playerLookup}
+                  onOpenPlayer={onOpenPlayer}
+                />
               ))}
             </div>
           </div>

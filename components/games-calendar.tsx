@@ -368,9 +368,10 @@ function tagIncludesClan(tag: string | null | undefined, clan: string): boolean 
 function getRosterCounts(game: PastGameSummary) {
   const mdc = game.players.filter((player) => tagIncludesClan(player.tag, "mdc")).length
   const grave = game.players.filter((player) => tagIncludesClan(player.tag, "grave")).length
+  const nklv = game.players.filter((player) => tagIncludesClan(player.tag, "nklv")).length
   const formatPlayers =
     typeof game.team_size === "number" && Number.isFinite(game.team_size) && game.team_size > 0 ? game.team_size : game.players.length
-  return { mdc, grave, merc: Math.max(formatPlayers - mdc - grave, 0), total: formatPlayers }
+  return { mdc, grave, nklv, merc: Math.max(formatPlayers - mdc - grave - nklv, 0), total: formatPlayers }
 }
 
 function compactInfoItems(item: CalendarGame): Array<{ key: string; icon: LucideIcon; value: string }> {
@@ -521,16 +522,17 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
               )
             })}
           </div>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-4 gap-1.5">
             <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">MDC</p><p className="font-semibold text-christmas-snow">{roster.mdc}</p></div>
             <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">GRAVE</p><p className="font-semibold text-christmas-snow">{roster.grave}</p></div>
+            <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">NKLV</p><p className="font-semibold text-christmas-snow">{roster.nklv}</p></div>
             <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">Мерки</p><p className="font-semibold text-christmas-snow">{roster.merc}</p></div>
           </div>
         </>
       ) : null}
       {games.length > 1 && !isLecture ? (
         <div className="border-t border-border/60 pt-2">
-          <p className="text-sm font-semibold text-christmas-snow">Матчи в группе: {games.length}</p>
+          <p className="text-xs text-muted-foreground">Матчи в группе: <span className="text-christmas-snow">{games.length}</span></p>
         </div>
       ) : null}
     </div>
