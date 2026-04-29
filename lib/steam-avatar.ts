@@ -2,10 +2,10 @@ import { withBasePath } from "./base-path"
 
 const STEAM_PROFILE_URL = "https://steamcommunity.com/profiles"
 const STEAM_ID_PATTERN = /^\d{17}$/
-const PROFILE_REQUEST_TIMEOUT_MS = 12000
+const PROFILE_REQUEST_TIMEOUT_MS = 30000
 const DEFAULT_STEAM_PROFILE_PROXY_BASE = "https://r.jina.ai/http://steamcommunity.com/profiles"
 const STEAM_PROFILE_PROXY_BASE = (process.env.NEXT_PUBLIC_STEAM_PROFILE_PROXY_BASE ?? DEFAULT_STEAM_PROFILE_PROXY_BASE).replace(/\/$/, "")
-const STEAM_AVATAR_CACHE_KEY = "mdc-steam-avatar-cache-v5"
+const STEAM_AVATAR_CACHE_KEY = "mdc-steam-avatar-cache-v6"
 const STEAM_AVATAR_SUCCESS_TTL_MS = 3 * 24 * 60 * 60 * 1000
 
 const avatarUrlCache = new Map<string, string | null>()
@@ -112,11 +112,17 @@ function readCachedAvatarUrl(steamId: string): string | null | undefined {
 }
 
 function storeCachedAvatarUrl(steamId: string, url: string | null) {
-  avatarUrlCache.set(steamId, url)
-
   if (!url) {
+    avatarUrlCache.delete(steamId)
+    const persistentCache = readPersistentAvatarCache()
+    if (persistentCache[steamId]) {
+      delete persistentCache[steamId]
+      writePersistentAvatarCache(persistentCache)
+    }
     return
   }
+
+  avatarUrlCache.set(steamId, url)
 
   const persistentCache = readPersistentAvatarCache()
   persistentCache[steamId] = {
