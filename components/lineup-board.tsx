@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState, type CSSProperties } from "react"
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react"
 import Image from "next/image"
 import { RefreshCw } from "lucide-react"
 import { FactionMatchup } from "@/components/faction-icon"
@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { withBasePath } from "@/lib/base-path"
+import type { PastGameSummary } from "@/lib/data-utils"
 import { cn } from "@/lib/utils"
 
 const LINEUP_API_BASE = (process.env.NEXT_PUBLIC_MDC_API_BASE ?? "https://api.hungryfishteam.org/gas/mdc").replace(/\/$/, "")
@@ -37,6 +38,10 @@ type LineupPayload = {
   name?: string | null
   siteOne?: Partial<Record<SquadName, LineupPlayer[]>>
   siteTwo?: Partial<Record<SquadName, LineupPlayer[]>>
+}
+
+interface LineupBoardProps {
+  games?: PastGameSummary[]
 }
 
 const SQUAD_STYLES: Record<
@@ -218,6 +223,59 @@ function splitMatchTitle(title: string) {
   }
 }
 
+function parseLineupDate(value: string | null | undefined): Date | null {
+  const match = String(value ?? "").match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{1,2}):(\d{2})/)
+  if (!match) return null
+  const [, day, month, year, hour, minute] = match
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute))
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function normalizeMatchText(value: string | null | undefined): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^a-z0-9а-я]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+function factionSetFromMatchup(value: string | null | undefined): string {
+  const parts = String(value ?? "").split(/\s+vs\s+/i).map(normalizeMatchText).filter(Boolean)
+  return parts.length >= 2 ? parts.slice(0, 2).sort().join(" vs ") : ""
+}
+
+function factionSetFromGame(game: PastGameSummary): string {
+  return [normalizeMatchText(game.faction_1), normalizeMatchText(game.faction_2)].sort().join(" vs ")
+}
+
+function sameMinute(left: Date | null, right: Date | null): boolean {
+  if (!left || !right) return false
+  return Math.abs(left.getTime() - right.getTime()) < 60_000
+}
+
+function findCalendarGameForLineup(lineup: LineupPayload | null, games: PastGameSummary[]): PastGameSummary | null {
+  if (!lineup?.name) return null
+
+  const parts = lineup.name.split("|").map((part) => part.trim()).filter(Boolean)
+  const lineupDate = parseLineupDate(lineup.name)
+  const lineupMap = normalizeMatchText(parts[2])
+  const matchup = parts.find((part) => /\s+vs\s+/i.test(part)) ?? parts.at(-1) ?? ""
+  const lineupFactionSet = factionSetFromMatchup(matchup)
+
+  return games.find((game) => {
+    const gameDate = new Date(game.started_at)
+    if (!sameMinute(lineupDate, Number.isNaN(gameDate.getTime()) ? null : gameDate)) return false
+
+    const gameMap = normalizeMatchText(game.map)
+    const mapMatches = !lineupMap || !gameMap || lineupMap.includes(gameMap) || gameMap.includes(lineupMap)
+    const factionsMatch = !lineupFactionSet || lineupFactionSet === factionSetFromGame(game)
+
+    return mapMatches && factionsMatch
+  }) ?? null
+}
+
 function VehicleIconBadge({ vehicle, color }: { vehicle: string; color?: string | null }) {
   const icon = getVehicleIconAsset(vehicle)
   return (
@@ -308,10 +366,14 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
                 {tag || nickname ? (
                   <div className="flex items-center gap-2 text-sm font-semibold text-christmas-snow">
                     {tag ? <span className="shrink-0">{tag}</span> : null}
-                    {nickname ? <span className="truncate text-christmas-snow">{nickname}</span> : null}
+                    {nickname ? <span className="truncate text-christmas-snow">{nickname}</span> : <span className="truncate text-muted-foreground">Игрок не указан</span>}
                   </div>
-                ) : null}
-                <div className={cn("flex items-center gap-2 text-[11px] text-muted-foreground", tag || nickname ? "mt-0.5" : "")}>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                    <span className="truncate">Игрок не указан</span>
+                  </div>
+                )}
+                <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
                   {role ? <span className="truncate">{formatRoleName(role) || role}</span> : null}
                   {role && specialist ? <span className="text-white/20">•</span> : null}
                   {specialist ? <span className="truncate">{getSpecializationLabel(specialist)}</span> : null}
@@ -330,10 +392,11 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
   )
 }
 
-export function LineupBoard() {
+export function LineupBoard({ games = [] }: LineupBoardProps) {
   const [lineup, setLineup] = useState<LineupPayload | null>(null)
   const [side, setSide] = useState<LineupSideKey>("siteOne")
   const [loading, setLoading] = useState(true)
+  const [loadProgress, setLoadProgress] = useState(8)
   const [error, setError] = useState<string | null>(null)
 
   const loadLineup = useCallback(
@@ -358,9 +421,25 @@ export function LineupBoard() {
     void loadLineup()
   }, [loadLineup])
 
+  useEffect(() => {
+    if (!loading) {
+      setLoadProgress(100)
+      return
+    }
+
+    setLoadProgress(8)
+    const intervalId = window.setInterval(() => {
+      setLoadProgress((current) => Math.min(current + Math.max(1.5, (96 - current) * 0.16), 96))
+    }, 180)
+
+    return () => window.clearInterval(intervalId)
+  }, [loading])
+
   const currentSide = lineup?.[side] ?? {}
   const title = parseMatchTitle(lineup?.name, side)
   const titleMeta = splitMatchTitle(title)
+  const calendarGame = useMemo(() => findCalendarGameForLineup(lineup, games), [games, lineup])
+  const opponent = calendarGame?.opponent?.trim() ?? ""
   const visibleSquads = SQUAD_ORDER.filter((squadName) => hasSquadContent(currentSide[squadName] ?? []))
   const hasAnyFilledSquad = SQUAD_ORDER.some((squadName) => hasSquadContent(currentSide[squadName] ?? []))
   const isInitialLoading = loading && !lineup
@@ -372,7 +451,7 @@ export function LineupBoard() {
           <div className="flex min-h-[360px] w-full flex-col items-center justify-center px-4 py-10 text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.22em] text-christmas-gold">Загрузка лайнапа</p>
             <div className="mt-4 w-full max-w-3xl" style={{ "--primary": "var(--christmas-gold)" } as CSSProperties}>
-              <Progress value={72} className="h-2 bg-muted/30" />
+              <Progress value={loadProgress} className="h-2 bg-muted/30 [&_[data-slot=progress-indicator]]:duration-500 [&_[data-slot=progress-indicator]]:ease-out" />
             </div>
             <p className="mt-3 text-xs text-muted-foreground">Получаем ближайшую игру и составы отрядов.</p>
           </div>
@@ -381,16 +460,16 @@ export function LineupBoard() {
             <div className="hidden xl:block" />
             <div className="min-w-0 text-center">
               {loading ? (
-                <div className="mx-auto max-w-sm rounded-lg border border-christmas-gold/20 bg-background/35 px-4 py-3">
+                <div className="w-full px-1 py-2">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-christmas-gold">Обновление лайнапа</p>
-                  <div className="mt-2" style={{ "--primary": "var(--christmas-gold)" } as CSSProperties}>
-                    <Progress value={68} className="h-1.5 bg-muted/30" />
+                  <div className="mt-2 w-full" style={{ "--primary": "var(--christmas-gold)" } as CSSProperties}>
+                    <Progress value={loadProgress} className="h-1.5 bg-muted/30 [&_[data-slot=progress-indicator]]:duration-500 [&_[data-slot=progress-indicator]]:ease-out" />
                   </div>
                 </div>
               ) : (
                 <>
                   <h2 className="truncate text-xl font-bold text-christmas-snow">{titleMeta.lead}</h2>
-                  {titleMeta.details.length > 0 ? (
+                  {titleMeta.details.length > 0 || opponent ? (
                     <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
                       {titleMeta.details.map((detail) => (
                         <span
@@ -400,13 +479,16 @@ export function LineupBoard() {
                           {detail.includes(" vs ") ? <FactionMatchup value={detail} /> : detail}
                         </span>
                       ))}
+                      <span className="rounded-full border border-christmas-gold/20 bg-background/35 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                        Соперник: {opponent || "не указан"}
+                      </span>
                     </div>
                   ) : null}
                 </>
               )}
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-2 xl:justify-end">
-              <div className="grid grid-cols-2 overflow-hidden rounded-md border border-christmas-gold/30">
+            <div className="flex flex-nowrap items-center justify-center gap-2 overflow-x-auto pb-1 xl:justify-end">
+              <div className="grid shrink-0 grid-cols-2 overflow-hidden rounded-md border border-christmas-gold/30">
                 {(["siteOne", "siteTwo"] as const).map((sideKey) => (
                   <button
                     key={sideKey}
@@ -418,14 +500,18 @@ export function LineupBoard() {
                     )}
                   >
                     {getMatchupLabel(lineup?.name, sideKey).includes(" vs ") ? (
-                      <FactionMatchup value={getMatchupLabel(lineup?.name, sideKey)} showLabels />
+                      <FactionMatchup
+                        value={getMatchupLabel(lineup?.name, sideKey)}
+                        showLabels
+                        separatorClassName={side === sideKey ? "text-slate-950" : undefined}
+                      />
                     ) : (
                       getMatchupLabel(lineup?.name, sideKey)
                     )}
                   </button>
                 ))}
               </div>
-              <Button type="button" variant="outline" className="border-christmas-gold/30 text-christmas-gold hover:bg-christmas-gold/10 hover:text-christmas-gold" onClick={() => void loadLineup()} disabled={loading}>
+              <Button type="button" variant="outline" className="shrink-0 border-christmas-gold/30 text-christmas-gold hover:bg-christmas-gold/10 hover:text-christmas-gold" onClick={() => void loadLineup()} disabled={loading}>
                 <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
                 Обновить
               </Button>

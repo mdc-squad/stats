@@ -474,10 +474,7 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
                   : "border-border/60 bg-background/35 text-muted-foreground hover:border-christmas-gold/40 hover:text-christmas-snow",
               )}
             >
-              <span className="inline-flex items-center justify-center gap-1.5">
-                <span>{index + 1}.</span>
-                <FactionMatchup value={matchupLabel(game)} showLabels />
-              </span>
+              <FactionMatchup value={matchupLabel(game)} className="justify-center" />
             </button>
           ))}
         </div>
@@ -494,7 +491,7 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
             {selectedGame.opponent_strength ? <span>Сила соперника: <span className="text-christmas-snow">{selectedGame.opponent_strength}</span></span> : null}
             <span className="inline-flex items-center justify-center gap-1.5">
               Фракции:
-              {matchup ? <FactionMatchup value={matchup} className="text-christmas-snow" /> : <span className="text-christmas-snow">Не указаны</span>}
+              {matchup ? <FactionMatchup value={matchup} className="text-christmas-snow" showLabels /> : <span className="text-christmas-snow">Не указаны</span>}
             </span>
             {!planned ? <span>Результат: <span className="text-christmas-snow">{resultLabel(selectedGame)}</span></span> : null}
             {isSideSwap && aggregateDiff !== null ? <span>Общая разница тикетов: <span className="text-christmas-snow">{aggregateDiff > 0 ? "+" : ""}{aggregateDiff}</span></span> : null}
@@ -533,15 +530,7 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
       ) : null}
       {games.length > 1 && !isLecture ? (
         <div className="border-t border-border/60 pt-2">
-          <p className="mb-1 text-muted-foreground">Матчи в группе: {games.length}</p>
-          {games.map((game) => (
-            <p key={game.event_id} className="flex justify-center text-center text-muted-foreground">
-              <FactionMatchup
-                value={game.faction_matchup || [game.faction_1, game.faction_2].filter(Boolean).join(" vs ") || game.event_id}
-                showLabels
-              />
-            </p>
-          ))}
+          <p className="text-sm font-semibold text-christmas-snow">Матчи в группе: {games.length}</p>
         </div>
       ) : null}
     </div>

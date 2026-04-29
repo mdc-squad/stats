@@ -2563,7 +2563,7 @@ export default function YearReviewPage() {
           </TabsContent>
 
           <TabsContent value="lineup" className="space-y-4">
-            <LineupBoard />
+            <LineupBoard games={pastGames} />
           </TabsContent>
 
           <TabsContent value="summary" className="space-y-4">

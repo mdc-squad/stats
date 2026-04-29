@@ -110,12 +110,14 @@ export function FactionMatchup({
   faction1,
   faction2,
   className,
+  separatorClassName,
   showLabels = false,
 }: {
   value?: string | null
   faction1?: string | null
   faction2?: string | null
   className?: string
+  separatorClassName?: string
   showLabels?: boolean
 }) {
   const parts = value
@@ -128,7 +130,7 @@ export function FactionMatchup({
     <span className={cn("inline-flex min-w-0 items-center gap-1.5", className)}>
       {parts.map((part, index) => (
         <span key={`${part}-${index}`} className="inline-flex items-center gap-1.5">
-          {index > 0 ? <span className="text-muted-foreground">vs</span> : null}
+          {index > 0 ? <span className={cn(separatorClassName ?? "text-muted-foreground")}>vs</span> : null}
           <FactionIcon faction={part} showLabel={showLabels} />
         </span>
       ))}
