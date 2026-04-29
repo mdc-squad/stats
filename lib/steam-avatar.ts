@@ -5,12 +5,14 @@ const STEAM_ID_PATTERN = /^\d{17}$/
 const PROFILE_REQUEST_TIMEOUT_MS = 12000
 const DEFAULT_STEAM_PROFILE_PROXY_BASE = "https://r.jina.ai/http://steamcommunity.com/profiles"
 const STEAM_PROFILE_PROXY_BASE = (process.env.NEXT_PUBLIC_STEAM_PROFILE_PROXY_BASE ?? DEFAULT_STEAM_PROFILE_PROXY_BASE).replace(/\/$/, "")
-const STEAM_AVATAR_CACHE_KEY = "mdc-steam-avatar-cache-v4"
+const STEAM_AVATAR_CACHE_KEY = "mdc-steam-avatar-cache-v5"
 const STEAM_AVATAR_SUCCESS_TTL_MS = 3 * 24 * 60 * 60 * 1000
-const STEAM_AVATAR_FAILURE_TTL_MS = 12 * 60 * 60 * 1000
 
 const avatarUrlCache = new Map<string, string | null>()
 const pendingAvatarRequests = new Map<string, Promise<string | null>>()
+let activeAvatarFetches = 0
+const queuedAvatarFetches: Array<() => void> = []
+const MAX_PARALLEL_AVATAR_FETCHES = 4
 
 type PersistentAvatarCacheEntry = {
   url: string | null
@@ -49,7 +51,7 @@ function extractAvatarUrlFromXml(xmlPayload: string): string | null {
 
 function extractAvatarUrlFromProfileMarkdown(payload: string): string | null {
   const fullAvatarMatch = payload.match(
-    /https:\/\/avatars\.(?:fastly|akamai)\.steamstatic\.com\/[a-f0-9]+_full\.(?:jpg|jpeg|png|webp)/i,
+    /https:\/\/avatars\.[a-z0-9-]+\.steamstatic\.com\/[a-f0-9]+_full\.(?:jpg|jpeg|png|webp)/i,
   )
   return fullAvatarMatch?.[0] ?? null
 }
@@ -112,12 +114,31 @@ function readCachedAvatarUrl(steamId: string): string | null | undefined {
 function storeCachedAvatarUrl(steamId: string, url: string | null) {
   avatarUrlCache.set(steamId, url)
 
+  if (!url) {
+    return
+  }
+
   const persistentCache = readPersistentAvatarCache()
   persistentCache[steamId] = {
     url,
-    expiresAt: Date.now() + (url ? STEAM_AVATAR_SUCCESS_TTL_MS : STEAM_AVATAR_FAILURE_TTL_MS),
+    expiresAt: Date.now() + STEAM_AVATAR_SUCCESS_TTL_MS,
   }
   writePersistentAvatarCache(persistentCache)
+}
+
+async function withAvatarFetchSlot<T>(task: () => Promise<T>): Promise<T> {
+  if (activeAvatarFetches >= MAX_PARALLEL_AVATAR_FETCHES) {
+    await new Promise<void>((resolve) => queuedAvatarFetches.push(resolve))
+  }
+
+  activeAvatarFetches += 1
+
+  try {
+    return await task()
+  } finally {
+    activeAvatarFetches = Math.max(0, activeAvatarFetches - 1)
+    queuedAvatarFetches.shift()?.()
+  }
 }
 
 async function fetchTextWithTimeout(url: string, timeoutMs: number, headers?: HeadersInit): Promise<string> {
@@ -160,13 +181,15 @@ export async function resolveSteamAvatarUrl(steamId: string | null | undefined):
   const request = (async () => {
     try {
       const candidateSources: Array<{ url: string; validateSteamId: boolean; extractAvatar: (payload: string) => string | null; headers?: HeadersInit }> = [
-        { url: buildProfileProxyUrl(normalizedSteamId, true), validateSteamId: true, extractAvatar: extractAvatarUrlFromXml },
         { url: buildProfileProxyUrl(normalizedSteamId, false), validateSteamId: true, extractAvatar: extractAvatarUrlFromProfileMarkdown },
+        { url: buildProfileProxyUrl(normalizedSteamId, true), validateSteamId: true, extractAvatar: extractAvatarUrlFromXml },
       ]
 
       for (const candidateSource of candidateSources) {
         try {
-          const profilePayload = await fetchTextWithTimeout(candidateSource.url, PROFILE_REQUEST_TIMEOUT_MS, candidateSource.headers)
+          const profilePayload = await withAvatarFetchSlot(() =>
+            fetchTextWithTimeout(candidateSource.url, PROFILE_REQUEST_TIMEOUT_MS, candidateSource.headers),
+          )
           if (candidateSource.validateSteamId && !payloadBelongsToSteamId(profilePayload, normalizedSteamId)) {
             continue
           }
