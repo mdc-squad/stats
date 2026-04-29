@@ -366,14 +366,10 @@ function SquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
                 {tag || nickname ? (
                   <div className="flex items-center gap-2 text-sm font-semibold text-christmas-snow">
                     {tag ? <span className="shrink-0">{tag}</span> : null}
-                    {nickname ? <span className="truncate text-christmas-snow">{nickname}</span> : <span className="truncate text-muted-foreground">Игрок не указан</span>}
+                    {nickname ? <span className="truncate text-christmas-snow">{nickname}</span> : null}
                   </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                    <span className="truncate">Игрок не указан</span>
-                  </div>
-                )}
-                <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                ) : null}
+                <div className={cn("flex items-center gap-2 text-[11px] text-muted-foreground", tag || nickname ? "mt-0.5" : "")}>
                   {role ? <span className="truncate">{formatRoleName(role) || role}</span> : null}
                   {role && specialist ? <span className="text-white/20">•</span> : null}
                   {specialist ? <span className="truncate">{getSpecializationLabel(specialist)}</span> : null}
@@ -427,9 +423,9 @@ export function LineupBoard({ games = [] }: LineupBoardProps) {
       return
     }
 
-    setLoadProgress(8)
+    setLoadProgress((current) => (current >= 96 ? 8 : Math.max(8, current)))
     const intervalId = window.setInterval(() => {
-      setLoadProgress((current) => Math.min(current + Math.max(1.5, (96 - current) * 0.16), 96))
+      setLoadProgress((current) => Math.min(current + Math.max(0.8, (96 - current) * 0.12), 96))
     }, 180)
 
     return () => window.clearInterval(intervalId)
@@ -460,9 +456,12 @@ export function LineupBoard({ games = [] }: LineupBoardProps) {
             <div className="hidden xl:block" />
             <div className="min-w-0 text-center">
               {loading ? (
-                <div className="w-full px-1 py-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-christmas-gold">Обновление лайнапа</p>
-                  <div className="mt-2 w-full" style={{ "--primary": "var(--christmas-gold)" } as CSSProperties}>
+                <div className="w-full px-1 py-1.5">
+                  <div className="mb-2 flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-christmas-gold">
+                    <span>Обновление лайнапа</span>
+                    <span>{Math.round(loadProgress)}%</span>
+                  </div>
+                  <div className="w-full" style={{ "--primary": "var(--christmas-gold)" } as CSSProperties}>
                     <Progress value={loadProgress} className="h-1.5 bg-muted/30 [&_[data-slot=progress-indicator]]:duration-500 [&_[data-slot=progress-indicator]]:ease-out" />
                   </div>
                 </div>
@@ -487,31 +486,37 @@ export function LineupBoard({ games = [] }: LineupBoardProps) {
                 </>
               )}
             </div>
-            <div className="flex flex-nowrap items-center justify-center gap-2 overflow-x-auto pb-1 xl:justify-end">
-              <div className="grid shrink-0 grid-cols-2 overflow-hidden rounded-md border border-christmas-gold/30">
-                {(["siteOne", "siteTwo"] as const).map((sideKey) => (
-                  <button
-                    key={sideKey}
-                    type="button"
-                    onClick={() => setSide(sideKey)}
-                    className={cn(
-                      "px-3 py-2 text-sm font-semibold transition-colors",
-                      side === sideKey ? "bg-christmas-gold text-slate-950" : "bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold",
-                    )}
-                  >
-                    {getMatchupLabel(lineup?.name, sideKey).includes(" vs ") ? (
-                      <FactionMatchup
-                        value={getMatchupLabel(lineup?.name, sideKey)}
-                        showLabels
-                        separatorClassName={side === sideKey ? "text-slate-950" : undefined}
-                      />
-                    ) : (
-                      getMatchupLabel(lineup?.name, sideKey)
-                    )}
-                  </button>
-                ))}
+            <div className="flex min-w-0 flex-nowrap items-stretch justify-center gap-2 overflow-x-auto pb-1 xl:justify-end">
+              <div className="grid min-w-0 shrink grid-cols-2 overflow-hidden rounded-md border border-christmas-gold/30">
+                {(["siteOne", "siteTwo"] as const).map((sideKey) => {
+                  const matchup = getMatchupLabel(lineup?.name, sideKey)
+                  const isActiveSide = side === sideKey
+
+                  return (
+                    <button
+                      key={sideKey}
+                      type="button"
+                      onClick={() => setSide(sideKey)}
+                      className={cn(
+                        "flex h-10 min-w-0 items-center justify-center px-2.5 text-xs font-semibold transition-colors sm:px-3 sm:text-sm",
+                        isActiveSide ? "bg-christmas-gold text-slate-950" : "bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold",
+                      )}
+                    >
+                      {matchup.includes(" vs ") ? (
+                        <FactionMatchup
+                          value={matchup}
+                          showLabels
+                          className="justify-center whitespace-nowrap"
+                          separatorClassName={isActiveSide ? "text-slate-950" : undefined}
+                        />
+                      ) : (
+                        <span className="truncate">{matchup}</span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
-              <Button type="button" variant="outline" className="shrink-0 border-christmas-gold/30 text-christmas-gold hover:bg-christmas-gold/10 hover:text-christmas-gold" onClick={() => void loadLineup()} disabled={loading}>
+              <Button type="button" variant="outline" className="h-10 shrink-0 border-christmas-gold/30 px-3 text-christmas-gold hover:bg-christmas-gold/10 hover:text-christmas-gold" onClick={() => void loadLineup()} disabled={loading}>
                 <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
                 Обновить
               </Button>

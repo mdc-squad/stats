@@ -978,6 +978,7 @@ export default function YearReviewPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null)
   const [syncProgress, setSyncProgress] = useState<SyncProgressState | null>(null)
+  const [displayedSyncPercent, setDisplayedSyncPercent] = useState(5)
   const [loadingShowcaseIndex, setLoadingShowcaseIndex] = useState(0)
   const [loadingShowcaseVisible, setLoadingShowcaseVisible] = useState(true)
   const [loadingShowcaseReady, setLoadingShowcaseReady] = useState(false)
@@ -1127,6 +1128,37 @@ export default function YearReviewPage() {
   useEffect(() => {
     void loadData(false, false)
   }, [loadData])
+
+  useEffect(() => {
+    if (!syncProgress?.active) return
+    setDisplayedSyncPercent(5)
+  }, [syncProgress?.startedAt, syncProgress?.active])
+
+  const targetSyncPercent = useMemo(() => {
+    const rawPercent = syncProgress?.percent ?? (loading ? 5 : 100)
+    return Math.max(5, Math.min(100, rawPercent))
+  }, [loading, syncProgress?.percent])
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setDisplayedSyncPercent((current) => {
+        if (syncProgress?.active && targetSyncPercent < current) {
+          return current
+        }
+
+        const diff = targetSyncPercent - current
+        if (Math.abs(diff) < 0.35) {
+          return targetSyncPercent
+        }
+
+        return current + Math.sign(diff) * Math.max(0.35, Math.abs(diff) * 0.18)
+      })
+    }, 90)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [syncProgress?.active, targetSyncPercent])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -2079,9 +2111,9 @@ export default function YearReviewPage() {
           </div>
           <div className="space-y-2">
             <p className="text-christmas-gold">{syncProgress?.message ?? seasonalTheme.loadingLabel}</p>
-            <Progress value={syncProgress?.percent ?? 5} className="h-2 bg-muted/30" />
+            <Progress value={displayedSyncPercent} className="h-2 bg-muted/30" />
             <p className="text-xs text-muted-foreground">
-              {Math.round(syncProgress?.percent ?? 5)}% • подготовка статистики и матчевого протокола
+              {Math.round(displayedSyncPercent)}% • подготовка статистики и матчевого протокола
             </p>
           </div>
         </div>
@@ -2471,11 +2503,11 @@ export default function YearReviewPage() {
                     <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{syncCompactHint}</p>
                   </div>
                   <p className={`shrink-0 text-[11px] font-medium ${syncMetaClassName}`}>
-                    {syncProgress ? `${Math.round(syncProgress.percent)}%` : isCacheProbablyStale ? "нужна синхр." : "готово"}
+                    {syncProgress ? `${Math.round(displayedSyncPercent)}%` : isCacheProbablyStale ? "нужна синхр." : "готово"}
                   </p>
                 </div>
                 <div className="mt-2" style={syncProgressStyle}>
-                  <Progress value={syncProgress?.percent ?? 100} className="h-1.5 bg-muted/30" />
+                  <Progress value={displayedSyncPercent} className="h-1.5 bg-muted/30" />
                 </div>
               </div>
               <div className="flex items-center gap-2">
