@@ -475,7 +475,7 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
                   : "border-border/60 bg-background/35 text-muted-foreground hover:border-christmas-gold/40 hover:text-christmas-snow",
               )}
             >
-              <FactionMatchup value={matchupLabel(game)} className="justify-center" />
+              <FactionMatchup value={matchupLabel(game)} className="justify-center" disableTooltip />
             </button>
           ))}
         </div>
@@ -529,11 +529,6 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
             <div className="rounded-md border border-border/50 bg-background/35 px-2 py-1 text-center"><p className="text-muted-foreground">Мерки</p><p className="font-semibold text-christmas-snow">{roster.merc}</p></div>
           </div>
         </>
-      ) : null}
-      {games.length > 1 && !isLecture ? (
-        <div className="border-t border-border/60 pt-2">
-          <p className="text-xs text-muted-foreground">Матчи в группе: <span className="text-christmas-snow">{games.length}</span></p>
-        </div>
       ) : null}
     </div>
   )

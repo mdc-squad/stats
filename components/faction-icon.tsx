@@ -71,10 +71,12 @@ export function FactionIcon({
   faction,
   className,
   showLabel = false,
+  disableTooltip = false,
 }: {
   faction: string | null | undefined
   className?: string
   showLabel?: boolean
+  disableTooltip?: boolean
 }) {
   const abbr = getFactionAbbr(faction)
   const iconSrc = getFactionIconSrc(faction)
@@ -95,7 +97,7 @@ export function FactionIcon({
     </span>
   )
 
-  if (showLabel || !iconSrc) return content
+  if (showLabel || !iconSrc || disableTooltip) return content
 
   return (
     <Tooltip>
@@ -112,6 +114,7 @@ export function FactionMatchup({
   className,
   separatorClassName,
   showLabels = false,
+  disableTooltip = false,
 }: {
   value?: string | null
   faction1?: string | null
@@ -119,6 +122,7 @@ export function FactionMatchup({
   className?: string
   separatorClassName?: string
   showLabels?: boolean
+  disableTooltip?: boolean
 }) {
   const parts = value
     ? String(value).split(/\s+vs\s+/i).map((part) => part.trim()).filter(Boolean)
@@ -131,7 +135,7 @@ export function FactionMatchup({
       {parts.map((part, index) => (
         <span key={`${part}-${index}`} className="inline-flex items-center gap-1.5">
           {index > 0 ? <span className={cn(separatorClassName ?? "text-muted-foreground")}>vs</span> : null}
-          <FactionIcon faction={part} showLabel={showLabels} />
+          <FactionIcon faction={part} showLabel={showLabels} disableTooltip={disableTooltip} />
         </span>
       ))}
     </span>

@@ -338,7 +338,12 @@ function LineupPlayerTooltip({ player }: { player: Player }) {
         {LINEUP_PLAYER_METRICS.map((metric) => {
           const Icon = getMetricIcon(metric.icon)
           return (
-            <div key={metric.key} className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-md border border-border/50 bg-background/35 px-2 py-1.5 text-center">
+            <div
+              key={metric.key}
+              title={metric.label}
+              aria-label={metric.label}
+              className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-md border border-border/50 bg-background/35 px-2 py-1.5 text-center"
+            >
               <Icon className="h-3.5 w-3.5 text-christmas-gold" />
               <span className="text-[11px] font-semibold text-christmas-snow">{formatLineupMetricValue(metric.getValue(player), metric.digits)}</span>
               <span className="sr-only">{metric.label}</span>
@@ -667,7 +672,7 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
                       onClick={() => setSide(sideKey)}
                       className={cn(
                         "flex h-10 w-[142px] min-w-[142px] items-center justify-center overflow-hidden px-2.5 text-xs font-semibold transition-colors sm:w-[154px] sm:min-w-[154px]",
-                        isActiveSide ? "bg-christmas-gold text-slate-950" : "bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold",
+                        isActiveSide ? "bg-christmas-gold/75 text-slate-950" : "bg-background/40 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold",
                       )}
                     >
                       {matchup.includes(" vs ") ? (
@@ -684,7 +689,7 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
                   )
                 })}
               </div>
-              <Button type="button" variant="outline" className="h-10 shrink-0 border-christmas-gold/30 px-3 text-christmas-gold hover:bg-christmas-gold/10 hover:text-christmas-gold" onClick={() => void loadLineup()} disabled={loading}>
+              <Button type="button" variant="outline" className="h-10 shrink-0 border border-christmas-gold/60 bg-background/40 px-3 text-christmas-gold hover:border-christmas-gold hover:bg-christmas-gold/10 hover:text-christmas-gold" onClick={() => void loadLineup()} disabled={loading}>
                 <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
                 Обновить
               </Button>

@@ -5,7 +5,7 @@ const STEAM_ID_PATTERN = /^\d{17}$/
 const PROFILE_REQUEST_TIMEOUT_MS = 12000
 const DEFAULT_STEAM_PROFILE_PROXY_BASE = "https://r.jina.ai/http://steamcommunity.com/profiles"
 const STEAM_PROFILE_PROXY_BASE = (process.env.NEXT_PUBLIC_STEAM_PROFILE_PROXY_BASE ?? DEFAULT_STEAM_PROFILE_PROXY_BASE).replace(/\/$/, "")
-const STEAM_AVATAR_CACHE_KEY = "mdc-steam-avatar-cache-v2"
+const STEAM_AVATAR_CACHE_KEY = "mdc-steam-avatar-cache-v3"
 const STEAM_AVATAR_SUCCESS_TTL_MS = 3 * 24 * 60 * 60 * 1000
 const STEAM_AVATAR_FAILURE_TTL_MS = 12 * 60 * 60 * 1000
 
@@ -45,31 +45,6 @@ function payloadBelongsToSteamId(payload: string, steamId: string): boolean {
 function extractAvatarUrlFromXml(xmlPayload: string): string | null {
   const avatarMatch = xmlPayload.match(/<avatarFull>\s*<!\[CDATA\[(.+?)\]\]>\s*<\/avatarFull>/i)
   return avatarMatch?.[1]?.trim() || null
-}
-
-function extractAvatarUrlFromProfilePayload(payload: string): string | null {
-  const xmlAvatar = extractAvatarUrlFromXml(payload)
-  if (xmlAvatar) {
-    return xmlAvatar
-  }
-
-  const schemaAvatarMatch = payload.match(/"thumbnailURL"\s*:\s*"([^"]+)"/i)
-  if (schemaAvatarMatch?.[1]) {
-    return schemaAvatarMatch[1].trim()
-  }
-
-  const legacySteamAvatarMatch = payload.match(/https:\/\/steamcdn-a\.akamaihd\.net\/steamcommunity\/public\/images\/avatars\/[a-z0-9]{2}\/[a-z0-9]+\.(?:jpg|png|jpeg|webp)/i)
-  if (legacySteamAvatarMatch?.[0]) {
-    return legacySteamAvatarMatch[0]
-  }
-
-  const markdownAvatarMatch = payload.match(/https:\/\/avatars(?:\.[a-z0-9-]+)?\.steamstatic\.com\/[a-f0-9]+_full\.(?:jpg|png|jpeg|webp)/i)
-  if (markdownAvatarMatch?.[0]) {
-    return markdownAvatarMatch[0]
-  }
-
-  const genericAvatarMatch = payload.match(/https:\/\/avatars(?:\.[a-z0-9-]+)?\.steamstatic\.com\/[a-f0-9]+(?:_full|_medium)?\.(?:jpg|png|jpeg|webp)/i)
-  return genericAvatarMatch?.[0] ?? null
 }
 
 function canUseStorage() {
@@ -177,9 +152,8 @@ export async function resolveSteamAvatarUrl(steamId: string | null | undefined):
 
   const request = (async () => {
     try {
-      const candidateSources: Array<{ url: string; validateSteamId: boolean; headers?: HeadersInit }> = [
-        { url: buildProfileProxyUrl(normalizedSteamId, false), validateSteamId: true },
-        { url: buildProfileProxyUrl(normalizedSteamId, true), validateSteamId: true },
+      const candidateSources: Array<{ url: string; validateSteamId: boolean; extractAvatar: (payload: string) => string | null; headers?: HeadersInit }> = [
+        { url: buildProfileProxyUrl(normalizedSteamId, true), validateSteamId: true, extractAvatar: extractAvatarUrlFromXml },
       ]
 
       for (const candidateSource of candidateSources) {
@@ -188,7 +162,7 @@ export async function resolveSteamAvatarUrl(steamId: string | null | undefined):
           if (candidateSource.validateSteamId && !payloadBelongsToSteamId(profilePayload, normalizedSteamId)) {
             continue
           }
-          const avatarUrl = extractAvatarUrlFromProfilePayload(profilePayload)
+          const avatarUrl = candidateSource.extractAvatar(profilePayload)
           if (avatarUrl) {
             storeCachedAvatarUrl(normalizedSteamId, avatarUrl)
             return avatarUrl
