@@ -1,4 +1,5 @@
 import { withBasePath } from "./base-path"
+import localSteamAvatarCache from "./steam-avatar-cache.json"
 
 const STEAM_PROFILE_URL = "https://steamcommunity.com/profiles"
 const STEAM_MINIPROFILE_URL = "https://steamcommunity.com/miniprofile"
@@ -26,6 +27,9 @@ type PersistentAvatarCacheEntry = {
 }
 
 type PersistentAvatarCache = Record<string, PersistentAvatarCacheEntry>
+type LocalSteamAvatarCache = Record<string, string>
+
+const LOCAL_STEAM_AVATAR_CACHE = localSteamAvatarCache as LocalSteamAvatarCache
 
 function buildProfileProxyUrl(steamId: string, includeXml = false): string {
   const profileUrl = `${STEAM_PROFILE_URL}/${steamId}${includeXml ? "?xml=1" : ""}`
@@ -38,6 +42,11 @@ function buildProfileProxyUrl(steamId: string, includeXml = false): string {
   }
 
   return `${STEAM_PROFILE_PROXY_BASE}/${steamId}${includeXml ? "/?xml=1" : ""}`
+}
+
+function getLocalSteamAvatarUrl(steamId: string): string | null {
+  const localPath = LOCAL_STEAM_AVATAR_CACHE[steamId]
+  return localPath ? withBasePath(localPath) : null
 }
 
 function steamId64ToAccountId(steamId: string): string | null {
@@ -239,6 +248,11 @@ export async function resolveSteamAvatarUrl(steamId: string | null | undefined):
   const normalizedSteamId = typeof steamId === "string" ? steamId.trim() : ""
   if (!normalizedSteamId || !STEAM_ID_PATTERN.test(normalizedSteamId)) {
     return null
+  }
+
+  const localAvatarUrl = getLocalSteamAvatarUrl(normalizedSteamId)
+  if (localAvatarUrl) {
+    return localAvatarUrl
   }
 
   const cachedAvatarUrl = readCachedAvatarUrl(normalizedSteamId)
