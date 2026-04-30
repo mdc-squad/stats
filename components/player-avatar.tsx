@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { User } from "lucide-react"
-import { getSteamAvatarFallbackUrl, resolveSteamAvatarUrl } from "@/lib/steam-avatar"
+import { getProxiedSteamAvatarUrl, getSteamAvatarFallbackUrl, resolveSteamAvatarUrl } from "@/lib/steam-avatar"
 
 interface PlayerAvatarProps {
   steamId?: string | null
@@ -13,6 +13,8 @@ interface PlayerAvatarProps {
 
 export function PlayerAvatar({ steamId, nickname, size = "md", className = "" }: PlayerAvatarProps) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [proxyAvatarUrl, setProxyAvatarUrl] = useState<string | null>(null)
+  const [usingProxy, setUsingProxy] = useState(false)
   const [error, setError] = useState(false)
 
   const sizeClasses = {
@@ -33,6 +35,8 @@ export function PlayerAvatar({ steamId, nickname, size = "md", className = "" }:
 
     setError(false)
     setAvatarUrl(null)
+    setProxyAvatarUrl(null)
+    setUsingProxy(false)
 
     if (!normalizedSteamId) {
       setError(true)
@@ -48,6 +52,7 @@ export function PlayerAvatar({ steamId, nickname, size = "md", className = "" }:
 
       if (resolvedUrl) {
         setAvatarUrl(resolvedUrl)
+        setProxyAvatarUrl(getProxiedSteamAvatarUrl(resolvedUrl))
         setError(false)
         return
       }
@@ -75,7 +80,15 @@ export function PlayerAvatar({ steamId, nickname, size = "md", className = "" }:
       className={`${sizeClasses[size]} rounded-full object-cover ring-2 ring-christmas-gold/30 ${className}`}
       loading="lazy"
       referrerPolicy="no-referrer"
-      onError={() => setError(true)}
+      onError={() => {
+        if (!usingProxy && proxyAvatarUrl) {
+          setUsingProxy(true)
+          setAvatarUrl(proxyAvatarUrl)
+          return
+        }
+
+        setError(true)
+      }}
     />
   )
 }

@@ -122,11 +122,14 @@ export function RoleLeaderboard({
               {icon}
               Топ {role}
             </CardTitle>
-            {isCollapsed && topSummary ? (
-              <div className="mt-1">
-                <p className="truncate text-sm font-medium uppercase tracking-wider text-christmas-snow">
-                  {topSummary}
-                </p>
+            {isCollapsed && topPlayer && topSummary ? (
+              <div className="mt-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <PlayerAvatar steamId={topPlayer.steam_id} nickname={topPlayer.nickname} size="sm" />
+                  <p className="truncate text-sm font-medium uppercase tracking-wider text-christmas-snow">
+                    {topSummary}
+                  </p>
+                </div>
                 {topAchievements.length > 0 && (
                   <AchievementBadges achievements={topAchievements} display="icons" containerClassName="mt-2" />
                 )}

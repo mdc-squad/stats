@@ -134,20 +134,20 @@ export function BestMatches({
               <TitleIcon className="w-4 h-4" />
               <span className="truncate">{title}</span>
             </CardTitle>
-            <p
-              className={cn(
-                "mt-1",
-                isCollapsed && topSummary
-                  ? "truncate text-sm font-medium uppercase tracking-wider text-christmas-snow"
-                  : "text-[10px] text-muted-foreground",
-              )}
-            >
-              {isCollapsed && topSummary
-                ? topSummary
-                : showAll
-                ? `Игроков в топе: ${sortedMatches.length}`
-                : `Показано: ${visibleRecords.length} из ${sortedMatches.length}`}
-            </p>
+            {isCollapsed && topRecord && topSummary ? (
+              <div className="mt-2 flex min-w-0 items-center gap-2">
+                <PlayerAvatar steamId={topRecord.steam_id} nickname={topRecord.nickname} size="sm" />
+                <p className="truncate text-sm font-medium uppercase tracking-wider text-christmas-snow">
+                  {topSummary}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {showAll
+                  ? `Игроков в топе: ${sortedMatches.length}`
+                  : `Показано: ${visibleRecords.length} из ${sortedMatches.length}`}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {canExpand && !isCollapsed && (

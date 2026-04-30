@@ -50,6 +50,7 @@ interface LineupBoardProps {
 type LineupPlayerMetric = {
   key: string
   label: string
+  tooltip?: string
   icon: AppMetricIconKey
   getValue: (player: Player) => number
   digits?: number
@@ -123,9 +124,12 @@ const VEHICLE_COLOR_LABELS: Record<string, string> = {
 
 const LINEUP_PLAYER_METRICS: LineupPlayerMetric[] = [
   { key: "events", label: "Игр", icon: "events", getValue: (player) => player.totals.events, digits: 0 },
-  { key: "avgRevives", label: "Поднятия", icon: "revives", getValue: (player) => player.totals.avgRevives, digits: 1 },
-  { key: "avgHeals", label: "Хил", icon: "heals", getValue: (player) => player.totals.avgHeals, digits: 1 },
-  { key: "avgVehicle", label: "Техника", icon: "vehicle", getValue: (player) => player.totals.avgVehicle, digits: 1 },
+  { key: "avgRevives", label: "Поднятия", tooltip: "Поднятия, среднее за 1 игру", icon: "revives", getValue: (player) => player.totals.avgRevives, digits: 1 },
+  { key: "avgHeals", label: "Хил", tooltip: "Хил, среднее за 1 игру", icon: "heals", getValue: (player) => player.totals.avgHeals, digits: 1 },
+  { key: "avgDowns", label: "Ноки", tooltip: "Ноки, среднее за 1 игру", icon: "downs", getValue: (player) => player.totals.events > 0 ? player.totals.downs / player.totals.events : 0, digits: 1 },
+  { key: "avgKills", label: "Убийства", tooltip: "Убийства, среднее за 1 игру", icon: "kills", getValue: (player) => player.totals.events > 0 ? player.totals.kills / player.totals.events : 0, digits: 1 },
+  { key: "avgDeaths", label: "Смерти", tooltip: "Смерти, среднее за 1 игру", icon: "deaths", getValue: (player) => player.totals.events > 0 ? player.totals.deaths / player.totals.events : 0, digits: 1 },
+  { key: "avgVehicle", label: "Техника", tooltip: "Техника, среднее за 1 игру", icon: "vehicle", getValue: (player) => player.totals.avgVehicle, digits: 1 },
   { key: "kd", label: "KD", icon: "kd", getValue: (player) => player.totals.kd, digits: 2 },
   { key: "kda", label: "KDA", icon: "kda", getValue: (player) => player.totals.kda, digits: 2 },
   { key: "elo", label: "ELO", icon: "elo", getValue: (player) => player.totals.elo, digits: 0 },
@@ -337,19 +341,20 @@ function LineupPlayerTooltip({ player }: { player: Player }) {
       <div className="mt-3 grid grid-cols-3 gap-2">
         {LINEUP_PLAYER_METRICS.map((metric) => {
           const Icon = getMetricIcon(metric.icon)
+          const tooltip = metric.tooltip ?? metric.label
           return (
             <div
               key={metric.key}
-              title={metric.label}
-              aria-label={metric.label}
+              title={tooltip}
+              aria-label={tooltip}
               className="group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-md border border-border/50 bg-background/35 px-2 py-1.5 text-center"
             >
               <Icon className="h-3.5 w-3.5 text-christmas-gold" />
               <span className="text-[11px] font-semibold text-christmas-snow">{formatLineupMetricValue(metric.getValue(player), metric.digits)}</span>
-              <span className="pointer-events-none absolute -top-7 left-1/2 z-20 max-w-[120px] -translate-x-1/2 whitespace-nowrap rounded-md border border-christmas-gold/30 bg-card px-2 py-1 text-[10px] font-medium text-christmas-snow opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-                {metric.label}
+              <span className="pointer-events-none absolute -top-7 left-1/2 z-20 max-w-[180px] -translate-x-1/2 whitespace-nowrap rounded-md border border-christmas-gold/30 bg-card px-2 py-1 text-[10px] font-medium text-christmas-snow opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                {tooltip}
               </span>
-              <span className="sr-only">{metric.label}</span>
+              <span className="sr-only">{tooltip}</span>
             </div>
           )
         })}

@@ -458,7 +458,7 @@ function CalendarGameTooltip({ item }: { item: CalendarGame }) {
           {isSideSwap ? " • 2 игры со сменой сторон" : games.length > 1 ? ` • ${games.length} игры` : ""}
         </p>
       </div>
-      {games.length > 1 ? (
+      {!planned && games.length > 1 ? (
         <div className="flex flex-wrap justify-center gap-1">
           {games.map((game, index) => (
             <button

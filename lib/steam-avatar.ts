@@ -7,8 +7,10 @@ const STEAM_ID64_OFFSET = "76561197960265728"
 const PROFILE_REQUEST_TIMEOUT_MS = 30000
 const DEFAULT_STEAM_PROFILE_PROXY_BASE = "https://r.jina.ai/http://steamcommunity.com/profiles"
 const DEFAULT_STEAM_MINIPROFILE_PROXY_BASE = "https://r.jina.ai/http://steamcommunity.com/miniprofile"
+const DEFAULT_STEAM_AVATAR_IMAGE_PROXY_BASE = "https://images.weserv.nl/?url={AVATAR_URL}"
 const STEAM_PROFILE_PROXY_BASE = (process.env.NEXT_PUBLIC_STEAM_PROFILE_PROXY_BASE ?? DEFAULT_STEAM_PROFILE_PROXY_BASE).replace(/\/$/, "")
 const STEAM_MINIPROFILE_PROXY_BASE = (process.env.NEXT_PUBLIC_STEAM_MINIPROFILE_PROXY_BASE ?? DEFAULT_STEAM_MINIPROFILE_PROXY_BASE).replace(/\/$/, "")
+const STEAM_AVATAR_IMAGE_PROXY_BASE = process.env.NEXT_PUBLIC_STEAM_AVATAR_IMAGE_PROXY_BASE ?? DEFAULT_STEAM_AVATAR_IMAGE_PROXY_BASE
 const STEAM_AVATAR_CACHE_KEY = "mdc-steam-avatar-cache-v7"
 const STEAM_AVATAR_SUCCESS_TTL_MS = 3 * 24 * 60 * 60 * 1000
 
@@ -75,7 +77,7 @@ function payloadBelongsToSteamId(payload: string, steamId: string): boolean {
   )
 }
 
-function normalizeSteamAvatarUrl(value: string | undefined): string | null {
+function normalizeSteamAvatarUrl(value: string | null | undefined): string | null {
   const normalizedValue = value
     ?.replace(/\\\//g, "/")
     .replace(/&amp;/g, "&")
@@ -292,4 +294,18 @@ export async function resolveSteamAvatarUrl(steamId: string | null | undefined):
 
 export function getSteamAvatarFallbackUrl(): string {
   return withBasePath("/placeholder-user.jpg")
+}
+
+export function getProxiedSteamAvatarUrl(avatarUrl: string | null | undefined): string | null {
+  const normalizedAvatarUrl = normalizeSteamAvatarUrl(avatarUrl)
+  if (!normalizedAvatarUrl) {
+    return null
+  }
+
+  const proxyValue = normalizedAvatarUrl.replace(/^https?:\/\//i, "")
+  if (STEAM_AVATAR_IMAGE_PROXY_BASE.includes("{AVATAR_URL}")) {
+    return STEAM_AVATAR_IMAGE_PROXY_BASE.replace("{AVATAR_URL}", encodeURIComponent(proxyValue))
+  }
+
+  return `${STEAM_AVATAR_IMAGE_PROXY_BASE}${encodeURIComponent(proxyValue)}`
 }
