@@ -571,10 +571,10 @@ const THEMES: Record<SeasonalThemeId, SeasonalThemeDefinition> = {
     id: "labor-day",
     icon: "sparkles",
     seasonLabel: "Весна",
-    subtitle: "Майский сезон: Праздник Весны и Труда",
+    subtitle: "Весенний сезон",
     contextLabel: "1 мая по календарю РФ",
-    loadingLabel: "Загрузка статистики... обновляем майскую статистику",
-    summaryLabel: "MDC CLAN • МАЙСКИЙ СЕЗОН",
+    loadingLabel: "Загрузка статистики... весенний сезон",
+    summaryLabel: "MDC CLAN • ВЕСЕННИЙ СЕЗОН",
     showSnowfall: false,
     backgrounds: buildMilitaryBackgrounds(LABOR_RECIPE),
     palette: {
@@ -777,7 +777,7 @@ export function getSeasonalTheme(now: Date = new Date()): SeasonalTheme {
     return toRuntimeTheme(THEMES["victory-day"])
   }
 
-  if (month === 5 && day >= 1 && day <= 3) {
+  if (month === 5 && day === 1) {
     return toRuntimeTheme(THEMES["labor-day"])
   }
 
@@ -809,7 +809,7 @@ export function getRussianCalendarThemeCatalog(): Array<{ id: SeasonalThemeId; s
     { id: "new-year", subtitle: THEMES["new-year"].subtitle, contextLabel: "20 декабря - 14 января" },
     { id: "defender-day", subtitle: THEMES["defender-day"].subtitle, contextLabel: "20 - 24 февраля" },
     { id: "womens-day", subtitle: THEMES["womens-day"].subtitle, contextLabel: "6 - 10 марта" },
-    { id: "labor-day", subtitle: THEMES["labor-day"].subtitle, contextLabel: "1 - 3 мая" },
+    { id: "labor-day", subtitle: THEMES["labor-day"].subtitle, contextLabel: "1 мая" },
     { id: "victory-day", subtitle: THEMES["victory-day"].subtitle, contextLabel: "7 - 10 мая" },
     { id: "russia-day", subtitle: THEMES["russia-day"].subtitle, contextLabel: "10 - 13 июня" },
     { id: "unity-day", subtitle: THEMES["unity-day"].subtitle, contextLabel: "2 - 5 ноября" },
