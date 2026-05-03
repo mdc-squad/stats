@@ -365,6 +365,10 @@ function matchesTagToken(value: string, token: string): boolean {
   return normalized.includes(token)
 }
 
+function hasJoinedAt(player: Pick<Player, "joined_at">): boolean {
+  return (player.joined_at ?? "").trim().length > 0
+}
+
 function matchesDefaultTagFilter(value: string): boolean {
   return DEFAULT_TAG_FILTER_TOKENS.some((token) => matchesTagToken(value, token))
 }
@@ -1595,16 +1599,16 @@ export default function YearReviewPage() {
   const mdcRosterCount = useMemo(
     () =>
       rawData
-        ? rawData.players.filter((player) => matchesTagToken(player.tag, "mdc") || player.is_mdc_member).length
+        ? rawData.players.filter((player) => hasJoinedAt(player) && (matchesTagToken(player.tag, "mdc") || player.is_mdc_member)).length
         : 0,
     [rawData],
   )
   const graveRosterCount = useMemo(
-    () => (rawData ? rawData.players.filter((player) => matchesTagToken(player.tag, "grave")).length : 0),
+    () => (rawData ? rawData.players.filter((player) => hasJoinedAt(player) && matchesTagToken(player.tag, "grave")).length : 0),
     [rawData],
   )
   const nklvRosterCount = useMemo(
-    () => (rawData ? rawData.players.filter((player) => matchesTagToken(player.tag, "nklv")).length : 0),
+    () => (rawData ? rawData.players.filter((player) => hasJoinedAt(player) && matchesTagToken(player.tag, "nklv")).length : 0),
     [rawData],
   )
   const competitiveClanPlayers = useMemo(
