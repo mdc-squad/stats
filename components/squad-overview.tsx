@@ -29,7 +29,7 @@ type ChartValueEntry = { key: string; name: string; color: string; value: number
 type LockedChartValues = { label: string; eventLabel?: string; entries: ChartValueEntry[] }
 
 const SQUAD_COLORS: Record<SquadToneKey, string> = { red: "#fb7185", blue: "#38bdf8", green: "#34d399", yellow: "#fbbf24", orange: "#fb923c", purple: "#a78bfa", pink: "#f472b6", cyan: "#22d3ee", brown: "#b45309", black: "#cbd5e1", white: "#f8fafc", neutral: "#94a3b8" }
-const SQUAD_ORDER: SquadToneKey[] = ["green", "red", "yellow", "blue", "purple", "orange", "brown", "black"]
+const SQUAD_ORDER: SquadToneKey[] = ["green", "red", "yellow", "blue", "purple", "orange", "brown", "black", "pink", "white"]
 const ROLE_COLORS = ["#fbbf24", "#38bdf8", "#34d399", "#fb7185", "#a78bfa", "#f472b6", "#22d3ee", "#fb923c"]
 const METRIC_DEFS: MetricDef[] = [
   { key: "games", label: "Игр", icon: "events", digits: 0 },

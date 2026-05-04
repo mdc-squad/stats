@@ -46,7 +46,7 @@ const GAMES_PERIOD_OPTIONS: Array<{ value: GamesPeriod; label: string }> = [
   { value: "custom", label: "Произвольно" },
 ]
 
-const SQUAD_FILTER_ORDER = ["green", "red", "yellow", "blue", "purple", "orange", "brown", "black"]
+const SQUAD_FILTER_ORDER = ["green", "red", "yellow", "blue", "purple", "orange", "brown", "black", "pink", "white"]
 
 function buildGamesDateRange(period: GamesPeriod, fromValue: string, toValue: string): { from?: Date; to?: Date } {
   if (period === "custom") {

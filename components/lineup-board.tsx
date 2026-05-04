@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils"
 
 const LINEUP_API_BASE = (process.env.NEXT_PUBLIC_MDC_API_BASE ?? "https://api.hungryfishteam.org/gas/mdc").replace(/\/$/, "")
 const LINEUP_API_URL = `${LINEUP_API_BASE}/lineup?publish=true`
-const SQUAD_ORDER = ["GREEN", "RED", "YELLOW", "BLUE", "PURPLE", "ORANGE", "BROWN", "BLACK"] as const
+const SQUAD_ORDER = ["GREEN", "RED", "YELLOW", "BLUE", "PURPLE", "ORANGE", "BROWN", "BLACK", "PINK", "WHITE"] as const
 
 type SquadName = (typeof SQUAD_ORDER)[number]
 type LineupSideKey = "siteOne" | "siteTwo"
@@ -76,6 +76,8 @@ const SQUAD_STYLES: Record<
   ORANGE: { border: "border-orange-500/35", text: "text-orange-200", glow: "from-orange-500/18 via-orange-500/6 to-transparent", accent: "bg-orange-500", panel: "bg-orange-500/6", rowBorder: "border-orange-500/25", rowHover: "hover:border-orange-400/45" },
   BROWN: { border: "border-amber-700/35", text: "text-amber-200", glow: "from-amber-700/18 via-amber-700/6 to-transparent", accent: "bg-amber-700", panel: "bg-amber-700/6", rowBorder: "border-amber-700/25", rowHover: "hover:border-amber-600/45" },
   BLACK: { border: "border-zinc-500/35", text: "text-zinc-200", glow: "from-zinc-400/18 via-zinc-400/6 to-transparent", accent: "bg-zinc-500", panel: "bg-zinc-400/6", rowBorder: "border-zinc-500/25", rowHover: "hover:border-zinc-400/45" },
+  PINK: { border: "border-pink-500/35", text: "text-pink-200", glow: "from-pink-500/18 via-pink-500/6 to-transparent", accent: "bg-pink-500", panel: "bg-pink-500/6", rowBorder: "border-pink-500/25", rowHover: "hover:border-pink-400/45" },
+  WHITE: { border: "border-zinc-200/35", text: "text-zinc-50", glow: "from-zinc-100/16 via-zinc-100/5 to-transparent", accent: "bg-zinc-100", panel: "bg-zinc-100/6", rowBorder: "border-zinc-200/25", rowHover: "hover:border-zinc-100/45" },
 }
 
 const VEHICLE_ICON_BY_LABEL: Record<string, string> = {
@@ -117,8 +119,10 @@ const VEHICLE_COLOR_LABELS: Record<string, string> = {
   BROWN: "BROWN",
   GREEN: "GREEN",
   ORANGE: "ORANGE",
+  PINK: "PINK",
   PURPLE: "PURPLE",
   RED: "RED",
+  WHITE: "WHITE",
   YELLOW: "YELLOW",
 }
 
@@ -220,11 +224,17 @@ function getVehicleColor(value: string | null | undefined) {
     BROWN: "#7f1d1d",
     GREEN: "#047857",
     ORANGE: "#ea580c",
+    PINK: "#db2777",
     PURPLE: "#6d28d9",
     RED: "#b91c1c",
+    WHITE: "#f8fafc",
     YELLOW: "#ca8a04",
   }
   return colors[normalized] ?? "#52525b"
+}
+
+function isWhiteVehicleColor(value: string | null | undefined) {
+  return String(value ?? "").trim().toUpperCase() === "WHITE"
 }
 
 function getVehicleIconAsset(vehicle: string | number | null | undefined) {
@@ -431,7 +441,7 @@ function VehicleIconBadge({ vehicle, color }: { vehicle: string; color?: string 
       className="inline-flex h-7 w-7 items-center justify-center rounded-[4px] border border-white/20 shadow-sm"
       style={{ backgroundColor: getVehicleColor(color) }}
     >
-      {icon ? <Image src={icon} alt="" width={20} height={20} className="h-5 w-5 object-contain" unoptimized /> : null}
+      {icon ? <Image src={icon} alt="" width={20} height={20} className={cn("h-5 w-5 object-contain", isWhiteVehicleColor(color) && "brightness-0")} unoptimized /> : null}
     </span>
   )
 }
