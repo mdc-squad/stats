@@ -75,7 +75,7 @@ const SQUAD_STYLES: Record<
   PURPLE: { border: "border-violet-500/35", text: "text-violet-200", glow: "from-violet-500/18 via-violet-500/6 to-transparent", accent: "bg-violet-500", panel: "bg-violet-500/6", rowBorder: "border-violet-500/25", rowHover: "hover:border-violet-400/45" },
   ORANGE: { border: "border-orange-500/35", text: "text-orange-200", glow: "from-orange-500/18 via-orange-500/6 to-transparent", accent: "bg-orange-500", panel: "bg-orange-500/6", rowBorder: "border-orange-500/25", rowHover: "hover:border-orange-400/45" },
   BROWN: { border: "border-amber-700/35", text: "text-amber-200", glow: "from-amber-700/18 via-amber-700/6 to-transparent", accent: "bg-amber-700", panel: "bg-amber-700/6", rowBorder: "border-amber-700/25", rowHover: "hover:border-amber-600/45" },
-  BLACK: { border: "border-neutral-600/40", text: "text-neutral-200", glow: "from-neutral-950/75 via-neutral-900/28 to-transparent", accent: "bg-neutral-600", panel: "bg-neutral-950/55", rowBorder: "border-neutral-600/30", rowHover: "hover:border-neutral-400/45" },
+  BLACK: { border: "border-neutral-500/45", text: "text-neutral-100", glow: "from-neutral-700/42 via-neutral-600/16 to-transparent", accent: "bg-neutral-500", panel: "bg-neutral-700/18", rowBorder: "border-neutral-500/35", rowHover: "hover:border-neutral-300/50" },
   PINK: { border: "border-pink-500/35", text: "text-pink-200", glow: "from-pink-500/18 via-pink-500/6 to-transparent", accent: "bg-pink-500", panel: "bg-pink-500/6", rowBorder: "border-pink-500/25", rowHover: "hover:border-pink-400/45" },
   WHITE: { border: "border-slate-200/45", text: "text-slate-50", glow: "from-slate-100/32 via-slate-200/12 to-transparent", accent: "bg-slate-200", panel: "bg-slate-200/14", rowBorder: "border-slate-200/30", rowHover: "hover:border-slate-100/55" },
 }
@@ -219,7 +219,7 @@ function normalizeVehicleKey(value: string | number | null | undefined) {
 function getVehicleColor(value: string | null | undefined) {
   const normalized = String(value ?? "").trim().toUpperCase()
   const colors: Record<string, string> = {
-    BLACK: "#18181b",
+    BLACK: "#3f3f46",
     BLUE: "#0891b2",
     BROWN: "#7f1d1d",
     GREEN: "#047857",
