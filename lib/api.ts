@@ -1064,7 +1064,7 @@ async function fetchPagedPlayerEventStatsRaw(options: FetchApiOptions = {}): Pro
 
   const pageIndexes = Array.from({ length: pagesCount }, (_, index) => index)
   const collectedRows: unknown[] = []
-  const BATCH_SIZE = 4
+  const BATCH_SIZE = 8
   let completedPages = 0
 
   for (let start = 0; start < pageIndexes.length; start += BATCH_SIZE) {

@@ -1102,7 +1102,7 @@ export default function YearReviewPage() {
       const normalizedData = await fetchAllData({
         forceRefresh,
         publish: true,
-        skipPagedStats: !resetCache,
+        skipPagedStats: false,
         preferSplitEndpoints: !resetCache,
         onProgress: (progress) => {
           latestProgress = progress
