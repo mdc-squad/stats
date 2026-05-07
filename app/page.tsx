@@ -1130,7 +1130,7 @@ export default function YearReviewPage() {
   }, [])
 
   useEffect(() => {
-    void loadData(true, true)
+    void loadData(true, false)
   }, [loadData])
 
   useEffect(() => {
@@ -2519,11 +2519,11 @@ export default function YearReviewPage() {
                   size="sm"
                   variant="outline"
                   className="border-christmas-gold/30 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold"
-                  onClick={() => void loadData(true, true)}
+                  onClick={() => void loadData(true, false)}
                   disabled={isRefreshing}
                 >
                   <RotateCcw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-                  {isRefreshing ? "Синхронизируем..." : "Обновить (Shift+R)"}
+                  {isRefreshing ? "Синхронизируем..." : "Обновить"}
                 </Button>
               </div>
             </CardContent>
