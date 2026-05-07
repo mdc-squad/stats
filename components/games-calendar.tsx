@@ -88,6 +88,7 @@ const HOLIDAYS_BY_MONTH_DAY: Record<string, { label: string; nonWorking: boolean
   "01-27": { label: "День снятия блокады Ленинграда", nonWorking: false },
   "02-02": { label: "День воинской славы: Сталинградская битва", nonWorking: false },
   "02-08": { label: "День российской науки", nonWorking: false },
+  "02-14": { label: "День святого Валентина", nonWorking: false },
   "02-15": { label: "День памяти воинов-интернационалистов", nonWorking: false },
   "02-23": { label: "День защитника Отечества", nonWorking: true },
   "03-08": { label: "Женский день", nonWorking: true },
@@ -104,11 +105,13 @@ const HOLIDAYS_BY_MONTH_DAY: Record<string, { label: string; nonWorking: boolean
   "05-15": { label: "Международный день семьи", nonWorking: false },
   "05-24": { label: "День славянской письменности и культуры", nonWorking: false },
   "05-28": { label: "День пограничника", nonWorking: false },
+  "06-01": { label: "День защиты детей", nonWorking: false },
   "06-06": { label: "День русского языка", nonWorking: false },
   "06-12": { label: "День России", nonWorking: true },
   "06-22": { label: "День памяти и скорби", nonWorking: false },
   "06-27": { label: "День молодежи", nonWorking: false },
   "07-03": { label: "День Независимости РБ", nonWorking: true },
+  "07-08": { label: "День семьи, любви и верности", nonWorking: false },
   "07-28": { label: "День Крещения Руси", nonWorking: false },
   "08-02": { label: "День Воздушно-десантных войск", nonWorking: false },
   "08-12": { label: "День Военно-воздушных сил", nonWorking: false },
@@ -117,10 +120,12 @@ const HOLIDAYS_BY_MONTH_DAY: Record<string, { label: string; nonWorking: boolean
   "09-03": { label: "День окончания Второй мировой войны", nonWorking: false },
   "09-08": { label: "День воинской славы: Бородинское сражение", nonWorking: false },
   "09-17": { label: "День народного единства РБ", nonWorking: false },
+  "10-01": { label: "День пожилых людей", nonWorking: false },
   "10-05": { label: "День учителя", nonWorking: false },
   "10-14": { label: "День матери РБ", nonWorking: false },
   "10-20": { label: "День военного связиста", nonWorking: false },
   "10-24": { label: "День подразделений специального назначения", nonWorking: false },
+  "10-28": { label: "День бабушек и дедушек", nonWorking: false },
   "11-01": { label: "День основания Сибирского Анклава", nonWorking: false },
   "11-04": { label: "День народного единства РФ", nonWorking: true },
   "11-07": { label: "День Октябрьской революции", nonWorking: true },
@@ -193,6 +198,23 @@ function getRadunitsaDate(year: number): Date {
   return date
 }
 
+function getLastWeekdayOfMonth(year: number, monthIndex: number, weekday: number): Date {
+  const date = new Date(year, monthIndex + 1, 0)
+  while (date.getDay() !== weekday) {
+    date.setDate(date.getDate() - 1)
+  }
+  return date
+}
+
+function getNthWeekdayOfMonth(year: number, monthIndex: number, weekday: number, nth: number): Date {
+  const date = new Date(year, monthIndex, 1)
+  while (date.getDay() !== weekday) {
+    date.setDate(date.getDate() + 1)
+  }
+  date.setDate(date.getDate() + (nth - 1) * 7)
+  return date
+}
+
 function isWeekend(date: Date): boolean {
   const day = date.getDay()
   return day === 0 || day === 6
@@ -202,6 +224,14 @@ function getHoliday(date: Date): { label: string; nonWorking: boolean } | null {
   const radunitsa = getRadunitsaDate(date.getFullYear())
   if (formatDayKey(date) === formatDayKey(radunitsa)) {
     return { label: "Радуница", nonWorking: true }
+  }
+  const fathersDay = getNthWeekdayOfMonth(date.getFullYear(), 9, 0, 3)
+  if (formatDayKey(date) === formatDayKey(fathersDay)) {
+    return { label: "День отца", nonWorking: false }
+  }
+  const mothersDay = getLastWeekdayOfMonth(date.getFullYear(), 10, 0)
+  if (formatDayKey(date) === formatDayKey(mothersDay)) {
+    return { label: "День матери РФ", nonWorking: false }
   }
   return HOLIDAYS_BY_MONTH_DAY[formatMonthDayKey(date)] ?? null
 }
