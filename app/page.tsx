@@ -1085,11 +1085,11 @@ export default function YearReviewPage() {
         },
       })
 
-      const previousDataForMerge = resetCache
+      const previousDataForReport = resetCache
         ? null
         : pickMoreCompleteData(rawDataRef.current, cached?.data ?? null)
-      const finalData = previousDataForMerge ? mergeMDCData(previousDataForMerge, normalizedData) : normalizedData
-      const syncReport = buildSyncReport(previousDataForMerge, finalData, resetCache, latestProgress, startedAt)
+      const finalData = forceRefresh ? normalizedData : previousDataForReport ? mergeMDCData(previousDataForReport, normalizedData) : normalizedData
+      const syncReport = buildSyncReport(previousDataForReport, finalData, resetCache, latestProgress, startedAt)
 
       setRawData(finalData)
       setLoading(false)
