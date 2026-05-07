@@ -1130,8 +1130,11 @@ export default function YearReviewPage() {
   }, [])
 
   useEffect(() => {
+    const hasCachedData = Boolean(readCachedData())
     void loadData(false, false).then(() => {
-      void loadData(true, false)
+      if (hasCachedData) {
+        void loadData(true, false)
+      }
     })
   }, [loadData])
 
