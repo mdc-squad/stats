@@ -110,6 +110,160 @@ type CachedPayload = {
   data: MDCData
 }
 
+type CachedMetaPayload = {
+  savedAt: number
+  buildId?: string
+  storage?: "indexeddb"
+}
+
+const API_CACHE_DB_NAME = "mdc-stats-cache"
+const API_CACHE_DB_VERSION = 1
+const API_CACHE_DB_STORE = "chunks"
+const API_CACHE_CHUNK_KEYS = [
+  "savedAt",
+  "buildId",
+  "meta",
+  "events",
+  "players",
+  "player_event_stats",
+  "clans",
+  "dictionaries",
+] as const
+
+type CacheChunkKey = (typeof API_CACHE_CHUNK_KEYS)[number]
+
+function isValidCachedData(data: MDCData | null | undefined): data is MDCData {
+  if (!data) return false
+  if (!Array.isArray(data.events)) return false
+  if (!Array.isArray(data.players)) return false
+  if (!Array.isArray(data.player_event_stats)) return false
+  if (!Array.isArray(data.clans)) return false
+  if (data.events.length > 0 && data.player_event_stats.length === 0) return false
+  return true
+}
+
+function openCacheDatabase(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) {
+    return Promise.resolve(null)
+  }
+
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(API_CACHE_DB_NAME, API_CACHE_DB_VERSION)
+
+    request.onupgradeneeded = () => {
+      const database = request.result
+      if (!database.objectStoreNames.contains(API_CACHE_DB_STORE)) {
+        database.createObjectStore(API_CACHE_DB_STORE)
+      }
+    }
+
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => resolve(null)
+    request.onblocked = () => resolve(null)
+  })
+}
+
+function readCacheChunk<T>(database: IDBDatabase, key: CacheChunkKey): Promise<T | undefined> {
+  return new Promise((resolve) => {
+    const transaction = database.transaction(API_CACHE_DB_STORE, "readonly")
+    const store = transaction.objectStore(API_CACHE_DB_STORE)
+    const request = store.get(key)
+
+    request.onsuccess = () => resolve(request.result as T | undefined)
+    request.onerror = () => resolve(undefined)
+  })
+}
+
+function writeCacheChunks(database: IDBDatabase, payload: CachedPayload): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(API_CACHE_DB_STORE, "readwrite")
+    const store = transaction.objectStore(API_CACHE_DB_STORE)
+
+    store.put(payload.savedAt, "savedAt")
+    store.put(payload.buildId ?? APP_BUILD_ID, "buildId")
+    store.put(payload.data.meta, "meta")
+    store.put(payload.data.events, "events")
+    store.put(payload.data.players, "players")
+    store.put(payload.data.player_event_stats, "player_event_stats")
+    store.put(payload.data.clans, "clans")
+    store.put(payload.data.dictionaries, "dictionaries")
+
+    transaction.oncomplete = () => resolve()
+    transaction.onerror = () => reject(transaction.error ?? new Error("IndexedDB cache write failed"))
+    transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB cache write aborted"))
+  })
+}
+
+function clearIndexedCache(database: IDBDatabase): Promise<void> {
+  return new Promise((resolve) => {
+    const transaction = database.transaction(API_CACHE_DB_STORE, "readwrite")
+    const store = transaction.objectStore(API_CACHE_DB_STORE)
+    API_CACHE_CHUNK_KEYS.forEach((key) => store.delete(key))
+    transaction.oncomplete = () => resolve()
+    transaction.onerror = () => resolve()
+    transaction.onabort = () => resolve()
+  })
+}
+
+async function readIndexedCachedData(): Promise<CachedPayload | null> {
+  const database = await openCacheDatabase()
+  if (!database) return null
+
+  try {
+    const [savedAt, buildId, meta, events, players, playerEventStats, clans, dictionaries] = await Promise.all([
+      readCacheChunk<number>(database, "savedAt"),
+      readCacheChunk<string>(database, "buildId"),
+      readCacheChunk<MDCData["meta"]>(database, "meta"),
+      readCacheChunk<MDCData["events"]>(database, "events"),
+      readCacheChunk<MDCData["players"]>(database, "players"),
+      readCacheChunk<MDCData["player_event_stats"]>(database, "player_event_stats"),
+      readCacheChunk<MDCData["clans"]>(database, "clans"),
+      readCacheChunk<MDCData["dictionaries"]>(database, "dictionaries"),
+    ])
+
+    const data = {
+      meta: meta ?? {
+        generated_at: new Date(savedAt ?? Date.now()).toISOString(),
+        counts: {
+          events: events?.length ?? 0,
+          player_event_stats: playerEventStats?.length ?? 0,
+          players: players?.length ?? 0,
+          clans: clans?.length ?? 0,
+        },
+      },
+      events: events ?? [],
+      players: players ?? [],
+      player_event_stats: playerEventStats ?? [],
+      clans: clans ?? [],
+      dictionaries: dictionaries ?? {
+        maps: [],
+        modes: [],
+        factions: [],
+        event_types: [],
+        tags: [],
+        roles: [],
+        specializations: [],
+        vehicles: [],
+        squads: [],
+      },
+    }
+
+    if (typeof savedAt !== "number") return null
+    if (buildId && buildId !== APP_BUILD_ID) return null
+    if (!isValidCachedData(data)) return null
+
+    return {
+      savedAt,
+      buildId,
+      data,
+    }
+  } catch {
+    return null
+  } finally {
+    database.close()
+  }
+}
+
 function clearObsoleteCaches(currentKey: string): void {
   try {
     for (let index = localStorage.length - 1; index >= 0; index -= 1) {
@@ -126,45 +280,89 @@ function clearObsoleteCaches(currentKey: string): void {
   }
 }
 
-function readCachedData(): CachedPayload | null {
+function readLocalCachedData(): CachedPayload | null {
   try {
     clearObsoleteCaches(API_CACHE_KEY)
     const raw = localStorage.getItem(API_CACHE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as CachedPayload
+    if ((parsed as CachedMetaPayload).storage === "indexeddb") return null
     if (!parsed || typeof parsed.savedAt !== "number" || !parsed.data) return null
     if (parsed.buildId && parsed.buildId !== APP_BUILD_ID) return null
-    if (!Array.isArray(parsed.data.events)) return null
-    if (!Array.isArray(parsed.data.players)) return null
-    if (!Array.isArray(parsed.data.player_event_stats)) return null
-    if (!Array.isArray(parsed.data.clans)) return null
-    if (parsed.data.events.length > 0 && parsed.data.player_event_stats.length === 0) return null
+    if (!isValidCachedData(parsed.data)) return null
     return parsed
   } catch {
     return null
   }
 }
 
-function writeCachedData(data: MDCData): void {
+async function readCachedData(): Promise<CachedPayload | null> {
+  const indexed = await readIndexedCachedData()
+  if (indexed) {
+    return indexed
+  }
+
+  const local = readLocalCachedData()
+  if (local) {
+    void writeCachedData(local.data, local.savedAt)
+    return local
+  }
+
+  return null
+}
+
+async function writeCachedData(data: MDCData, savedAt = Date.now()): Promise<void> {
+  const payload: CachedPayload = {
+    savedAt,
+    buildId: APP_BUILD_ID,
+    data,
+  }
+
   try {
-    const payload: CachedPayload = {
-      savedAt: Date.now(),
+    const database = await openCacheDatabase()
+    if (!database) {
+      throw new Error("IndexedDB is not available")
+    }
+
+    try {
+      await writeCacheChunks(database, payload)
+    } finally {
+      database.close()
+    }
+
+    const metaPayload: CachedMetaPayload = {
+      savedAt,
       buildId: APP_BUILD_ID,
-      data,
+      storage: "indexeddb",
     }
     clearObsoleteCaches(API_CACHE_KEY)
-    localStorage.setItem(API_CACHE_KEY, JSON.stringify(payload))
+    localStorage.setItem(API_CACHE_KEY, JSON.stringify(metaPayload))
   } catch {
     // Ignore cache write errors (e.g. private mode quota restrictions)
+    try {
+      clearObsoleteCaches(API_CACHE_KEY)
+      localStorage.setItem(API_CACHE_KEY, JSON.stringify(payload))
+    } catch {
+      // Ignore fallback cache write errors too.
+    }
   }
 }
 
-function clearCachedData(): void {
+async function clearCachedData(): Promise<void> {
   try {
     localStorage.removeItem(API_CACHE_KEY)
     clearObsoleteCaches(API_CACHE_KEY)
   } catch {
     // Ignore cache clear errors
+  }
+
+  const database = await openCacheDatabase()
+  if (!database) return
+
+  try {
+    await clearIndexedCache(database)
+  } finally {
+    database.close()
   }
 }
 
@@ -432,6 +630,49 @@ function mergeByKey<T>(older: T[], newer: T[], getKey: (value: T) => string): T[
   return Array.from(map.values())
 }
 
+type MDCDataIndexes = {
+  playersById: Map<string, Player>
+  eventsByKey: Map<string, MDCData["events"][number]>
+  statsByPlayerId: Map<string, MDCData["player_event_stats"]>
+}
+
+function buildDataIndexes(data: MDCData): MDCDataIndexes {
+  const playersById = new Map<string, Player>()
+  data.players.forEach((player) => {
+    if (player.player_id) {
+      playersById.set(player.player_id, player)
+    }
+  })
+
+  const eventsByKey = new Map<string, MDCData["events"][number]>()
+  data.events.forEach((event) => {
+    const key = normalizeTextKey(event.event_id ?? "")
+    if (key) {
+      eventsByKey.set(key, event)
+    }
+  })
+
+  const statsByPlayerId = new Map<string, MDCData["player_event_stats"]>()
+  data.player_event_stats.forEach((stat) => {
+    if (!stat.player_id) {
+      return
+    }
+
+    const current = statsByPlayerId.get(stat.player_id)
+    if (current) {
+      current.push(stat)
+    } else {
+      statsByPlayerId.set(stat.player_id, [stat])
+    }
+  })
+
+  return {
+    playersById,
+    eventsByKey,
+    statsByPlayerId,
+  }
+}
+
 function buildGlobalTagFilterOptions(players: Player[] | undefined, tagDomain: string[] | undefined): GlobalTagFilterOption[] {
   const tags = getUniqueTags(players ?? [], tagDomain ?? []).filter((tag) => !isHiddenTagFilterValue(tag))
   const mdcTags = tags.filter(isMdcTagFilterValue)
@@ -496,7 +737,7 @@ function useDataTabFilters(rawData: MDCData | null, enabled: boolean, includeTag
 
   const dateFilteredData = useMemo(() => {
     if (!rawData) return null
-    if (!enabled) return rawData
+    if (!enabled) return null
     return filterDataByDateRange(rawData, periodRange)
   }, [enabled, periodRange, rawData])
 
@@ -558,14 +799,13 @@ function useDataTabFilters(rawData: MDCData | null, enabled: boolean, includeTag
 
   const data = useMemo(() => {
     if (!tagFilteredData) return null
-    if (!enabled) return tagFilteredData
     return filterDataByEventSlice(tagFilteredData, {
       eventTypes: selectedEventTypes,
       maps: selectedMaps,
       opponents: selectedOpponents,
       factions: selectedFactions,
     })
-  }, [enabled, selectedEventTypes, selectedFactions, selectedMaps, selectedOpponents, tagFilteredData])
+  }, [selectedEventTypes, selectedFactions, selectedMaps, selectedOpponents, tagFilteredData])
 
   const isDefaultTagSelection = !includeTags || haveSameStringSet(effectiveSelectedTags, defaultSelectedTags)
   const hasFilters = Boolean(
@@ -1068,11 +1308,11 @@ export default function YearReviewPage() {
   }, [loading, loadingShowcaseReady])
 
   const loadData = useCallback(async (forceRefresh = false, resetCache = false) => {
-    const cached = readCachedData()
+    const cached = await readCachedData()
     const syncMode: SyncMode = resetCache ? "reset" : "auto"
 
     if (resetCache) {
-      clearCachedData()
+      await clearCachedData()
     } else if (cached) {
       setRawData(cached.data)
       setLoading(false)
@@ -1080,10 +1320,10 @@ export default function YearReviewPage() {
       setLastUpdatedAt(cached.savedAt)
     }
 
-    // In regular page reload flow, keep cached snapshot and skip network sync.
-    // Manual sync always clears the local cache and performs a full reload.
+    // In regular page reload flow, show the cached snapshot first.
+    // Manual sync keeps the current snapshot visible while the cache refreshes in the header.
     if (!forceRefresh && !resetCache && cached) {
-      return
+      return true
     }
 
     setIsRefreshing(true)
@@ -1126,8 +1366,9 @@ export default function YearReviewPage() {
       setRawData(finalData)
       setLoading(false)
       setLoadError(null)
-      writeCachedData(finalData)
-      setLastUpdatedAt(Date.now())
+      const savedAt = Date.now()
+      await writeCachedData(finalData, savedAt)
+      setLastUpdatedAt(savedAt)
       setLastSyncReport(syncReport)
       setSyncProgress((current) => ({
         active: false,
@@ -1160,15 +1401,21 @@ export default function YearReviewPage() {
     } finally {
       setIsRefreshing(false)
     }
+    return Boolean(cached)
   }, [])
 
   useEffect(() => {
-    const hasCachedData = Boolean(readCachedData())
-    void loadData(false, false).then(() => {
-      if (hasCachedData) {
+    let isMounted = true
+
+    void loadData(false, false).then((usedCachedData) => {
+      if (isMounted && usedCachedData) {
         void loadData(true, false)
       }
     })
+
+    return () => {
+      isMounted = false
+    }
   }, [loadData])
 
   const handleHardCacheReset = useCallback(() => {
@@ -1520,6 +1767,7 @@ export default function YearReviewPage() {
   ])
 
   const data = rawData
+  const dataIndexes = useMemo(() => (data ? buildDataIndexes(data) : null), [data])
   const leaderboardFilters = useDataTabFilters(rawData, activeTab === "leaderboards", true)
   const roleFilters = useDataTabFilters(rawData, activeTab === "roles", true)
   const recordFilters = useDataTabFilters(rawData, activeTab === "records", true)
@@ -1531,27 +1779,28 @@ export default function YearReviewPage() {
   const playerData = playerFilters.data ?? data
   const groupData = groupFilters.data ?? data
 
-  const competitiveData = useMemo(() => {
-    if (!data) return null
-    return filterDataToCompetitiveEvents(data)
-  }, [data])
+  const shouldPrepareLeaderboardStats = activeTab === "leaderboards" || activeTab === "roles" || activeTab === "progress"
   const leaderboardCompetitiveData = useMemo(
-    () => (activeTab === "leaderboards" && leaderboardData ? filterDataToCompetitiveEvents(leaderboardData) : competitiveData),
-    [activeTab, competitiveData, leaderboardData],
+    () => (shouldPrepareLeaderboardStats && leaderboardData ? filterDataToCompetitiveEvents(leaderboardData) : null),
+    [leaderboardData, shouldPrepareLeaderboardStats],
   )
   const roleCompetitiveData = useMemo(
-    () => (activeTab === "roles" && roleData ? filterDataToCompetitiveEvents(roleData) : competitiveData),
-    [activeTab, competitiveData, roleData],
+    () => (activeTab === "roles" && roleData ? filterDataToCompetitiveEvents(roleData) : null),
+    [activeTab, roleData],
   )
   const recordCompetitiveData = useMemo(
-    () => (activeTab === "records" && recordData ? filterDataToCompetitiveEvents(recordData) : competitiveData),
-    [activeTab, competitiveData, recordData],
+    () => (activeTab === "records" && recordData ? filterDataToCompetitiveEvents(recordData) : null),
+    [activeTab, recordData],
   )
   const playerCompetitiveData = useMemo(
-    () => (activeTab === "progress" && playerData ? filterDataToCompetitiveEvents(playerData) : competitiveData),
-    [activeTab, competitiveData, playerData],
+    () => (activeTab === "progress" && playerData ? filterDataToCompetitiveEvents(playerData) : null),
+    [activeTab, playerData],
   )
-  const playerCardData = useMemo(() => playerCompetitiveData ?? playerData ?? data, [data, playerCompetitiveData, playerData])
+  const playerCardData = useMemo(
+    () => (activeTab === "progress" ? playerCompetitiveData ?? playerData ?? data : data),
+    [activeTab, data, playerCompetitiveData, playerData],
+  )
+  const playerCardIndexes = useMemo(() => (playerCardData ? buildDataIndexes(playerCardData) : null), [playerCardData])
   const isDefaultTagSelection = useMemo(
     () => haveSameStringSet(effectiveSelectedTags, defaultSelectedTags),
     [defaultSelectedTags, effectiveSelectedTags],
@@ -1765,10 +2014,10 @@ export default function YearReviewPage() {
     return getPastGames(protocolEvents, data.player_event_stats, data.players, data.dictionaries?.squads ?? [])
   }, [data, rawData])
   const groupPastGames = useMemo(() => {
-    if (!groupData) return []
+    if (activeTab !== "group" || !groupData) return []
     const protocolEvents = rawData?.events ?? groupData.events
     return getPastGames(protocolEvents, groupData.player_event_stats, groupData.players, groupData.dictionaries?.squads ?? [])
-  }, [groupData, rawData])
+  }, [activeTab, groupData, rawData])
   const futureEvents = useMemo(
     () =>
       pastGames
@@ -1780,7 +2029,7 @@ export default function YearReviewPage() {
     [pastGames],
   )
   const playerCardPastGames = useMemo(() => {
-    if (!playerCardData) return []
+    if (activeTab !== "progress" || !playerCardData) return []
     const protocolEvents = rawData?.events ?? playerCardData.events
     return getPastGames(
       protocolEvents,
@@ -1788,7 +2037,7 @@ export default function YearReviewPage() {
       playerCardData.players,
       playerCardData.dictionaries?.squads ?? [],
     )
-  }, [playerCardData, rawData])
+  }, [activeTab, playerCardData, rawData])
 
   const roleLeaderboards = useMemo(() => {
     if (!roleCompetitiveData) return []
@@ -1816,7 +2065,7 @@ export default function YearReviewPage() {
   ])
 
   const roleMetricMaxima = useMemo(() => {
-    if (!playerCardData) return {}
+    if (activeTab !== "progress" || !playerCardData) return {}
     const roleSource = playerCardData
     return getMaxRoleMetricByRole(
       roleSource.player_event_stats,
@@ -1825,7 +2074,7 @@ export default function YearReviewPage() {
       roleSource.dictionaries?.roles ?? [],
       roleSource.events,
     )
-  }, [playerCardData, selectedRoleMetric])
+  }, [activeTab, playerCardData, selectedRoleMetric])
 
   // Basic leaderboards
   const leaderboardKills = useMemo(
@@ -1973,17 +2222,15 @@ export default function YearReviewPage() {
 
   // Player progress chart data
   const selectedProgressEntries = useMemo(() => {
-    if (!playerCardData || selectedPlayersForChart.length === 0) return [] as Array<{
+    if (activeTab !== "progress" || !playerCardData || selectedPlayersForChart.length === 0) return [] as Array<{
       player: Player
       progress: ReturnType<typeof getPlayerProgress>
     }>
 
-    const players = Array.isArray(playerCardData.players) ? playerCardData.players : []
-    const playerById = new Map(players.map((player) => [player.player_id, player]))
     const entries: Array<{ player: Player; progress: ReturnType<typeof getPlayerProgress> }> = []
 
     selectedPlayersForChart.forEach((playerId) => {
-      const player = playerById.get(playerId)
+      const player = playerCardIndexes?.playersById.get(playerId)
       if (!player) return
 
       const progress = getPlayerProgress(playerId, playerCardData.player_event_stats, playerCardData.events)
@@ -1993,9 +2240,13 @@ export default function YearReviewPage() {
     })
 
     return entries
-  }, [playerCardData, selectedPlayersForChart])
+  }, [activeTab, playerCardData, playerCardIndexes, selectedPlayersForChart])
 
   const selectedPlayerHistories = useMemo(() => {
+    if (activeTab !== "progress") {
+      return new Map<string, ReturnType<typeof getPlayerGameHistory>>()
+    }
+
     const selectedIds = Array.from(new Set(selectedPlayersForChart))
     const historyByPlayerId = new Map<string, ReturnType<typeof getPlayerGameHistory>>()
 
@@ -2007,16 +2258,16 @@ export default function YearReviewPage() {
     })
 
     return historyByPlayerId
-  }, [playerCardPastGames, selectedPlayersForChart])
+  }, [activeTab, playerCardPastGames, selectedPlayersForChart])
 
   const activePlayers = useMemo(() => {
-    if (!playerCardData) return []
+    if (activeTab !== "progress" || !playerCardData) return []
     const players = Array.isArray(playerCardData.players) ? playerCardData.players : []
     return players.filter((p) => p && p.totals && p.totals.events >= 3)
-  }, [playerCardData])
+  }, [activeTab, playerCardData])
 
   const avgValues = useMemo(() => {
-    if (!playerCardData) {
+    if (activeTab !== "progress" || !playerCardData) {
       return {
         kills: 100,
         deaths: 80,
@@ -2030,10 +2281,10 @@ export default function YearReviewPage() {
       }
     }
     return getAverageValues(playerCardData.players)
-  }, [playerCardData])
+  }, [activeTab, playerCardData])
 
   const maxValues = useMemo(() => {
-    if (!playerCardData)
+    if (activeTab !== "progress" || !playerCardData)
       return {
         kills: 500,
         deaths: 300,
@@ -2059,10 +2310,10 @@ export default function YearReviewPage() {
       kda: Math.max(...players.map((p) => p.totals.kda), 1),
       win_rate: Math.max(...players.map((p) => p.totals.win_rate), 1),
     }
-  }, [playerCardData])
+  }, [activeTab, playerCardData])
 
   const skillMaxima = useMemo(() => {
-    if (!playerCardData) {
+    if (activeTab !== "progress" || !playerCardData) {
       return {
         kd: 1,
         kda: 1,
@@ -2087,7 +2338,7 @@ export default function YearReviewPage() {
       avgRevives: Math.max(...qualifiedPlayers.map((player) => player.totals.avgRevives), 1),
       avgVehicle: Math.max(...qualifiedPlayers.map((player) => player.totals.avgVehicle), 1),
     }
-  }, [playerCardData])
+  }, [activeTab, playerCardData])
 
   const getRoleIcon = (role: string) => {
     return <RoleIcon role={role} />
@@ -3001,7 +3252,7 @@ export default function YearReviewPage() {
                   <div key={player.player_id}>
                     <PlayerCard
                       player={player}
-                      rawPlayer={data.players.find((entry) => entry.player_id === player.player_id)}
+                      rawPlayer={dataIndexes?.playersById.get(player.player_id)}
                       rank={index + 1}
                       footerLabel={seasonalTheme.summaryLabel}
                       achievements={playerAchievements[player.player_id] ?? []}
