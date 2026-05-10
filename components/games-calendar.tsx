@@ -705,9 +705,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
   const [holidayFilter, setHolidayFilter] = useState<HolidayFilter>("all")
   const [lineupAvailability, setLineupAvailability] = useState<LineupAvailability | null>(null)
   const [weekdayGuidePinned, setWeekdayGuidePinned] = useState(false)
-  const [weekdayGuideStuck, setWeekdayGuideStuck] = useState(false)
   const [weekdayGuide, setWeekdayGuide] = useState({ weekIndex: 0, top: 0 })
-  const calendarGridRef = useRef<HTMLDivElement | null>(null)
   const weekRefs = useRef<Array<HTMLDivElement | null>>([])
   const weekdayGuideRef = useRef(weekdayGuide)
   const scrollFrameRef = useRef<number | null>(null)
@@ -857,35 +855,10 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
 
   useEffect(() => {
     if (!weekdayGuidePinned) {
-      setWeekdayGuideStuck(false)
       const frameId = window.requestAnimationFrame(() => moveWeekdayGuideToWeek(weekdayGuideRef.current.weekIndex))
       return () => window.cancelAnimationFrame(frameId)
     }
   }, [moveWeekdayGuideToWeek, weekdayGuidePinned])
-
-  useEffect(() => {
-    if (!weekdayGuidePinned) return
-    let frameId: number | null = null
-
-    const updateStuckState = () => {
-      if (frameId !== null) return
-      frameId = window.requestAnimationFrame(() => {
-        frameId = null
-        const rect = calendarGridRef.current?.getBoundingClientRect()
-        setWeekdayGuideStuck(Boolean(rect && rect.top <= WEEKDAY_GUIDE_STICKY_TOP))
-      })
-    }
-
-    updateStuckState()
-    window.addEventListener("scroll", updateStuckState, { passive: true })
-    window.addEventListener("resize", updateStuckState)
-
-    return () => {
-      window.removeEventListener("scroll", updateStuckState)
-      window.removeEventListener("resize", updateStuckState)
-      if (frameId !== null) window.cancelAnimationFrame(frameId)
-    }
-  }, [weekdayGuidePinned])
 
   useEffect(() => {
     return () => {
@@ -1041,24 +1014,36 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="overflow-x-auto pb-1">
-          <div
-            ref={calendarGridRef}
-            className={cn("relative min-w-[920px]", weekdayGuidePinned ? "pt-0" : "pt-8")}
-            onMouseMove={handleCalendarMouseMove}
-          >
+          <div className="min-w-[920px]">
+            {weekdayGuidePinned ? (
+              <div
+                className="sticky z-20 mb-3 rounded-md border border-christmas-gold/20 bg-card/95 text-center text-sm font-bold uppercase tracking-wider text-christmas-gold shadow-lg shadow-black/20 backdrop-blur"
+                style={{ top: WEEKDAY_GUIDE_STICKY_TOP }}
+              >
+                <div className="grid grid-cols-7 gap-2">
+                  {WEEK_DAYS.map((day) => <div key={day} className="py-1.5">{day}</div>)}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setWeekdayGuidePinned((pinned) => !pinned)}
+                  title={weekdayGuidePinned ? "РћС‚РєСЂРµРїРёС‚СЊ РґРЅРё РЅРµРґРµР»Рё" : "Р—Р°РєСЂРµРїРёС‚СЊ РґРЅРё РЅРµРґРµР»Рё СЃРІРµСЂС…Сѓ"}
+                  aria-label={weekdayGuidePinned ? "РћС‚РєСЂРµРїРёС‚СЊ РґРЅРё РЅРµРґРµР»Рё" : "Р—Р°РєСЂРµРїРёС‚СЊ РґРЅРё РЅРµРґРµР»Рё СЃРІРµСЂС…Сѓ"}
+                  aria-pressed={weekdayGuidePinned}
+                  className="absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded bg-christmas-gold/15 text-christmas-gold transition-colors"
+                >
+                  <Pin className="h-3.5 w-3.5 fill-current" />
+                </button>
+              </div>
+            ) : null}
             <div
-              className={cn(
-                "left-0 right-0 z-20 rounded-md border border-christmas-gold/20 bg-card/95 text-center text-sm font-bold uppercase tracking-wider text-christmas-gold shadow-lg shadow-black/20 backdrop-blur",
-                weekdayGuidePinned
-                  ? "sticky mb-3 translate-y-0"
-                  : "pointer-events-none absolute top-0 transition-transform duration-200 ease-out",
-              )}
-              style={
-                weekdayGuidePinned
-                  ? { top: WEEKDAY_GUIDE_STICKY_TOP }
-                  : { transform: `translateY(${weekdayGuide.top}px)` }
-              }
+              className={cn("relative", !weekdayGuidePinned && "pt-8")}
+              onMouseMove={handleCalendarMouseMove}
             >
+              {!weekdayGuidePinned ? (
+                <div
+                  className="pointer-events-none absolute left-0 right-0 top-0 z-20 rounded-md border border-christmas-gold/20 bg-card/95 text-center text-sm font-bold uppercase tracking-wider text-christmas-gold shadow-lg shadow-black/20 backdrop-blur transition-transform duration-200 ease-out"
+                  style={{ transform: `translateY(${weekdayGuide.top}px)` }}
+                >
               <div className="grid grid-cols-7 gap-2">
                 {WEEK_DAYS.map((day) => <div key={day} className="py-1.5">{day}</div>)}
               </div>
@@ -1068,17 +1053,13 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
                 title={weekdayGuidePinned ? "Открепить дни недели" : "Закрепить дни недели сверху"}
                 aria-label={weekdayGuidePinned ? "Открепить дни недели" : "Закрепить дни недели сверху"}
                 aria-pressed={weekdayGuidePinned}
-                className={cn(
-                  "pointer-events-auto absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-christmas-gold transition-colors",
-                  weekdayGuidePinned
-                    ? "bg-christmas-gold/15"
-                    : "bg-transparent hover:bg-christmas-gold/10",
-                )}
+                className="pointer-events-auto absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded bg-transparent text-christmas-gold transition-colors hover:bg-christmas-gold/10"
               >
-                <Pin className={cn("h-3.5 w-3.5", weekdayGuidePinned && "fill-current")} />
+                <Pin className="h-3.5 w-3.5" />
               </button>
-            </div>
-            <div className={cn("space-y-3", weekdayGuidePinned && weekdayGuideStuck && "pt-[76px]")}>
+                </div>
+              ) : null}
+              <div className="space-y-3">
               {calendarWeeks.map((week, weekIndex) => (
                 <div
                   key={`week-${weekIndex}`}
@@ -1209,6 +1190,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
                   })}
                 </div>
               ))}
+            </div>
             </div>
           </div>
         </div>
