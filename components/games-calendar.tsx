@@ -704,6 +704,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
   const [holidayFilter, setHolidayFilter] = useState<HolidayFilter>("all")
   const [lineupAvailability, setLineupAvailability] = useState<LineupAvailability | null>(null)
   const [weekdayGuidePinned, setWeekdayGuidePinned] = useState(false)
+  const [weekdayGuideStickyTop, setWeekdayGuideStickyTop] = useState(72)
   const [weekdayGuide, setWeekdayGuide] = useState({ weekIndex: 0, top: 0 })
   const weekRefs = useRef<Array<HTMLDivElement | null>>([])
   const weekdayGuideRef = useRef(weekdayGuide)
@@ -858,6 +859,31 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
       return () => window.cancelAnimationFrame(frameId)
     }
   }, [moveWeekdayGuideToWeek, weekdayGuidePinned])
+
+  useEffect(() => {
+    if (!weekdayGuidePinned) return
+    let frameId: number | null = null
+
+    const updateStickyTop = () => {
+      if (frameId !== null) return
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null
+        const header = document.querySelector<HTMLElement>("[data-testid='seasonal-header']")
+        const headerBottom = header?.getBoundingClientRect().bottom ?? 0
+        setWeekdayGuideStickyTop(Math.max(8, Math.round(headerBottom + 8)))
+      })
+    }
+
+    updateStickyTop()
+    window.addEventListener("scroll", updateStickyTop, { passive: true })
+    window.addEventListener("resize", updateStickyTop)
+
+    return () => {
+      window.removeEventListener("scroll", updateStickyTop)
+      window.removeEventListener("resize", updateStickyTop)
+      if (frameId !== null) window.cancelAnimationFrame(frameId)
+    }
+  }, [weekdayGuidePinned])
 
   useEffect(() => {
     return () => {
@@ -1021,10 +1047,14 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
               className={cn(
                 "left-0 right-0 z-20 rounded-md border border-christmas-gold/20 bg-card/95 text-center text-sm font-bold uppercase tracking-wider text-christmas-gold shadow-lg shadow-black/20 backdrop-blur",
                 weekdayGuidePinned
-                  ? "sticky top-32 mb-3"
+                  ? "sticky mb-3"
                   : "pointer-events-none absolute top-0 transition-transform duration-200 ease-out",
               )}
-              style={weekdayGuidePinned ? undefined : { transform: `translateY(${weekdayGuide.top}px)` }}
+              style={
+                weekdayGuidePinned
+                  ? { top: weekdayGuideStickyTop }
+                  : { transform: `translateY(${weekdayGuide.top}px)` }
+              }
             >
               <div className="grid grid-cols-7 gap-1 pr-9">
                 {WEEK_DAYS.map((day) => <div key={day} className="py-1.5">{day}</div>)}
