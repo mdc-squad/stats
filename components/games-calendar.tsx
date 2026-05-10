@@ -779,7 +779,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
 
   const scheduleWeekdayGuideMove = useCallback(
     (weekIndex: number, source: "mouse" | "scroll" = "scroll") => {
-      if (weekdayGuidePinned && source === "mouse") return
+      if (weekdayGuidePinned) return
       const frameRef = source === "mouse" ? mouseFrameRef : scrollFrameRef
       if (source === "mouse") {
         mouseLockUntilRef.current = Date.now() + WEEKDAY_GUIDE_MOUSE_LOCK_MS
@@ -802,9 +802,10 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
   }, [calendarWeeks.length, moveWeekdayGuideToWeek])
 
   useEffect(() => {
+    if (weekdayGuidePinned) return
     const updateFromScroll = () => {
       if (Date.now() < mouseLockUntilRef.current) return
-      const focusY = weekdayGuidePinned ? weekdayGuideStickyTop + 20 : window.innerHeight * 0.45
+      const focusY = window.innerHeight * 0.45
       const currentNode = weekRefs.current[weekdayGuideRef.current.weekIndex]
       const currentRect = currentNode?.getBoundingClientRect()
       if (currentRect && currentRect.top - 28 <= focusY && currentRect.bottom + 28 >= focusY) {
@@ -850,7 +851,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
         scrollFrameRef.current = null
       }
     }
-  }, [scheduleWeekdayGuideMove, weekdayGuidePinned, weekdayGuideStickyTop])
+  }, [scheduleWeekdayGuideMove, weekdayGuidePinned])
 
   useEffect(() => {
     if (!weekdayGuidePinned) {
@@ -1084,7 +1085,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
                   data-calendar-week-index={weekIndex}
                   className={cn(
                     "grid grid-cols-7 gap-2 transition-[padding] duration-200",
-                    weekdayGuide.weekIndex === weekIndex && "pt-10",
+                    !weekdayGuidePinned && weekdayGuide.weekIndex === weekIndex && "pt-10",
                   )}
                 >
                   {week.map((day, dayIndex) => {
