@@ -32,4 +32,33 @@ test("pinned calendar weekday guide stays above the first week", async ({ page }
 
   expect(overlap).not.toBeNull()
   expect(overlap?.overlaps).toBe(false)
+
+  await page.evaluate(() => {
+    const guide = document.querySelector<HTMLElement>("[data-testid='calendar-weekday-guide-pinned']")
+    if (!guide) return
+    const targetTop = 70
+    window.scrollBy({ top: guide.getBoundingClientRect().top - targetTop, behavior: "auto" })
+  })
+
+  const fixedGuide = page.getByTestId("calendar-weekday-guide-fixed")
+  await expect(fixedGuide).toBeVisible()
+  await page.waitForTimeout(100)
+
+  const scrollOverlap = await page.evaluate(() => {
+    const guide = document.querySelector<HTMLElement>("[data-testid='calendar-weekday-guide-fixed']")
+    if (!guide) return null
+
+    const guideRect = guide.getBoundingClientRect()
+    const weeks = [...document.querySelectorAll<HTMLElement>("[data-calendar-week-index]")]
+      .map((week) => week.getBoundingClientRect())
+      .filter((rect) => rect.bottom > 0 && rect.top < window.innerHeight)
+
+    return {
+      guideBottom: guideRect.bottom,
+      overlaps: weeks.some((rect) => rect.top < guideRect.bottom + 1 && rect.bottom > guideRect.top + 1),
+    }
+  })
+
+  expect(scrollOverlap).not.toBeNull()
+  expect(scrollOverlap?.overlaps).toBe(false)
 })

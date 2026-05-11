@@ -707,11 +707,13 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
   const [weekdayGuidePinned, setWeekdayGuidePinned] = useState(false)
   const [weekdayGuideFixed, setWeekdayGuideFixed] = useState(false)
   const [weekdayGuideFixedRect, setWeekdayGuideFixedRect] = useState({ left: 0, width: 0 })
+  const [weekdayGuideContentOffset, setWeekdayGuideContentOffset] = useState(0)
   const [weekdayGuide, setWeekdayGuide] = useState({ weekIndex: 0, top: 0 })
   const calendarInnerRef = useRef<HTMLDivElement | null>(null)
   const pinnedWeekdayGuideSlotRef = useRef<HTMLDivElement | null>(null)
   const weekRefs = useRef<Array<HTMLDivElement | null>>([])
   const weekdayGuideRef = useRef(weekdayGuide)
+  const weekdayGuideContentOffsetRef = useRef(0)
   const scrollFrameRef = useRef<number | null>(null)
   const mouseFrameRef = useRef<number | null>(null)
   const mouseLockUntilRef = useRef(0)
@@ -766,6 +768,10 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
   useEffect(() => {
     weekdayGuideRef.current = weekdayGuide
   }, [weekdayGuide])
+
+  useEffect(() => {
+    weekdayGuideContentOffsetRef.current = weekdayGuideContentOffset
+  }, [weekdayGuideContentOffset])
 
   const moveWeekdayGuideToWeek = useCallback(
     (weekIndex: number) => {
@@ -860,6 +866,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
   useEffect(() => {
     if (!weekdayGuidePinned) {
       setWeekdayGuideFixed(false)
+      setWeekdayGuideContentOffset(0)
       const frameId = window.requestAnimationFrame(() => moveWeekdayGuideToWeek(weekdayGuideRef.current.weekIndex))
       return () => window.cancelAnimationFrame(frameId)
     }
@@ -878,6 +885,24 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
         const shouldFix = Boolean(slotRect && slotRect.top <= WEEKDAY_GUIDE_STICKY_TOP)
 
         setWeekdayGuideFixed(shouldFix)
+        if (!shouldFix || !slotRect) {
+          setWeekdayGuideContentOffset(0)
+        } else {
+          const guideBottom = WEEKDAY_GUIDE_STICKY_TOP + slotRect.height
+          const currentOffset = weekdayGuideContentOffsetRef.current
+          const overlapOffset = weekRefs.current.reduce((maxOffset, weekNode) => {
+            if (!weekNode) return maxOffset
+            const rect = weekNode.getBoundingClientRect()
+            const baseTop = rect.top - currentOffset
+            const baseBottom = rect.bottom - currentOffset
+            if (baseBottom <= WEEKDAY_GUIDE_STICKY_TOP || baseTop >= window.innerHeight) return maxOffset
+            if (baseTop < guideBottom + 8 && baseBottom > WEEKDAY_GUIDE_STICKY_TOP) {
+              return Math.max(maxOffset, Math.ceil(guideBottom - baseTop + 8))
+            }
+            return maxOffset
+          }, 0)
+          setWeekdayGuideContentOffset(overlapOffset)
+        }
         if (innerRect) {
           setWeekdayGuideFixedRect({
             left: Math.round(innerRect.left),
@@ -1101,10 +1126,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
               <div
                 ref={pinnedWeekdayGuideSlotRef}
                 data-testid="calendar-weekday-guide-pinned"
-                className={cn(
-                  "relative z-10 mb-3 rounded-md border border-christmas-gold/20 bg-card/95 text-center text-sm font-bold uppercase tracking-wider text-christmas-gold shadow-lg shadow-black/20 backdrop-blur",
-                  weekdayGuideFixed && "invisible",
-                )}
+                className={cn(weekdayGuideFixed && "invisible")}
               >
                 <div className="grid grid-cols-7 gap-2">
                   {WEEK_DAYS.map((day) => <div key={day} className="py-1.5">{day}</div>)}
@@ -1147,7 +1169,17 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
               </button>
                 </div>
               ) : null}
-              <div className="space-y-3">
+              <div
+                className="space-y-3"
+                style={
+                  weekdayGuideContentOffset > 0
+                    ? {
+                        transform: `translateY(${weekdayGuideContentOffset}px)`,
+                        paddingBottom: weekdayGuideContentOffset,
+                      }
+                    : undefined
+                }
+              >
               {calendarWeeks.map((week, weekIndex) => (
                 <div
                   key={`week-${weekIndex}`}
