@@ -67,7 +67,7 @@ import {
   type RoleLeaderboardMetric,
 } from "@/lib/data-utils"
 import { getAchievementIcon, getMetricIcon } from "@/lib/app-icons"
-import { fetchAllData, type SyncProgressUpdate } from "@/lib/api"
+import { fetchAllData, fetchUpstreamSignature, type SyncProgressUpdate, type UpstreamSignature } from "@/lib/api"
 import { withBasePath } from "@/lib/base-path"
 import { getSeasonalTheme, type SeasonalTheme } from "@/lib/seasonal-theme"
 import { cn } from "@/lib/utils"
@@ -83,6 +83,10 @@ const API_CACHE_NAMESPACE = "mdc-api-cache"
 const APP_BUILD_ID = process.env.NEXT_PUBLIC_APP_BUILD_ID?.trim() || "dev"
 const API_CACHE_KEY = `${API_CACHE_NAMESPACE}-${APP_BUILD_ID}`
 const API_CACHE_TTL_MS = 5 * 60 * 1000
+
+// Lightweight upstream change detector (doesn't store the full dataset).
+const UPSTREAM_SIGNATURE_KEY = `mdc-upstream-signature-${APP_BUILD_ID}`
+const UPSTREAM_PAGES_META_KEY = `mdc-upstream-pages-${APP_BUILD_ID}`
 const ROLE_TAB_ORDER = [
   "SL",
   "Стрелок",
@@ -114,6 +118,16 @@ type CachedMetaPayload = {
   savedAt: number
   buildId?: string
   storage?: "indexeddb"
+}
+
+type CachedUpstreamMeta = {
+  savedAt: number
+  signature: UpstreamSignature
+}
+
+type CachedPagesMeta = {
+  savedAt: number
+  pagesTotal: number
 }
 
 const API_CACHE_DB_NAME = "mdc-stats-cache"
@@ -363,6 +377,59 @@ async function clearCachedData(): Promise<void> {
     await clearIndexedCache(database)
   } finally {
     database.close()
+  }
+}
+
+function readUpstreamMeta(): CachedUpstreamMeta | null {
+  try {
+    const raw = localStorage.getItem(UPSTREAM_SIGNATURE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as CachedUpstreamMeta
+    if (!parsed || typeof parsed.savedAt !== "number" || !parsed.signature) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeUpstreamMeta(signature: UpstreamSignature): void {
+  try {
+    localStorage.setItem(
+      UPSTREAM_SIGNATURE_KEY,
+      JSON.stringify({
+        savedAt: Date.now(),
+        signature,
+      } satisfies CachedUpstreamMeta),
+    )
+  } catch {
+    // ignore
+  }
+}
+
+function readPagesMeta(): CachedPagesMeta | null {
+  try {
+    const raw = localStorage.getItem(UPSTREAM_PAGES_META_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as CachedPagesMeta
+    if (!parsed || typeof parsed.savedAt !== "number" || typeof parsed.pagesTotal !== "number") return null
+    return parsed.pagesTotal > 0 ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function writePagesMeta(pagesTotal: number): void {
+  if (!Number.isFinite(pagesTotal) || pagesTotal <= 0) return
+  try {
+    localStorage.setItem(
+      UPSTREAM_PAGES_META_KEY,
+      JSON.stringify({
+        savedAt: Date.now(),
+        pagesTotal: Math.floor(pagesTotal),
+      } satisfies CachedPagesMeta),
+    )
+  } catch {
+    // ignore
   }
 }
 
@@ -1340,11 +1407,47 @@ export default function YearReviewPage() {
       ...latestProgress,
     })
     try {
+      // Fast path: if upstream hasn't changed, skip heavy sync altogether.
+      if (forceRefresh && !resetCache) {
+        try {
+          const previousUpstream = readUpstreamMeta()
+          const signature = await fetchUpstreamSignature({ forceRefresh: true, publish: true })
+          const sameEtag = previousUpstream?.signature.etag && signature.etag && previousUpstream.signature.etag === signature.etag
+          const sameLastModified =
+            previousUpstream?.signature.lastModified &&
+            signature.lastModified &&
+            previousUpstream.signature.lastModified === signature.lastModified
+
+          if ((sameEtag || sameLastModified) && cached) {
+            setSyncProgress((current) => ({
+              active: false,
+              startedAt: current?.startedAt ?? startedAt,
+              mode: current?.mode ?? syncMode,
+              percent: 100,
+              stage: "done",
+              message: "Источник не изменился — синхронизация не требуется",
+              finishedAt: Date.now(),
+            }))
+            setLastSyncReport(null)
+            setIsRefreshing(false)
+            return true
+          }
+
+          writeUpstreamMeta(signature)
+        } catch {
+          // If signature check fails, proceed with normal sync.
+        }
+      }
+
+      const pagesMeta = readPagesMeta()
+      const protocolFromPage = pagesMeta?.pagesTotal ? Math.max(0, pagesMeta.pagesTotal - 2) : 0
+
       const normalizedData = await fetchAllData({
         forceRefresh,
         publish: true,
         skipPagedStats: false,
         preferSplitEndpoints: Boolean(cached) && !resetCache,
+        protocolFromPage: forceRefresh && !resetCache ? protocolFromPage : 0,
         onProgress: (progress) => {
           latestProgress = progress
           setSyncProgress((current) => ({
@@ -1370,6 +1473,9 @@ export default function YearReviewPage() {
       await writeCachedData(finalData, savedAt)
       setLastUpdatedAt(savedAt)
       setLastSyncReport(syncReport)
+      if (typeof latestProgress.pagesTotal === "number" && latestProgress.pagesTotal > 0) {
+        writePagesMeta(latestProgress.pagesTotal)
+      }
       setSyncProgress((current) => ({
         active: false,
         startedAt: current?.startedAt ?? startedAt,
@@ -1407,11 +1513,7 @@ export default function YearReviewPage() {
   useEffect(() => {
     let isMounted = true
 
-    void loadData(false, false).then((usedCachedData) => {
-      if (isMounted && usedCachedData) {
-        void loadData(true, false)
-      }
-    })
+    void loadData(false, false)
 
     return () => {
       isMounted = false
