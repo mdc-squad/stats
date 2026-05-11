@@ -9,6 +9,33 @@ test("pinned calendar weekday guide stays above the first week", async ({ page }
   const floatingGuide = page.getByTestId("calendar-weekday-guide-floating")
   await expect(floatingGuide).toBeVisible({ timeout: 120_000 })
 
+  for (const scrollY of [300, 600]) {
+    await page.evaluate((value) => window.scrollTo(0, value), scrollY)
+    await page.waitForTimeout(180)
+
+    const floatingOverlap = await page.evaluate(() => {
+      const guide = document.querySelector<HTMLElement>("[data-testid='calendar-weekday-guide-floating']")
+      if (!guide) return null
+
+      const guideRect = guide.getBoundingClientRect()
+      const weeks = [...document.querySelectorAll<HTMLElement>("[data-calendar-week-index]")]
+        .map((week) => week.getBoundingClientRect())
+        .filter((rect) => rect.bottom > 0 && rect.top < window.innerHeight)
+
+      return {
+        position: getComputedStyle(guide).position,
+        overlapsWeek: weeks.some((rect) => rect.top < guideRect.bottom + 1 && rect.bottom > guideRect.top + 1),
+      }
+    })
+
+    expect(floatingOverlap).not.toBeNull()
+    expect(floatingOverlap?.position).toBe("relative")
+    expect(floatingOverlap?.overlapsWeek).toBe(false)
+  }
+
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await expect(floatingGuide).toBeVisible()
+
   await floatingGuide.locator("button").click()
 
   const pinnedGuide = page.getByTestId("calendar-weekday-guide-pinned")

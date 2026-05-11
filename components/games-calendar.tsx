@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties, type MouseEvent } from "react"
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties, type MouseEvent } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -926,13 +926,11 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
         data-testid={`calendar-weekday-guide-${mode}`}
         className={cn(
           "rounded-md border border-christmas-gold/20 bg-background text-center text-sm font-bold uppercase tracking-wider text-christmas-gold shadow-lg shadow-black/20",
-          mode === "floating" && "pointer-events-none absolute left-0 right-0 top-0 z-20 transition-transform duration-200 ease-out",
+          mode === "floating" && "pointer-events-none relative z-20",
           mode === "pinned" && "sticky z-30 mb-3",
         )}
         style={
-          mode === "floating"
-            ? { transform: `translateY(${weekdayGuide.top}px)` }
-            : mode === "pinned"
+          mode === "pinned"
               ? { top: weekdayGuideStickyTop }
               : undefined
         }
@@ -1103,12 +1101,9 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
         >
           <div className="min-w-[920px]">
             <div
-              className={cn("relative", !weekdayGuidePinned && "pt-8")}
+              className="relative"
               onMouseMove={handleCalendarMouseMove}
             >
-              {!weekdayGuidePinned ? (
-                renderWeekdayGuide("floating")
-              ) : null}
               <div
                 className="space-y-3"
                 style={
@@ -1121,17 +1116,15 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
                 }
               >
               {calendarWeeks.map((week, weekIndex) => (
-                <div
-                  key={`week-${weekIndex}`}
-                  ref={(node) => {
-                    weekRefs.current[weekIndex] = node
-                  }}
-                  data-calendar-week-index={weekIndex}
-                  className={cn(
-                    "grid grid-cols-7 gap-2 transition-[padding] duration-200",
-                    !weekdayGuidePinned && weekdayGuide.weekIndex === weekIndex && "pt-10",
-                  )}
-                >
+                <Fragment key={`week-${weekIndex}`}>
+                  {!weekdayGuidePinned && weekdayGuide.weekIndex === weekIndex ? renderWeekdayGuide("floating") : null}
+                  <div
+                    ref={(node) => {
+                      weekRefs.current[weekIndex] = node
+                    }}
+                    data-calendar-week-index={weekIndex}
+                    className="grid grid-cols-7 gap-2"
+                  >
                   {week.map((day, dayIndex) => {
                 const dayKey = formatDayKey(day)
                 const dayGames = gamesByDay.get(dayKey) ?? []
@@ -1248,7 +1241,8 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
                   </div>
                 )
                   })}
-                </div>
+                  </div>
+                </Fragment>
               ))}
             </div>
             </div>
