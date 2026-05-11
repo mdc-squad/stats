@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties, type MouseEvent } from "react"
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties, type MouseEvent } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -711,6 +711,8 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
   const [weekdayGuideClipTop, setWeekdayGuideClipTop] = useState(0)
   const [weekdayGuide, setWeekdayGuide] = useState({ weekIndex: 0, top: 0 })
   const calendarScrollerRef = useRef<HTMLDivElement | null>(null)
+  const floatingWeekdayGuideRef = useRef<HTMLDivElement | null>(null)
+  const previousFloatingWeekdayGuideRectRef = useRef<DOMRect | null>(null)
   const weekRefs = useRef<Array<HTMLDivElement | null>>([])
   const weekdayGuideRef = useRef(weekdayGuide)
   const scrollFrameRef = useRef<number | null>(null)
@@ -773,6 +775,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
       const clampedWeekIndex = Math.min(Math.max(weekIndex, 0), Math.max(calendarWeeks.length - 1, 0))
       const weekNode = weekRefs.current[clampedWeekIndex]
       const top = weekNode ? Math.max(0, weekNode.offsetTop - WEEKDAY_GUIDE_OFFSET) : 0
+      previousFloatingWeekdayGuideRectRef.current = floatingWeekdayGuideRef.current?.getBoundingClientRect() ?? null
 
       setWeekdayGuide((current) => {
         if (current.weekIndex === clampedWeekIndex && current.top === top) return current
@@ -868,6 +871,42 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
     }
   }, [moveWeekdayGuideToWeek, weekdayGuidePinned])
 
+  useLayoutEffect(() => {
+    if (weekdayGuidePinned) {
+      previousFloatingWeekdayGuideRectRef.current = null
+      return undefined
+    }
+
+    const node = floatingWeekdayGuideRef.current
+    const previousRect = previousFloatingWeekdayGuideRectRef.current
+    previousFloatingWeekdayGuideRectRef.current = null
+    if (!node || !previousRect) return undefined
+
+    const nextRect = node.getBoundingClientRect()
+    const deltaY = previousRect.top - nextRect.top
+    if (Math.abs(deltaY) < 2) return undefined
+
+    node.style.transition = "none"
+    node.style.transform = `translateY(${deltaY}px)`
+    node.style.opacity = "0.96"
+
+    const frameId = window.requestAnimationFrame(() => {
+      node.style.transition = "transform 180ms ease-out, opacity 160ms ease-out"
+      node.style.transform = "translateY(0)"
+      node.style.opacity = "1"
+    })
+    const timeoutId = window.setTimeout(() => {
+      node.style.transition = ""
+      node.style.transform = ""
+      node.style.opacity = ""
+    }, 220)
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+      window.clearTimeout(timeoutId)
+    }
+  }, [weekdayGuide.weekIndex, weekdayGuidePinned])
+
   useEffect(() => {
     if (!weekdayGuidePinned) return
     let frameId: number | null = null
@@ -923,6 +962,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
 
     return (
       <div
+        ref={mode === "floating" ? floatingWeekdayGuideRef : undefined}
         data-testid={`calendar-weekday-guide-${mode}`}
         className={cn(
           "rounded-md border border-christmas-gold/20 bg-background text-center text-sm font-bold uppercase tracking-wider text-christmas-gold shadow-lg shadow-black/20",

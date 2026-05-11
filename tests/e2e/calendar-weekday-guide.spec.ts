@@ -11,7 +11,7 @@ test("pinned calendar weekday guide stays above the first week", async ({ page }
 
   for (const scrollY of [300, 600]) {
     await page.evaluate((value) => window.scrollTo(0, value), scrollY)
-    await page.waitForTimeout(180)
+    await page.waitForTimeout(260)
 
     const floatingOverlap = await page.evaluate(() => {
       const guide = document.querySelector<HTMLElement>("[data-testid='calendar-weekday-guide-floating']")
