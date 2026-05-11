@@ -4,6 +4,7 @@ const API_BASE = (process.env.NEXT_PUBLIC_MDC_API_BASE ?? DEFAULT_API_BASE).repl
 export type UpstreamSignature = {
   etag: string | null
   lastModified: string | null
+  cachedUpdatedAt: string | null
   url: string
 }
 
@@ -43,6 +44,7 @@ export async function fetchUpstreamSignature(forceRefresh = false): Promise<Upst
     url,
     etag: normalizeHeaderValue(response.headers.get("etag")),
     lastModified: normalizeHeaderValue(response.headers.get("last-modified")),
+    cachedUpdatedAt: normalizeHeaderValue(response.headers.get("x-cached-last-updated-timestamp")),
   }
 }
 
