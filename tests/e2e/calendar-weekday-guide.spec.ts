@@ -16,6 +16,25 @@ test("pinned calendar weekday guide stays above the first week", async ({ page }
   await expect(floatingGuide).toBeHidden()
   await expect(page.getByTestId("calendar-weekday-guide-fixed")).toHaveCount(0)
 
+  const initialPinnedSpacing = await page.evaluate(() => {
+    const guide = document.querySelector<HTMLElement>("[data-testid='calendar-weekday-guide-pinned']")
+    const firstWeek = document.querySelector<HTMLElement>("[data-calendar-week-index='0']")
+    const weeks = firstWeek?.parentElement
+    if (!guide || !firstWeek || !weeks) return null
+
+    const guideRect = guide.getBoundingClientRect()
+    const firstWeekRect = firstWeek.getBoundingClientRect()
+
+    return {
+      gap: firstWeekRect.top - guideRect.bottom,
+      paddingTop: Number.parseFloat(getComputedStyle(weeks).paddingTop),
+    }
+  })
+
+  expect(initialPinnedSpacing).not.toBeNull()
+  expect(initialPinnedSpacing?.paddingTop).toBe(0)
+  expect(initialPinnedSpacing?.gap).toBeLessThan(20)
+
   const overlap = await page.evaluate(() => {
     const guide = document.querySelector<HTMLElement>("[data-testid='calendar-weekday-guide-pinned']")
     const firstWeek = document.querySelector<HTMLElement>("[data-calendar-week-index='0']")

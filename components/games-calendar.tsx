@@ -707,6 +707,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
   const [weekdayGuidePinned, setWeekdayGuidePinned] = useState(false)
   const [weekdayGuideStickyTop, setWeekdayGuideStickyTop] = useState(WEEKDAY_GUIDE_STICKY_TOP)
   const [weekdayGuideContentOffset, setWeekdayGuideContentOffset] = useState(0)
+  const [weekdayGuideReservedOffset, setWeekdayGuideReservedOffset] = useState(0)
   const [weekdayGuide, setWeekdayGuide] = useState({ weekIndex: 0, top: 0 })
   const weekRefs = useRef<Array<HTMLDivElement | null>>([])
   const weekdayGuideRef = useRef(weekdayGuide)
@@ -858,6 +859,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
   useEffect(() => {
     if (!weekdayGuidePinned) {
       setWeekdayGuideContentOffset(0)
+      setWeekdayGuideReservedOffset(0)
       const frameId = window.requestAnimationFrame(() => moveWeekdayGuideToWeek(weekdayGuideRef.current.weekIndex))
       return () => window.cancelAnimationFrame(frameId)
     }
@@ -874,8 +876,13 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
         const headerRect = document.querySelector<HTMLElement>("[data-testid='seasonal-header']")?.getBoundingClientRect()
         const guide = document.querySelector<HTMLElement>("[data-testid='calendar-weekday-guide-pinned']")
         const stickyTop = Math.max(WEEKDAY_GUIDE_STICKY_TOP, Math.ceil((headerRect?.bottom ?? 0) + 8))
+        const guideRect = guide?.getBoundingClientRect()
+        const isStuck = Boolean(guideRect && guideRect.top <= stickyTop + 1)
+        const reservedOffset = Math.ceil((guideRect?.height ?? 34) + 10)
+
         setWeekdayGuideStickyTop(stickyTop)
-        setWeekdayGuideContentOffset(Math.ceil((guide?.getBoundingClientRect().height ?? 34) + 10))
+        setWeekdayGuideReservedOffset(reservedOffset)
+        setWeekdayGuideContentOffset(isStuck ? reservedOffset : 0)
       })
     }
 
@@ -1094,7 +1101,14 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
               ) : null}
               <div
                 className="space-y-3"
-                style={weekdayGuideContentOffset > 0 ? { paddingTop: weekdayGuideContentOffset } : undefined}
+                style={
+                  weekdayGuideReservedOffset > 0
+                    ? {
+                        paddingTop: weekdayGuideContentOffset,
+                        paddingBottom: Math.max(0, weekdayGuideReservedOffset - weekdayGuideContentOffset),
+                      }
+                    : undefined
+                }
               >
               {calendarWeeks.map((week, weekIndex) => (
                 <div
