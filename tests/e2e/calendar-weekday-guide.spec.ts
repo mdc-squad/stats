@@ -44,21 +44,31 @@ test("pinned calendar weekday guide stays above the first week", async ({ page }
   await expect(fixedGuide).toBeVisible()
   await page.waitForTimeout(100)
 
-  const scrollOverlap = await page.evaluate(() => {
-    const guide = document.querySelector<HTMLElement>("[data-testid='calendar-weekday-guide-fixed']")
-    if (!guide) return null
+  for (const scrollY of [500, 750, 900]) {
+    await page.evaluate((value) => window.scrollTo(0, value), scrollY)
+    await page.waitForTimeout(150)
 
-    const guideRect = guide.getBoundingClientRect()
-    const weeks = [...document.querySelectorAll<HTMLElement>("[data-calendar-week-index]")]
-      .map((week) => week.getBoundingClientRect())
-      .filter((rect) => rect.bottom > 0 && rect.top < window.innerHeight)
+    const scrollOverlap = await page.evaluate(() => {
+      const guide = document.querySelector<HTMLElement>("[data-testid='calendar-weekday-guide-fixed']")
+      const header = document.querySelector<HTMLElement>("[data-testid='seasonal-header']")
+      if (!guide || !header) return null
 
-    return {
-      guideBottom: guideRect.bottom,
-      overlaps: weeks.some((rect) => rect.top < guideRect.bottom + 1 && rect.bottom > guideRect.top + 1),
-    }
-  })
+      const guideRect = guide.getBoundingClientRect()
+      const headerRect = header.getBoundingClientRect()
+      const weeks = [...document.querySelectorAll<HTMLElement>("[data-calendar-week-index]")]
+        .map((week) => week.getBoundingClientRect())
+        .filter((rect) => rect.bottom > 0 && rect.top < window.innerHeight)
 
-  expect(scrollOverlap).not.toBeNull()
-  expect(scrollOverlap?.overlaps).toBe(false)
+      return {
+        guideTop: guideRect.top,
+        headerBottom: headerRect.bottom,
+        hiddenUnderHeader: guideRect.top < headerRect.bottom - 1,
+        hasWeekStartingUnderGuide: weeks.some((rect) => rect.top >= guideRect.top - 1 && rect.top < guideRect.bottom + 8),
+      }
+    })
+
+    expect(scrollOverlap).not.toBeNull()
+    expect(scrollOverlap?.hiddenUnderHeader).toBe(false)
+    expect(scrollOverlap?.hasWeekStartingUnderGuide).toBe(false)
+  }
 })

@@ -65,7 +65,7 @@ type HolidayInfo = { label: string; nonWorking: boolean; countries?: HolidayCoun
 const WEEK_DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 const WEEKDAY_GUIDE_OFFSET = 0
 const WEEKDAY_GUIDE_MOUSE_LOCK_MS = 650
-const WEEKDAY_GUIDE_STICKY_TOP = 76
+const WEEKDAY_GUIDE_STICKY_TOP = 12
 const LINEUP_API_BASE = (process.env.NEXT_PUBLIC_MDC_API_BASE ?? "https://api.hungryfishteam.org/gas/mdc").replace(/\/$/, "")
 const LINEUP_API_URL = `${LINEUP_API_BASE}/lineup?publish=true`
 const MONTH_NAMES = [
@@ -706,7 +706,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
   const [lineupAvailability, setLineupAvailability] = useState<LineupAvailability | null>(null)
   const [weekdayGuidePinned, setWeekdayGuidePinned] = useState(false)
   const [weekdayGuideFixed, setWeekdayGuideFixed] = useState(false)
-  const [weekdayGuideFixedRect, setWeekdayGuideFixedRect] = useState({ left: 0, width: 0 })
+  const [weekdayGuideFixedRect, setWeekdayGuideFixedRect] = useState({ left: 0, top: WEEKDAY_GUIDE_STICKY_TOP, width: 0 })
   const [weekdayGuideContentOffset, setWeekdayGuideContentOffset] = useState(0)
   const [weekdayGuide, setWeekdayGuide] = useState({ weekIndex: 0, top: 0 })
   const calendarInnerRef = useRef<HTMLDivElement | null>(null)
@@ -882,21 +882,23 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
         frameId = null
         const slotRect = pinnedWeekdayGuideSlotRef.current?.getBoundingClientRect()
         const innerRect = calendarInnerRef.current?.getBoundingClientRect()
-        const shouldFix = Boolean(slotRect && slotRect.top <= WEEKDAY_GUIDE_STICKY_TOP)
+        const headerRect = document.querySelector<HTMLElement>("[data-testid='seasonal-header']")?.getBoundingClientRect()
+        const stickyTop = Math.max(WEEKDAY_GUIDE_STICKY_TOP, Math.ceil((headerRect?.bottom ?? 0) + 8))
+        const shouldFix = Boolean(slotRect && slotRect.top <= stickyTop)
 
         setWeekdayGuideFixed(shouldFix)
         if (!shouldFix || !slotRect) {
           setWeekdayGuideContentOffset(0)
         } else {
-          const guideBottom = WEEKDAY_GUIDE_STICKY_TOP + slotRect.height
+          const guideBottom = stickyTop + slotRect.height
           const currentOffset = weekdayGuideContentOffsetRef.current
           const overlapOffset = weekRefs.current.reduce((maxOffset, weekNode) => {
             if (!weekNode) return maxOffset
             const rect = weekNode.getBoundingClientRect()
             const baseTop = rect.top - currentOffset
             const baseBottom = rect.bottom - currentOffset
-            if (baseBottom <= WEEKDAY_GUIDE_STICKY_TOP || baseTop >= window.innerHeight) return maxOffset
-            if (baseTop < guideBottom + 8 && baseBottom > WEEKDAY_GUIDE_STICKY_TOP) {
+            if (baseBottom <= stickyTop || baseTop >= window.innerHeight) return maxOffset
+            if (baseTop < guideBottom + 8 && baseBottom > stickyTop) {
               return Math.max(maxOffset, Math.ceil(guideBottom - baseTop + 8))
             }
             return maxOffset
@@ -906,6 +908,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
         if (innerRect) {
           setWeekdayGuideFixedRect({
             left: Math.round(innerRect.left),
+            top: stickyTop,
             width: Math.round(innerRect.width),
           })
         }
@@ -956,7 +959,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
             ? { transform: `translateY(${weekdayGuide.top}px)` }
             : mode === "fixed"
               ? {
-                  top: WEEKDAY_GUIDE_STICKY_TOP,
+                  top: weekdayGuideFixedRect.top,
                   left: weekdayGuideFixedRect.left,
                   width: weekdayGuideFixedRect.width,
                 }
@@ -1125,22 +1128,9 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
             {weekdayGuidePinned ? (
               <div
                 ref={pinnedWeekdayGuideSlotRef}
-                data-testid="calendar-weekday-guide-pinned"
                 className={cn(weekdayGuideFixed && "invisible")}
               >
-                <div className="grid grid-cols-7 gap-2">
-                  {WEEK_DAYS.map((day) => <div key={day} className="py-1.5">{day}</div>)}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setWeekdayGuidePinned((pinned) => !pinned)}
-                  title={weekdayGuidePinned ? "РћС‚РєСЂРµРїРёС‚СЊ РґРЅРё РЅРµРґРµР»Рё" : "Р—Р°РєСЂРµРїРёС‚СЊ РґРЅРё РЅРµРґРµР»Рё СЃРІРµСЂС…Сѓ"}
-                  aria-label={weekdayGuidePinned ? "РћС‚РєСЂРµРїРёС‚СЊ РґРЅРё РЅРµРґРµР»Рё" : "Р—Р°РєСЂРµРїРёС‚СЊ РґРЅРё РЅРµРґРµР»Рё СЃРІРµСЂС…Сѓ"}
-                  aria-pressed={weekdayGuidePinned}
-                  className="absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded bg-christmas-gold/15 text-christmas-gold transition-colors"
-                >
-                  <Pin className="h-3.5 w-3.5 fill-current" />
-                </button>
+                {renderWeekdayGuide("pinned")}
               </div>
             ) : null}
             {weekdayGuidePinned && weekdayGuideFixed ? renderWeekdayGuide("fixed") : null}
@@ -1149,25 +1139,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
               onMouseMove={handleCalendarMouseMove}
             >
               {!weekdayGuidePinned ? (
-                <div
-                  data-testid="calendar-weekday-guide-floating"
-                  className="pointer-events-none absolute left-0 right-0 top-0 z-20 rounded-md border border-christmas-gold/20 bg-card/95 text-center text-sm font-bold uppercase tracking-wider text-christmas-gold shadow-lg shadow-black/20 backdrop-blur transition-transform duration-200 ease-out"
-                  style={{ transform: `translateY(${weekdayGuide.top}px)` }}
-                >
-              <div className="grid grid-cols-7 gap-2">
-                {WEEK_DAYS.map((day) => <div key={day} className="py-1.5">{day}</div>)}
-              </div>
-              <button
-                type="button"
-                onClick={() => setWeekdayGuidePinned((pinned) => !pinned)}
-                title={weekdayGuidePinned ? "Открепить дни недели" : "Закрепить дни недели сверху"}
-                aria-label={weekdayGuidePinned ? "Открепить дни недели" : "Закрепить дни недели сверху"}
-                aria-pressed={weekdayGuidePinned}
-                className="pointer-events-auto absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded bg-transparent text-christmas-gold transition-colors hover:bg-christmas-gold/10"
-              >
-                <Pin className="h-3.5 w-3.5" />
-              </button>
-                </div>
+                renderWeekdayGuide("floating")
               ) : null}
               <div
                 className="space-y-3"
