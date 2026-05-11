@@ -74,4 +74,16 @@ test("pinned calendar weekday guide stays above the first week", async ({ page }
     expect(scrollOverlap?.hiddenUnderHeader).toBe(false)
     expect(scrollOverlap?.hasWeekStartingUnderGuide).toBe(false)
   }
+
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+  await page.waitForTimeout(150)
+  const beforeWheel = await page.evaluate(() => window.scrollY)
+
+  for (let index = 0; index < 6; index += 1) {
+    await page.mouse.wheel(0, 900)
+    await page.waitForTimeout(80)
+  }
+
+  const afterWheel = await page.evaluate(() => window.scrollY)
+  expect(Math.abs(afterWheel - beforeWheel)).toBeLessThanOrEqual(2)
 })

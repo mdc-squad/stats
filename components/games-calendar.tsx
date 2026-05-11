@@ -710,7 +710,6 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
   const [weekdayGuide, setWeekdayGuide] = useState({ weekIndex: 0, top: 0 })
   const weekRefs = useRef<Array<HTMLDivElement | null>>([])
   const weekdayGuideRef = useRef(weekdayGuide)
-  const weekdayGuideContentOffsetRef = useRef(0)
   const scrollFrameRef = useRef<number | null>(null)
   const mouseFrameRef = useRef<number | null>(null)
   const mouseLockUntilRef = useRef(0)
@@ -765,10 +764,6 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
   useEffect(() => {
     weekdayGuideRef.current = weekdayGuide
   }, [weekdayGuide])
-
-  useEffect(() => {
-    weekdayGuideContentOffsetRef.current = weekdayGuideContentOffset
-  }, [weekdayGuideContentOffset])
 
   const moveWeekdayGuideToWeek = useCallback(
     (weekIndex: number) => {
@@ -880,27 +875,7 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
         const guide = document.querySelector<HTMLElement>("[data-testid='calendar-weekday-guide-pinned']")
         const stickyTop = Math.max(WEEKDAY_GUIDE_STICKY_TOP, Math.ceil((headerRect?.bottom ?? 0) + 8))
         setWeekdayGuideStickyTop(stickyTop)
-
-        const guideRect = guide?.getBoundingClientRect()
-        if (!guideRect || guideRect.top > stickyTop + 1) {
-          setWeekdayGuideContentOffset(0)
-          return
-        }
-
-        const currentOffset = weekdayGuideContentOffsetRef.current
-        const guideBottom = guideRect.bottom + 10
-        const offset = weekRefs.current.reduce((maxOffset, weekNode) => {
-          if (!weekNode) return maxOffset
-          const rect = weekNode.getBoundingClientRect()
-          const baseTop = rect.top - currentOffset
-          const baseBottom = rect.bottom - currentOffset
-          if (baseBottom <= guideRect.top || baseTop >= window.innerHeight) return maxOffset
-          if (baseTop < guideBottom && baseBottom > guideRect.top) {
-            return Math.max(maxOffset, Math.ceil(guideBottom - baseTop))
-          }
-          return maxOffset
-        }, 0)
-        setWeekdayGuideContentOffset(offset)
+        setWeekdayGuideContentOffset(Math.ceil((guide?.getBoundingClientRect().height ?? 34) + 10))
       })
     }
 
