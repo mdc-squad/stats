@@ -705,7 +705,11 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
   const [holidayFilter, setHolidayFilter] = useState<HolidayFilter>("all")
   const [lineupAvailability, setLineupAvailability] = useState<LineupAvailability | null>(null)
   const [weekdayGuidePinned, setWeekdayGuidePinned] = useState(false)
+  const [weekdayGuideFixed, setWeekdayGuideFixed] = useState(false)
+  const [weekdayGuideFixedRect, setWeekdayGuideFixedRect] = useState({ left: 0, width: 0 })
   const [weekdayGuide, setWeekdayGuide] = useState({ weekIndex: 0, top: 0 })
+  const calendarInnerRef = useRef<HTMLDivElement | null>(null)
+  const pinnedWeekdayGuideSlotRef = useRef<HTMLDivElement | null>(null)
   const weekRefs = useRef<Array<HTMLDivElement | null>>([])
   const weekdayGuideRef = useRef(weekdayGuide)
   const scrollFrameRef = useRef<number | null>(null)
@@ -855,10 +859,44 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
 
   useEffect(() => {
     if (!weekdayGuidePinned) {
+      setWeekdayGuideFixed(false)
       const frameId = window.requestAnimationFrame(() => moveWeekdayGuideToWeek(weekdayGuideRef.current.weekIndex))
       return () => window.cancelAnimationFrame(frameId)
     }
   }, [moveWeekdayGuideToWeek, weekdayGuidePinned])
+
+  useEffect(() => {
+    if (!weekdayGuidePinned) return
+    let frameId: number | null = null
+
+    const updateFixedGuide = () => {
+      if (frameId !== null) return
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null
+        const slotRect = pinnedWeekdayGuideSlotRef.current?.getBoundingClientRect()
+        const innerRect = calendarInnerRef.current?.getBoundingClientRect()
+        const shouldFix = Boolean(slotRect && slotRect.top <= WEEKDAY_GUIDE_STICKY_TOP)
+
+        setWeekdayGuideFixed(shouldFix)
+        if (innerRect) {
+          setWeekdayGuideFixedRect({
+            left: Math.round(innerRect.left),
+            width: Math.round(innerRect.width),
+          })
+        }
+      })
+    }
+
+    updateFixedGuide()
+    window.addEventListener("scroll", updateFixedGuide, { passive: true })
+    window.addEventListener("resize", updateFixedGuide)
+
+    return () => {
+      window.removeEventListener("scroll", updateFixedGuide)
+      window.removeEventListener("resize", updateFixedGuide)
+      if (frameId !== null) window.cancelAnimationFrame(frameId)
+    }
+  }, [weekdayGuidePinned])
 
   useEffect(() => {
     return () => {
@@ -874,6 +912,50 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
     if (Number.isFinite(weekIndex)) {
       scheduleWeekdayGuideMove(weekIndex, "mouse")
     }
+  }
+
+  const renderWeekdayGuide = (mode: "pinned" | "fixed" | "floating") => {
+    const isPinnedMode = mode !== "floating"
+
+    return (
+      <div
+        data-testid={`calendar-weekday-guide-${mode}`}
+        className={cn(
+          "rounded-md border border-christmas-gold/20 bg-card/95 text-center text-sm font-bold uppercase tracking-wider text-christmas-gold shadow-lg shadow-black/20 backdrop-blur",
+          mode === "floating" && "pointer-events-none absolute left-0 right-0 top-0 z-20 transition-transform duration-200 ease-out",
+          mode === "fixed" && "fixed z-50",
+          mode === "pinned" && "relative z-10 mb-3",
+        )}
+        style={
+          mode === "floating"
+            ? { transform: `translateY(${weekdayGuide.top}px)` }
+            : mode === "fixed"
+              ? {
+                  top: WEEKDAY_GUIDE_STICKY_TOP,
+                  left: weekdayGuideFixedRect.left,
+                  width: weekdayGuideFixedRect.width,
+                }
+              : undefined
+        }
+      >
+        <div className="grid grid-cols-7 gap-2">
+          {WEEK_DAYS.map((day) => <div key={day} className="py-1.5">{day}</div>)}
+        </div>
+        <button
+          type="button"
+          onClick={() => setWeekdayGuidePinned((pinned) => !pinned)}
+          title={isPinnedMode ? "Открепить дни недели" : "Закрепить дни недели сверху"}
+          aria-label={isPinnedMode ? "Открепить дни недели" : "Закрепить дни недели сверху"}
+          aria-pressed={weekdayGuidePinned}
+          className={cn(
+            "pointer-events-auto absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-christmas-gold transition-colors",
+            isPinnedMode ? "bg-christmas-gold/15" : "bg-transparent hover:bg-christmas-gold/10",
+          )}
+        >
+          <Pin className={cn("h-3.5 w-3.5", isPinnedMode && "fill-current")} />
+        </button>
+      </div>
+    )
   }
 
   const gamesByDay = useMemo(() => {
@@ -1014,11 +1096,15 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="overflow-x-auto pb-1">
-          <div className="min-w-[920px]">
+          <div ref={calendarInnerRef} className="min-w-[920px]">
             {weekdayGuidePinned ? (
               <div
-                className="sticky z-20 mb-3 rounded-md border border-christmas-gold/20 bg-card/95 text-center text-sm font-bold uppercase tracking-wider text-christmas-gold shadow-lg shadow-black/20 backdrop-blur"
-                style={{ top: WEEKDAY_GUIDE_STICKY_TOP }}
+                ref={pinnedWeekdayGuideSlotRef}
+                data-testid="calendar-weekday-guide-pinned"
+                className={cn(
+                  "relative z-10 mb-3 rounded-md border border-christmas-gold/20 bg-card/95 text-center text-sm font-bold uppercase tracking-wider text-christmas-gold shadow-lg shadow-black/20 backdrop-blur",
+                  weekdayGuideFixed && "invisible",
+                )}
               >
                 <div className="grid grid-cols-7 gap-2">
                   {WEEK_DAYS.map((day) => <div key={day} className="py-1.5">{day}</div>)}
@@ -1035,12 +1121,14 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
                 </button>
               </div>
             ) : null}
+            {weekdayGuidePinned && weekdayGuideFixed ? renderWeekdayGuide("fixed") : null}
             <div
               className={cn("relative", !weekdayGuidePinned && "pt-8")}
               onMouseMove={handleCalendarMouseMove}
             >
               {!weekdayGuidePinned ? (
                 <div
+                  data-testid="calendar-weekday-guide-floating"
                   className="pointer-events-none absolute left-0 right-0 top-0 z-20 rounded-md border border-christmas-gold/20 bg-card/95 text-center text-sm font-bold uppercase tracking-wider text-christmas-gold shadow-lg shadow-black/20 backdrop-blur transition-transform duration-200 ease-out"
                   style={{ transform: `translateY(${weekdayGuide.top}px)` }}
                 >
