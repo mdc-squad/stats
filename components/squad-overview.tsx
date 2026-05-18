@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getMetricIcon, type AppMetricIconKey } from "@/lib/app-icons"
+import { getRatingMetricHelp } from "@/lib/rating-metric-help"
 import type { PastGamePlayerStat, PastGameSummary, Player } from "@/lib/data-utils"
 import { cn } from "@/lib/utils"
 import { getSquadLabels, getSquadToneClasses, getSquadToneKey, isSelectableSquadLabel, type SquadToneKey } from "@/lib/squad-utils"
@@ -127,12 +128,14 @@ function playerMetricDigits(metric: SquadMetricKey) {
 }
 function MetricTile({ metric, value, compact = false }: { metric: MetricDef; value: number; compact?: boolean }) {
   const Icon = getMetricIcon(metric.icon)
-  return <Tooltip><TooltipTrigger asChild><div className={cn("rounded-lg border border-border/50 bg-background/35 p-3 text-center", compact && "p-2")}><p className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground"><Icon className="h-3.5 w-3.5 text-christmas-gold" /><span className="truncate">{metric.label}</span></p><p className={cn("mt-2 font-semibold text-christmas-snow", compact ? "text-sm" : "text-lg")}>{fNum(value, metric.digits)}</p></div></TooltipTrigger><TooltipContent side="top" className="border border-border bg-card text-card-foreground">{metric.label}</TooltipContent></Tooltip>
+  const help = getRatingMetricHelp(metric.key)
+  return <Tooltip><TooltipTrigger asChild><div className={cn("rounded-lg border border-border/50 bg-background/35 p-3 text-center", compact && "p-2")}><p className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground"><Icon className="h-3.5 w-3.5 text-christmas-gold" /><span className="truncate">{metric.label}</span></p><p className={cn("mt-2 font-semibold text-christmas-snow", compact ? "text-sm" : "text-lg")}>{fNum(value, metric.digits)}</p></div></TooltipTrigger><TooltipContent side="top" className="max-w-xs border border-border bg-card text-card-foreground">{help ?? metric.label}</TooltipContent></Tooltip>
 }
 
 function PlayerMetricValue({ metric, value }: { metric: MetricDef; value: number }) {
   const Icon = getMetricIcon(metric.icon)
-  return <Tooltip><TooltipTrigger asChild><div className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-md px-2 py-1 text-center"><Icon className="h-3.5 w-3.5 text-christmas-gold" /><span className="text-[11px] font-medium text-christmas-snow">{fNum(value, playerMetricDigits(metric.key))}</span></div></TooltipTrigger><TooltipContent side="top" className="border border-border bg-card text-card-foreground">{metric.label}</TooltipContent></Tooltip>
+  const help = getRatingMetricHelp(metric.key)
+  return <Tooltip><TooltipTrigger asChild><div className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-md px-2 py-1 text-center"><Icon className="h-3.5 w-3.5 text-christmas-gold" /><span className="text-[11px] font-medium text-christmas-snow">{fNum(value, playerMetricDigits(metric.key))}</span></div></TooltipTrigger><TooltipContent side="top" className="max-w-xs border border-border bg-card text-card-foreground">{help ?? metric.label}</TooltipContent></Tooltip>
 }
 
 function DistributionDonut({ slices, emptyText, iconType = "role" }: { slices: DistributionSlice[]; emptyText: string; iconType?: "role" | "specialization" }) {

@@ -22,10 +22,12 @@ import type {
 } from "@/lib/data-utils"
 import { getPlayerAverageValue, isRoleWithoutKit } from "@/lib/data-utils"
 import { getMetricIcon } from "@/lib/app-icons"
+import { getRatingMetricHelp } from "@/lib/rating-metric-help"
 import { getSquadToneClasses } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
 import { Award, CalendarDays, Download, Flag, MapPinned, Medal, Shield, Sparkles, Timer } from "lucide-react"
 import { toPng } from "html-to-image"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface PlayerCardProps {
   player: Player
@@ -493,7 +495,8 @@ export function PlayerCard({
             <div data-testid="player-card-ratings" className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-4">
               {ratingTiles.map((tile) => {
                 const Icon = tile.icon
-                return (
+                const help = getRatingMetricHelp(tile.key)
+                const tileContent = (
                   <div
                     key={tile.label}
                     className={cn("flex min-h-[82px] min-w-0 flex-col items-center justify-center rounded-xl border px-2.5 py-2.5 text-center", tile.accentClass)}
@@ -505,6 +508,15 @@ export function PlayerCard({
                     </div>
                     <p className="mt-1.5 text-[clamp(1.1rem,2vw,1.9rem)] font-bold leading-none text-christmas-snow">{tile.value}</p>
                   </div>
+                )
+                if (!help) return tileContent
+                return (
+                  <Tooltip key={tile.label}>
+                    <TooltipTrigger asChild>{tileContent}</TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs border border-border bg-card text-card-foreground">
+                      {help}
+                    </TooltipContent>
+                  </Tooltip>
                 )
               })}
             </div>

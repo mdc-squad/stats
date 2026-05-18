@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { withBasePath } from "@/lib/base-path"
 import { getMetricIcon, type AppMetricIconKey } from "@/lib/app-icons"
 import type { PastGameSummary, Player } from "@/lib/data-utils"
+import { getRatingMetricHelp } from "@/lib/rating-metric-help"
 import { cn } from "@/lib/utils"
 
 const LINEUP_API_BASE = (process.env.NEXT_PUBLIC_MDC_API_BASE ?? "https://api.hungryfishteam.org/gas/mdc").replace(/\/$/, "")
@@ -136,9 +137,9 @@ const LINEUP_PLAYER_METRICS: LineupPlayerMetric[] = [
   { key: "avgVehicle", label: "Техника", tooltip: "Техника, в среднем за игру", icon: "vehicle", getValue: (player) => player.totals.avgVehicle, digits: 1 },
   { key: "kd", label: "KD", icon: "kd", getValue: (player) => player.totals.kd, digits: 2 },
   { key: "kda", label: "KDA", icon: "kda", getValue: (player) => player.totals.kda, digits: 2 },
-  { key: "elo", label: "ELO", icon: "elo", getValue: (player) => player.totals.elo, digits: 0 },
-  { key: "tbf", label: "ТБФ", icon: "tbf", getValue: (player) => player.totals.tbf, digits: 0 },
-  { key: "rating", label: "ОР", icon: "rating", getValue: (player) => player.totals.rating, digits: 0 },
+  { key: "elo", label: "ELO", tooltip: getRatingMetricHelp("elo"), icon: "elo", getValue: (player) => player.totals.elo, digits: 0 },
+  { key: "tbf", label: "ТБФ", tooltip: getRatingMetricHelp("tbf"), icon: "tbf", getValue: (player) => player.totals.tbf, digits: 0 },
+  { key: "rating", label: "ОР", tooltip: getRatingMetricHelp("rating"), icon: "rating", getValue: (player) => player.totals.rating, digits: 0 },
 ]
 
 function isMeaningful(value: unknown) {

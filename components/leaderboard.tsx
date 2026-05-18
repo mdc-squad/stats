@@ -7,8 +7,10 @@ import { PlayerAvatar } from "@/components/player-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ChevronDown } from "lucide-react"
 import { type Player } from "@/lib/data-utils"
+import { getRatingMetricHelp } from "@/lib/rating-metric-help"
 import { cn } from "@/lib/utils"
 
 interface LeaderboardProps {
@@ -74,6 +76,7 @@ export function Leaderboard({
       ? `${topPlayer.tag ? `${topPlayer.tag} ` : ""}${topPlayer.nickname} - ${formatValue ? formatValue(topValue) : topValue}`
       : null
   const topAchievements = topPlayer ? playerAchievements?.[topPlayer.player_id] ?? [] : []
+  const titleHelp = getRatingMetricHelp(String(stat))
 
   return (
     <div className="relative">
@@ -86,10 +89,24 @@ export function Leaderboard({
       >
         <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
           <div className="min-w-0">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-christmas-gold">
-              {icon}
-              <span className={cn("truncate", titleClassName)}>{title}</span>
-            </CardTitle>
+            {titleHelp ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <CardTitle className="flex cursor-help items-center gap-2 text-sm font-medium uppercase tracking-wider text-christmas-gold">
+                    {icon}
+                    <span className={cn("truncate", titleClassName)}>{title}</span>
+                  </CardTitle>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs border border-border bg-card text-card-foreground">
+                  {titleHelp}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-christmas-gold">
+                {icon}
+                <span className={cn("truncate", titleClassName)}>{title}</span>
+              </CardTitle>
+            )}
             {isCollapsed && topPlayer && topSummary ? (
               <div className="mt-2">
                 <div className="flex min-w-0 items-center gap-2">
