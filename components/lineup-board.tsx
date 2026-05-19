@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import Image from "next/image"
-import { RefreshCw } from "lucide-react"
+import { RefreshCw, Video } from "lucide-react"
 import { FactionMatchup } from "@/components/faction-icon"
 import { RoleIcon, formatRoleName } from "@/components/role-icon"
 import { SpecializationIcon, getSpecializationLabel } from "@/components/specialization-icon"
@@ -259,6 +259,13 @@ function normalizePlayerLookupText(value: string | null | undefined): string {
 function formatLineupMetricValue(value: number, digits = 1) {
   if (!Number.isFinite(value)) return digits === 0 ? "0" : (0).toFixed(digits)
   return digits === 0 ? Math.round(value).toLocaleString("ru-RU") : value.toFixed(digits)
+}
+
+function formatLineupStaffLabel(players: PastGameSummary["casters"]) {
+  return players
+    .map((player) => [player.tag, player.nickname].map((part) => String(part ?? "").trim()).filter(Boolean).join(" "))
+    .filter(Boolean)
+    .join(", ")
 }
 
 function buildPlayerLookup(players: Player[]) {
@@ -624,6 +631,7 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
   const calendarGame = useMemo(() => findCalendarGameForLineup(lineup, games), [games, lineup])
   const playerLookup = useMemo(() => buildPlayerLookup(players), [players])
   const opponent = calendarGame?.opponent?.trim() ?? ""
+  const casterLabel = calendarGame?.casters?.length ? formatLineupStaffLabel(calendarGame.casters) : ""
   const visibleSquads = SQUAD_ORDER.filter((squadName) => hasSquadContent(currentSide[squadName] ?? []))
   const hasAnyFilledSquad = SQUAD_ORDER.some((squadName) => hasSquadContent(currentSide[squadName] ?? []))
   const hasAnyLineupContent = useMemo(
@@ -695,6 +703,15 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
                       <span className="rounded-full border border-christmas-gold/20 bg-background/35 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                         Соперник: {opponent || "не указан"}
                       </span>
+                    </div>
+                  ) : null}
+                  {casterLabel ? (
+                    <div className="mt-2 flex justify-center">
+                      <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-christmas-gold/20 bg-background/35 px-3 py-1.5 text-xs">
+                        <Video className="h-3.5 w-3.5 shrink-0 text-christmas-gold" />
+                        <span className="shrink-0 text-muted-foreground">Кастер</span>
+                        <span className="truncate font-semibold text-christmas-snow">{casterLabel}</span>
+                      </div>
                     </div>
                   ) : null}
                 </>
