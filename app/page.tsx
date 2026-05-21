@@ -1969,6 +1969,7 @@ export default function YearReviewPage() {
     [competitiveClanPlayerStats, qualifiedCompetitiveClanPlayerIds],
   )
   const fullCompetitiveLeaderboardLimit = Math.max(qualifiedCompetitiveClanPlayers.length, LEADERBOARD_PREVIEW_LIMIT)
+  const fullApiRatingLeaderboardLimit = Math.max(competitiveClanPlayers.length, LEADERBOARD_PREVIEW_LIMIT)
   const fullCompetitiveVehicleLeaderboardLimit = Math.max(
     qualifiedCompetitiveClanPlayers.length,
     VEHICLE_LEADERBOARD_PREVIEW_LIMIT,
@@ -2147,20 +2148,20 @@ export default function YearReviewPage() {
   const leaderboardELO = useMemo(
     () =>
       getTopPlayersByStat(
-        applyApiRatingTotals(qualifiedCompetitiveClanPlayers, rawData?.players, ["elo"]),
+        applyApiRatingTotals(competitiveClanPlayers, rawData?.players, ["elo"]),
         "elo",
-        fullCompetitiveLeaderboardLimit,
+        fullApiRatingLeaderboardLimit,
       ),
-    [fullCompetitiveLeaderboardLimit, qualifiedCompetitiveClanPlayers, rawData?.players],
+    [competitiveClanPlayers, fullApiRatingLeaderboardLimit, rawData?.players],
   )
   const leaderboardTBF = useMemo(
     () =>
       getTopPlayersByStat(
-        applyApiRatingTotals(qualifiedCompetitiveClanPlayers, rawData?.players, ["tbf"]),
+        applyApiRatingTotals(competitiveClanPlayers, rawData?.players, ["tbf"]),
         "tbf",
-        fullCompetitiveLeaderboardLimit,
+        fullApiRatingLeaderboardLimit,
       ),
-    [fullCompetitiveLeaderboardLimit, qualifiedCompetitiveClanPlayers, rawData?.players],
+    [competitiveClanPlayers, fullApiRatingLeaderboardLimit, rawData?.players],
   )
   const leaderboardRating = useMemo(
     () => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "rating", fullCompetitiveLeaderboardLimit),
@@ -3159,7 +3160,7 @@ export default function YearReviewPage() {
           <TabsContent value="leaderboards" className="space-y-4">
             <DataTabFilterCard filters={leaderboardFilters} />
             <p className="text-xs text-muted-foreground">
-              В топ включены игроки с не менее чем {MIN_COMPETITIVE_EVENTS_FOR_TOPS} играми.
+              В большинство топов включены игроки с не менее чем {MIN_COMPETITIVE_EVENTS_FOR_TOPS} играми. ELO и ТБФ берутся напрямую из API.
             </p>
             <div className="space-y-4">
               {leaderboardRows.map((row, rowIndex) => {
