@@ -3160,7 +3160,7 @@ export default function YearReviewPage() {
           <TabsContent value="leaderboards" className="space-y-4">
             <DataTabFilterCard filters={leaderboardFilters} />
             <p className="text-xs text-muted-foreground">
-              В большинство топов включены игроки с не менее чем {MIN_COMPETITIVE_EVENTS_FOR_TOPS} играми. ELO и ТБФ берутся напрямую из API.
+              В топ включены игроки с не менее чем {MIN_COMPETITIVE_EVENTS_FOR_TOPS} играми.
             </p>
             <div className="space-y-4">
               {leaderboardRows.map((row, rowIndex) => {
