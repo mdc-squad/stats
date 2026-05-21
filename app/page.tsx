@@ -2420,6 +2420,13 @@ export default function YearReviewPage() {
     })
   }, [])
 
+  const handleOpenPlayer = useCallback((playerId: string) => {
+    startTransition(() => {
+      setSelectedPlayersForChart([playerId])
+      setActiveTab("progress")
+    })
+  }, [])
+
   const handleOpenCalendarEvent = useCallback((eventId: string) => {
     startTransition(() => {
       setActiveTab("calendar")
@@ -2955,10 +2962,7 @@ export default function YearReviewPage() {
             <LineupBoard
               games={pastGames}
               players={data.players}
-              onOpenPlayer={(playerId) => {
-                setSelectedPlayersForChart([playerId])
-                setActiveTab("progress")
-              }}
+              onOpenPlayer={handleOpenPlayer}
             />
           </TabsContent>
 
@@ -3268,6 +3272,7 @@ export default function YearReviewPage() {
               players={data.players}
               squadDomain={data.dictionaries?.squads ?? []}
               focusTarget={gameFocusTarget}
+              onOpenPlayer={handleOpenPlayer}
             />
           </TabsContent>
 
@@ -3397,10 +3402,7 @@ export default function YearReviewPage() {
               rosterPlayers={data.players}
               squadDomain={groupData?.dictionaries?.squads ?? data.dictionaries?.squads ?? []}
               onOpenGame={(eventId) => handleOpenGame(eventId, "")}
-              onOpenPlayer={(playerId) => {
-                setSelectedPlayersForChart([playerId])
-                setActiveTab("progress")
-              }}
+              onOpenPlayer={handleOpenPlayer}
             />
           </TabsContent>
         </Tabs>

@@ -22,7 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { getMetricIcon } from "@/lib/app-icons"
-import { getEventSizeLabel, type PastGameSummary, type Player } from "@/lib/data-utils"
+import { getEventSizeLabel, type PastGameStaffPlayer, type PastGameSummary, type Player } from "@/lib/data-utils"
 import { getSquadToneClasses, getSquadToneKey, isSelectableSquadLabel } from "@/lib/squad-utils"
 import { cn } from "@/lib/utils"
 import { ArrowLeftRight, Calendar, ClipboardList, Filter, MessageCircle, Play, Search, Trophy, Users, UserX, Video } from "lucide-react"
@@ -195,6 +195,7 @@ interface EventsExplorerProps {
     eventId: string
     playerId: string
   } | null
+  onOpenPlayer?: (playerId: string) => void
 }
 
 type MetricDescriptor = {
@@ -441,11 +442,64 @@ function MetricTableHead({
   )
 }
 
+function formatPlayerDisplayName(player: Pick<PastGameStaffPlayer, "nickname" | "tag">): string {
+  return player.tag ? `${player.tag} ${player.nickname}` : player.nickname
+}
+
+function StaffPlayerLinks({
+  players,
+  emptyLabel,
+  onOpenPlayer,
+}: {
+  players: PastGameStaffPlayer[]
+  emptyLabel: string
+  onOpenPlayer?: (playerId: string) => void
+}) {
+  if (players.length === 0) {
+    return <span className="font-semibold text-christmas-snow">{emptyLabel}</span>
+  }
+
+  return (
+    <span className="block max-h-16 max-w-[420px] overflow-y-auto pr-1 font-semibold leading-relaxed text-christmas-snow">
+      {players.map((player, index) => {
+        const label = formatPlayerDisplayName(player)
+        const separator = index < players.length - 1 ? ", " : ""
+
+        if (!onOpenPlayer) {
+          return (
+            <span key={player.player_id}>
+              {label}
+              {separator}
+            </span>
+          )
+        }
+
+        return (
+          <span key={player.player_id}>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                onOpenPlayer(player.player_id)
+              }}
+              className="rounded-sm text-left text-christmas-snow underline-offset-4 transition-colors hover:text-christmas-gold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-christmas-gold/60"
+            >
+              {label}
+            </button>
+            {separator}
+          </span>
+        )
+      })}
+    </span>
+  )
+}
+
 export function EventsExplorer({
   games,
   players,
   squadDomain,
   focusTarget,
+  onOpenPlayer,
 }: EventsExplorerProps) {
   const [query, setQuery] = useState("")
   const [activeSection, setActiveSection] = useState("matches")
@@ -1032,19 +1086,7 @@ export function EventsExplorer({
                     className: "border-slate-400/20 bg-slate-400/10",
                   },
                 ]
-                const reserveLabel =
-                  game.reservePlayers.length > 0
-                    ? game.reservePlayers.map((player) => (player.tag ? `${player.tag} ${player.nickname}` : player.nickname)).join(", ")
-                    : "нет"
                 const absentPlayers = game.absentPlayers ?? []
-                const absentLabel =
-                  absentPlayers.length > 0
-                    ? absentPlayers.map((player) => (player.tag ? `${player.tag} ${player.nickname}` : player.nickname)).join(", ")
-                    : "нет"
-                const casterLabel =
-                  game.casters.length > 0
-                    ? game.casters.map((player) => (player.tag ? `${player.tag} ${player.nickname}` : player.nickname)).join(", ")
-                    : "нет"
                 const visiblePlayers = getVisiblePlayersForGame(game)
                 const mdcMatchPlayers = visiblePlayers.filter((player) => tagIncludesClan(player.tag, "mdc")).length
                 const graveMatchPlayers = visiblePlayers.filter((player) => tagIncludesClan(player.tag, "grave")).length
@@ -1054,10 +1096,6 @@ export function EventsExplorer({
                     ? game.team_size
                     : visiblePlayers.length
                 const mercMatchPlayers = Math.max(formatPlayers - mdcMatchPlayers - graveMatchPlayers - nklvMatchPlayers, 0)
-                const mvpLabel = game.topPerformer
-                  ? `${game.topPerformer.tag ? `${game.topPerformer.tag} ` : ""}${game.topPerformer.nickname} • #${game.topPerformer.rank}`
-                  : "Нет данных"
-
                 return (
                   <Card
                     key={game.event_id}
@@ -1139,26 +1177,39 @@ export function EventsExplorer({
                               <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
                                 <UserX className="h-3.5 w-3.5 text-christmas-red" />
                                 <span className="text-muted-foreground">Неявка</span>
-                                <span className="block max-h-16 max-w-[420px] overflow-y-auto pr-1 font-semibold leading-relaxed text-christmas-snow">{absentLabel}</span>
+                                <StaffPlayerLinks players={absentPlayers} emptyLabel="нет" onOpenPlayer={onOpenPlayer} />
                               </div>
                             ) : null}
 
                             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
                               <ClipboardList className="h-3.5 w-3.5 text-christmas-snow" />
                               <span className="text-muted-foreground">Резерв</span>
-                              <span className="block max-h-16 max-w-[420px] overflow-y-auto pr-1 font-semibold leading-relaxed text-christmas-snow">{reserveLabel}</span>
+                              <StaffPlayerLinks players={game.reservePlayers} emptyLabel="нет" onOpenPlayer={onOpenPlayer} />
                             </div>
 
                             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
                               <Trophy className="h-3.5 w-3.5 text-christmas-gold" />
                               <span className="text-muted-foreground">MVP</span>
-                              <span className="font-semibold text-christmas-snow">{mvpLabel}</span>
+                              {game.topPerformer ? (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation()
+                                    onOpenPlayer?.(game.topPerformer!.player_id)
+                                  }}
+                                  className="rounded-sm text-left font-semibold text-christmas-snow underline-offset-4 transition-colors hover:text-christmas-gold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-christmas-gold/60"
+                                >
+                                  {formatPlayerDisplayName(game.topPerformer)} • #{game.topPerformer.rank}
+                                </button>
+                              ) : (
+                                <span className="font-semibold text-christmas-snow">Нет данных</span>
+                              )}
                             </div>
 
                             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
                               <Video className="h-3.5 w-3.5 text-christmas-snow" />
                               <span className="text-muted-foreground">Кастер</span>
-                              <span className="font-semibold text-christmas-snow">{casterLabel}</span>
+                              <StaffPlayerLinks players={game.casters} emptyLabel="нет" onOpenPlayer={onOpenPlayer} />
                             </div>
 
                             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-xs">
@@ -1234,14 +1285,22 @@ export function EventsExplorer({
                                       <TableRow key={`${game.event_id}-${player.player_id}`} className={getSquadRowClassName(isHighlighted)}>
                                         <TableCell className="font-mono text-christmas-gold">#{player.rank}</TableCell>
                                         <TableCell className="max-w-[240px]">
-                                          <div className="flex items-center gap-3">
+                                          <button
+                                            type="button"
+                                            onClick={(event) => {
+                                              event.stopPropagation()
+                                              onOpenPlayer?.(player.player_id)
+                                            }}
+                                            className="group flex max-w-full items-center gap-3 rounded-md text-left transition-colors hover:text-christmas-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-christmas-gold/60"
+                                            title={`Открыть карточку: ${formatPlayerDisplayName(player)}`}
+                                          >
                                             <PlayerAvatar steamId={player.steam_id} nickname={player.nickname} size="sm" />
                                             <div className="min-w-0">
-                                              <p className="truncate font-medium text-christmas-snow">
+                                              <p className="truncate font-medium text-christmas-snow transition-colors group-hover:text-christmas-gold">
                                                 {player.tag ? `${player.tag} ${player.nickname}` : player.nickname}
                                               </p>
                                             </div>
-                                          </div>
+                                          </button>
                                         </TableCell>
                                         <TableCell className="text-center">
                                           <Tooltip>
@@ -1337,7 +1396,7 @@ export function EventsExplorer({
         </TabsContent>
 
         <TabsContent value="leaderboards" className="mt-0 space-y-3">
-          <GameSliceLeaderboards games={scopedFilteredGames} selectedPlayerIds={matchPlayerIds} />
+          <GameSliceLeaderboards games={scopedFilteredGames} selectedPlayerIds={matchPlayerIds} onOpenPlayer={onOpenPlayer} />
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-0">

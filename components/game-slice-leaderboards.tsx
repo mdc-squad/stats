@@ -12,6 +12,7 @@ import { ChevronDown, Crosshair, Map as MapIcon, Shield, Skull, Trophy } from "l
 interface GameSliceLeaderboardsProps {
   games: PastGameSummary[]
   selectedPlayerIds: string[]
+  onOpenPlayer?: (playerId: string) => void
 }
 
 type LeaderboardItem = {
@@ -25,6 +26,7 @@ type LeaderboardItem = {
   steamId?: string
   nickname?: string
   tag?: string
+  playerId?: string
 }
 
 type LeaderboardCardConfig = {
@@ -68,6 +70,7 @@ function SliceLeaderboardCard({
   icon: Icon,
   isExpanded,
   onToggle,
+  onOpenPlayer,
 }: {
   title: string
   subtitle: string
@@ -76,6 +79,7 @@ function SliceLeaderboardCard({
   icon: typeof Trophy
   isExpanded: boolean
   onToggle: () => void
+  onOpenPlayer?: (playerId: string) => void
 }) {
   const topItem = items[0]
   const previewLabel = topItem ? `${topItem.tag ? `${topItem.tag} ` : ""}${topItem.label}` : ""
@@ -90,12 +94,21 @@ function SliceLeaderboardCard({
               {title}
             </CardTitle>
             {!isExpanded && topItem ? (
-              <div className="flex min-w-0 items-center gap-2">
+              <button
+                type="button"
+                disabled={!topItem.playerId || !onOpenPlayer}
+                onClick={() => {
+                  if (topItem.playerId) {
+                    onOpenPlayer?.(topItem.playerId)
+                  }
+                }}
+                className="group flex min-w-0 items-center gap-2 rounded-md text-left disabled:cursor-default"
+              >
                 {topItem.steamId ? <PlayerAvatar steamId={topItem.steamId} nickname={topItem.nickname || topItem.label} size="sm" /> : null}
-                <p className="truncate text-sm font-medium text-christmas-snow">
+                <p className="truncate text-sm font-medium text-christmas-snow transition-colors group-enabled:group-hover:text-christmas-gold">
                   {`${previewLabel} - ${topItem.metricLabel}: ${topItem.metric}`}
                 </p>
-              </div>
+              </button>
             ) : (
               <p className="text-sm text-muted-foreground">{subtitle}</p>
             )}
@@ -127,10 +140,23 @@ function SliceLeaderboardCard({
                   <PlayerAvatar steamId={item.steamId} nickname={item.nickname || item.label} size="sm" />
                 ) : null}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-christmas-snow">
-                    {item.tag ? <span className="mr-1 text-christmas-snow">{item.tag}</span> : null}
-                    {item.label}
-                  </p>
+                  {item.playerId && onOpenPlayer ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenPlayer(item.playerId!)}
+                      className="group max-w-full rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-christmas-gold/60"
+                    >
+                      <p className="truncate text-sm font-medium text-christmas-snow transition-colors group-hover:text-christmas-gold">
+                        {item.tag ? <span className="mr-1">{item.tag}</span> : null}
+                        {item.label}
+                      </p>
+                    </button>
+                  ) : (
+                    <p className="truncate text-sm font-medium text-christmas-snow">
+                      {item.tag ? <span className="mr-1 text-christmas-snow">{item.tag}</span> : null}
+                      {item.label}
+                    </p>
+                  )}
                   <p className="truncate text-[11px] text-muted-foreground">{item.subtitle}</p>
                 </div>
                 <div className="min-w-[132px] text-right">
@@ -149,7 +175,7 @@ function SliceLeaderboardCard({
   )
 }
 
-export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLeaderboardsProps) {
+export function GameSliceLeaderboards({ games, selectedPlayerIds, onOpenPlayer }: GameSliceLeaderboardsProps) {
   const RevivesIcon = getMetricIcon("revives")
   const [expandedRows, setExpandedRows] = useState<number[]>([])
 
@@ -529,6 +555,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           steamId: entry.steam_id,
           nickname: entry.nickname,
           tag: entry.tag,
+          playerId: entry.player_id,
         })),
       killerOpponents: playerOpponentRows
         .sort((left, right) => {
@@ -549,6 +576,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           steamId: entry.steam_id,
           nickname: entry.nickname,
           tag: entry.tag,
+          playerId: entry.player_id,
         })),
       strongMatchPlayers: strongPlayerRows
         .sort((left, right) => {
@@ -568,6 +596,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
           steamId: entry.steam_id,
           nickname: entry.nickname,
           tag: entry.tag,
+          playerId: entry.player_id,
         })),
       matchCount: relevantGames.length,
     }
@@ -663,6 +692,7 @@ export function GameSliceLeaderboards({ games, selectedPlayerIds }: GameSliceLea
                   icon={card.icon}
                   isExpanded={isExpanded}
                   onToggle={() => toggleRow(rowIndex)}
+                  onOpenPlayer={onOpenPlayer}
                 />
               ))}
             </div>
