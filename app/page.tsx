@@ -1290,6 +1290,14 @@ export default function YearReviewPage() {
   const [, setLastSyncReport] = useState<SyncReport | null>(null)
   const rawDataRef = useRef<MDCData | null>(null)
   const calendarSectionRef = useRef<HTMLDivElement | null>(null)
+  const playerSectionRef = useRef<HTMLDivElement | null>(null)
+
+  const scrollToPlayerSectionStart = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const target = document.getElementById("player-progress-picker-card") ?? playerSectionRef.current
+    if (!target) return
+
+    target.scrollIntoView({ behavior, block: "start" })
+  }, [])
 
   useEffect(() => {
     rawDataRef.current = rawData
@@ -2421,11 +2429,21 @@ export default function YearReviewPage() {
   }, [])
 
   const handleOpenPlayer = useCallback((playerId: string) => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+
     startTransition(() => {
       setSelectedPlayersForChart([playerId])
       setActiveTab("progress")
     })
-  }, [])
+    window.setTimeout(() => {
+      scrollToPlayerSectionStart("auto")
+    }, 120)
+    window.setTimeout(() => {
+      scrollToPlayerSectionStart("smooth")
+    }, 360)
+  }, [scrollToPlayerSectionStart])
 
   const handleOpenCalendarEvent = useCallback((eventId: string) => {
     startTransition(() => {
@@ -3277,9 +3295,9 @@ export default function YearReviewPage() {
           </TabsContent>
 
           {/* Player Progress Tab */}
-          <TabsContent value="progress" className="space-y-4">
+          <TabsContent id="player-progress-section" value="progress" className="space-y-4" ref={playerSectionRef}>
             <DataTabFilterCard filters={playerFilters} />
-            <Card className="border-christmas-gold/20">
+            <Card id="player-progress-picker-card" className="border-christmas-gold/20">
               <CardHeader>
                 <CardTitle className="text-base text-christmas-snow">Выберите игроков для просмотра статистики</CardTitle>
               </CardHeader>
