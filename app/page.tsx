@@ -591,6 +591,37 @@ function haveSameStringSet(left: string[], right: string[]): boolean {
   return left.every((value) => rightSet.has(value))
 }
 
+function applyApiRatingTotals(
+  players: Player[],
+  apiPlayers: Player[] | undefined,
+  fields: Array<"elo" | "tbf">,
+): Player[] {
+  if (!apiPlayers?.length || fields.length === 0) {
+    return players
+  }
+
+  const apiPlayersById = new Map(apiPlayers.map((player) => [player.player_id, player]))
+
+  return players.map((player) => {
+    const apiPlayer = apiPlayersById.get(player.player_id)
+    if (!apiPlayer) {
+      return player
+    }
+
+    let totals = player.totals
+    fields.forEach((field) => {
+      const apiValue = apiPlayer.totals[field]
+      if (!Number.isFinite(apiValue) || totals[field] === apiValue) {
+        return
+      }
+
+      totals = { ...totals, [field]: apiValue }
+    })
+
+    return totals === player.totals ? player : { ...player, totals }
+  })
+}
+
 function normalizeTextKey(value: string): string {
   return value
     .trim()
@@ -2114,12 +2145,22 @@ export default function YearReviewPage() {
     [fullCompetitiveLeaderboardLimit, qualifiedCompetitiveClanPlayers],
   )
   const leaderboardELO = useMemo(
-    () => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "elo", fullCompetitiveLeaderboardLimit),
-    [fullCompetitiveLeaderboardLimit, qualifiedCompetitiveClanPlayers],
+    () =>
+      getTopPlayersByStat(
+        applyApiRatingTotals(qualifiedCompetitiveClanPlayers, rawData?.players, ["elo"]),
+        "elo",
+        fullCompetitiveLeaderboardLimit,
+      ),
+    [fullCompetitiveLeaderboardLimit, qualifiedCompetitiveClanPlayers, rawData?.players],
   )
   const leaderboardTBF = useMemo(
-    () => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "tbf", fullCompetitiveLeaderboardLimit),
-    [fullCompetitiveLeaderboardLimit, qualifiedCompetitiveClanPlayers],
+    () =>
+      getTopPlayersByStat(
+        applyApiRatingTotals(qualifiedCompetitiveClanPlayers, rawData?.players, ["tbf"]),
+        "tbf",
+        fullCompetitiveLeaderboardLimit,
+      ),
+    [fullCompetitiveLeaderboardLimit, qualifiedCompetitiveClanPlayers, rawData?.players],
   )
   const leaderboardRating = useMemo(
     () => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "rating", fullCompetitiveLeaderboardLimit),
