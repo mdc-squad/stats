@@ -2219,6 +2219,16 @@ export default function YearReviewPage() {
       })
     }
 
+    const registerWithoutGameThreshold = (players: Array<{ player_id: string }>, achievement: string) => {
+      players.slice(0, 3).forEach((player) => {
+        const current = byPlayerId.get(player.player_id) ?? []
+        if (!current.includes(achievement)) {
+          current.push(achievement)
+          byPlayerId.set(player.player_id, current)
+        }
+      })
+    }
+
     const registerSL = (leaders: Array<{ player_id: string; slGames: number }>, achievement: string) => {
       leaders.slice(0, 3).forEach((leader) => {
         if (leader.slGames < 3) {
@@ -2236,8 +2246,8 @@ export default function YearReviewPage() {
     register(topKills, "Убийца")
     register(topKD, "Каратель")
     register(topKDA, "Доминатор")
-    register(topELO, "MVP")
-    register(topTBF, "В тонусе")
+    registerWithoutGameThreshold(topELO, "MVP")
+    registerWithoutGameThreshold(topTBF, "В тонусе")
     register(topRating, "Эталон")
     register(topWinRate, "Победитель")
     register(topEvents, "Активист")
