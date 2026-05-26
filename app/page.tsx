@@ -2328,6 +2328,17 @@ export default function YearReviewPage() {
     return Object.fromEntries(byIdentity)
   }, [leaderboardCompetitiveData, playerAchievements, playerCardData, rawData, roleCompetitiveData])
 
+  const getAchievementsForPlayer = useCallback(
+    (player: Pick<Player, "player_id" | "nickname" | "steam_id">) =>
+      playerAchievementLookup[player.player_id] ??
+      playerAchievementLookup[player.steam_id] ??
+      getPlayerIdentityKeys(player)
+        .map((key) => playerAchievementLookup[key])
+        .find((achievements): achievements is string[] => Array.isArray(achievements)) ??
+      [],
+    [playerAchievementLookup],
+  )
+
   // Player progress chart data
   const selectedProgressEntries = useMemo(() => {
     if (activeTab !== "progress" || !playerCardData || selectedPlayersForChart.length === 0) return [] as Array<{
@@ -3378,7 +3389,7 @@ export default function YearReviewPage() {
                       rawPlayer={dataIndexes?.playersById.get(player.player_id)}
                       rank={index + 1}
                       footerLabel={seasonalTheme.summaryLabel}
-                      achievements={playerAchievementLookup[player.player_id] ?? playerAchievementLookup[player.steam_id] ?? []}
+                      achievements={getAchievementsForPlayer(player)}
                       playerStats={playerCardData?.player_event_stats ?? []}
                       matchHistory={selectedPlayerHistories.get(player.player_id) ?? []}
                       progress={progress}
