@@ -1823,7 +1823,8 @@ export default function YearReviewPage() {
 
   const data = rawData
   const dataIndexes = useMemo(() => (data ? buildDataIndexes(data) : null), [data])
-  const leaderboardFilters = useDataTabFilters(rawData, activeTab === "leaderboards", true)
+  const shouldPrepareLeaderboardStats = activeTab === "leaderboards" || activeTab === "roles" || activeTab === "progress"
+  const leaderboardFilters = useDataTabFilters(rawData, shouldPrepareLeaderboardStats, true)
   const roleFilters = useDataTabFilters(rawData, activeTab === "roles", true)
   const recordFilters = useDataTabFilters(rawData, activeTab === "records", true)
   const playerFilters = useDataTabFilters(rawData, activeTab === "progress", false)
@@ -1834,7 +1835,6 @@ export default function YearReviewPage() {
   const playerData = playerFilters.data ?? data
   const groupData = groupFilters.data ?? data
 
-  const shouldPrepareLeaderboardStats = activeTab === "leaderboards" || activeTab === "roles" || activeTab === "progress"
   const leaderboardCompetitiveData = useMemo(
     () => (shouldPrepareLeaderboardStats && leaderboardData ? filterDataToCompetitiveEvents(leaderboardData) : null),
     [leaderboardData, shouldPrepareLeaderboardStats],
