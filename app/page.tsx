@@ -428,6 +428,22 @@ const ROLE_METRIC_OPTIONS: Array<{ value: RoleLeaderboardMetric; label: string }
   { value: "avgVehicle", label: "Техника / игра" },
 ]
 
+const ROLE_METRIC_ACHIEVEMENT_ENTRIES: Array<{ metric: RoleLeaderboardMetric; achievement: string }> = [
+  { metric: "kd", achievement: "Каратель" },
+  { metric: "kda", achievement: "Доминатор" },
+  { metric: "kills", achievement: "Убийца" },
+  { metric: "downs", achievement: "Штурмовик" },
+  { metric: "revives", achievement: "Спасатель" },
+  { metric: "avgRevives", achievement: "Ангел-хранитель" },
+  { metric: "heals", achievement: "Лекарь" },
+  { metric: "avgHeals", achievement: "Главврач" },
+  { metric: "vehicle", achievement: "Гроза техники" },
+  { metric: "avgVehicle", achievement: "Укротитель машин" },
+  { metric: "elo", achievement: "MVP" },
+  { metric: "tbf", achievement: "В тонусе" },
+  { metric: "rating", achievement: "Эталон" },
+]
+
 const MIN_COMPETITIVE_EVENTS_FOR_TOPS = 10
 const MIN_PLAYER_CARD_SAMPLE_SIZE = 10
 const LEADERBOARD_PREVIEW_LIMIT = 10
@@ -2252,6 +2268,54 @@ export default function YearReviewPage() {
     topWinRate,
   ])
 
+  const rolePlayerAchievements = useMemo(() => {
+    if (!roleCompetitiveData) {
+      return playerAchievements
+    }
+
+    const byPlayerId = new Map<string, string[]>(
+      Object.entries(playerAchievements).map(([playerId, achievements]) => [playerId, [...achievements]]),
+    )
+    const register = (players: Array<{ player_id: string }>, achievement: string) => {
+      players.slice(0, 3).forEach((player) => {
+        const current = byPlayerId.get(player.player_id) ?? []
+        if (!current.includes(achievement)) {
+          current.push(achievement)
+          byPlayerId.set(player.player_id, current)
+        }
+      })
+    }
+
+    const roleDomain = roleCompetitiveData.dictionaries?.roles ?? []
+
+    competitiveUniqueRoles
+      .filter((role) => role.trim().replace(/\s+/g, " ").toLowerCase() !== "без кита")
+      .forEach((role) => {
+        ROLE_METRIC_ACHIEVEMENT_ENTRIES.forEach(({ metric, achievement }) => {
+          register(
+            getTopByRole(
+              qualifiedRoleClanPlayerStats,
+              qualifiedRoleClanPlayers,
+              role,
+              3,
+              roleDomain,
+              metric,
+              roleCompetitiveData.events,
+            ),
+            achievement,
+          )
+        })
+      })
+
+    return Object.fromEntries(byPlayerId)
+  }, [
+    competitiveUniqueRoles,
+    playerAchievements,
+    qualifiedRoleClanPlayerStats,
+    qualifiedRoleClanPlayers,
+    roleCompetitiveData,
+  ])
+
   // Player progress chart data
   const selectedProgressEntries = useMemo(() => {
     if (activeTab !== "progress" || !playerCardData || selectedPlayersForChart.length === 0) return [] as Array<{
@@ -3221,7 +3285,7 @@ export default function YearReviewPage() {
                         players={players}
                         role={role}
                         metric={selectedRoleMetric}
-                        playerAchievements={playerAchievements}
+                        playerAchievements={rolePlayerAchievements}
                         icon={getRoleIcon(role)}
                         isCollapsed={isCollapsed}
                         onToggleCollapse={() => toggleRoleRow(rowIndex)}
