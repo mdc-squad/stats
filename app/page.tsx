@@ -2252,6 +2252,38 @@ export default function YearReviewPage() {
     topWinRate,
   ])
 
+  const playerAchievementLookup = useMemo(() => {
+    const byIdentity = new Map<string, string[]>(
+      Object.entries(playerAchievements).map(([playerId, achievements]) => [playerId, achievements]),
+    )
+    const playersById = new Map<string, Player>()
+    const playersBySteamId = new Map<string, Player[]>()
+
+    ;[
+      ...(rawData?.players ?? []),
+      ...(leaderboardCompetitiveData?.players ?? []),
+      ...(roleCompetitiveData?.players ?? []),
+      ...(playerCardData?.players ?? []),
+    ].forEach((player) => {
+      playersById.set(player.player_id, player)
+      if (player.steam_id) {
+        playersBySteamId.set(player.steam_id, [...(playersBySteamId.get(player.steam_id) ?? []), player])
+      }
+    })
+
+    Object.entries(playerAchievements).forEach(([playerId, achievements]) => {
+      const player = playersById.get(playerId)
+      if (player?.steam_id) {
+        byIdentity.set(player.steam_id, achievements)
+        playersBySteamId.get(player.steam_id)?.forEach((aliasPlayer) => {
+          byIdentity.set(aliasPlayer.player_id, achievements)
+        })
+      }
+    })
+
+    return Object.fromEntries(byIdentity)
+  }, [leaderboardCompetitiveData, playerAchievements, playerCardData, rawData, roleCompetitiveData])
+
   // Player progress chart data
   const selectedProgressEntries = useMemo(() => {
     if (activeTab !== "progress" || !playerCardData || selectedPlayersForChart.length === 0) return [] as Array<{
@@ -2506,7 +2538,7 @@ export default function YearReviewPage() {
           players={leaderboardKD}
           stat="kd"
           formatValue={(v) => v.toFixed(2)}
-          playerAchievements={playerAchievements}
+          playerAchievements={playerAchievementLookup}
           icon={renderAchievementIcon("Каратель")}
           variant="christmas"
           isCollapsed={isCollapsed}
@@ -2522,7 +2554,7 @@ export default function YearReviewPage() {
           players={leaderboardKDA}
           stat="kda"
           formatValue={(v) => v.toFixed(2)}
-          playerAchievements={playerAchievements}
+          playerAchievements={playerAchievementLookup}
           icon={renderAchievementIcon("Доминатор")}
           variant="christmas"
           isCollapsed={isCollapsed}
@@ -2538,7 +2570,7 @@ export default function YearReviewPage() {
           players={leaderboardELO}
           stat="elo"
           formatValue={(v) => v.toFixed(1)}
-          playerAchievements={playerAchievements}
+          playerAchievements={playerAchievementLookup}
           icon={renderAchievementIcon("MVP")}
           variant="christmas"
           isCollapsed={isCollapsed}
@@ -2554,7 +2586,7 @@ export default function YearReviewPage() {
           players={leaderboardTBF}
           stat="tbf"
           formatValue={(v) => v.toFixed(1)}
-          playerAchievements={playerAchievements}
+          playerAchievements={playerAchievementLookup}
           icon={renderAchievementIcon("В тонусе")}
           variant="christmas"
           isCollapsed={isCollapsed}
@@ -2570,7 +2602,7 @@ export default function YearReviewPage() {
           players={leaderboardRating}
           stat="rating"
           formatValue={(v) => v.toFixed(1)}
-          playerAchievements={playerAchievements}
+          playerAchievements={playerAchievementLookup}
           icon={renderAchievementIcon("Эталон")}
           variant="christmas"
           isCollapsed={isCollapsed}
@@ -2585,7 +2617,7 @@ export default function YearReviewPage() {
           title="Топ по убийствам"
           players={leaderboardKills}
           stat="kills"
-          playerAchievements={playerAchievements}
+          playerAchievements={playerAchievementLookup}
           icon={renderAchievementIcon("Убийца")}
           variant="christmas"
           isCollapsed={isCollapsed}
@@ -2601,7 +2633,7 @@ export default function YearReviewPage() {
           players={leaderboardWinRate}
           stat="win_rate"
           formatValue={(v) => `${(v * 100).toFixed(0)}%`}
-          playerAchievements={playerAchievements}
+          playerAchievements={playerAchievementLookup}
           icon={renderAchievementIcon("Победитель")}
           variant="christmas"
           isCollapsed={isCollapsed}
@@ -2617,7 +2649,7 @@ export default function YearReviewPage() {
           players={leaderboardEvents}
           stat="events"
           formatValue={(v) => `${v} игр`}
-          playerAchievements={playerAchievements}
+          playerAchievements={playerAchievementLookup}
           icon={renderAchievementIcon("Активист")}
           variant="christmas"
           isCollapsed={isCollapsed}
@@ -2632,7 +2664,7 @@ export default function YearReviewPage() {
           title="Топ по поднятиям"
           players={leaderboardRevives}
           stat="revives"
-          playerAchievements={playerAchievements}
+          playerAchievements={playerAchievementLookup}
           icon={renderAchievementIcon("Спасатель")}
           variant="christmas"
           isCollapsed={isCollapsed}
@@ -2647,7 +2679,7 @@ export default function YearReviewPage() {
           title="Топ по хилу"
           players={leaderboardHeals}
           stat="heals"
-          playerAchievements={playerAchievements}
+          playerAchievements={playerAchievementLookup}
           icon={renderAchievementIcon("Лекарь")}
           variant="christmas"
           isCollapsed={isCollapsed}
@@ -2662,7 +2694,7 @@ export default function YearReviewPage() {
           title="Топ по нокам"
           players={leaderboardDowns}
           stat="downs"
-          playerAchievements={playerAchievements}
+          playerAchievements={playerAchievementLookup}
           icon={renderAchievementIcon("Штурмовик")}
           variant="christmas"
           isCollapsed={isCollapsed}
@@ -2677,7 +2709,7 @@ export default function YearReviewPage() {
           title="Топ по выбитой технике"
           players={leaderboardVehicle}
           stat="vehicle"
-          playerAchievements={playerAchievements}
+          playerAchievements={playerAchievementLookup}
           icon={renderAchievementIcon("Гроза техники")}
           variant="christmas"
           isCollapsed={isCollapsed}
@@ -2694,7 +2726,7 @@ export default function YearReviewPage() {
           avgStat="avgVehicle"
           totalStat="vehicle"
           formatValue={(v) => v.toFixed(2)}
-          playerAchievements={playerAchievements}
+          playerAchievements={playerAchievementLookup}
           icon={renderAchievementIcon("Укротитель машин")}
           variant="christmas"
           isCollapsed={isCollapsed}
@@ -2711,7 +2743,7 @@ export default function YearReviewPage() {
           avgStat="avgHeals"
           totalStat="heals"
           formatValue={(v) => v.toFixed(2)}
-          playerAchievements={playerAchievements}
+          playerAchievements={playerAchievementLookup}
           icon={renderAchievementIcon("Главврач")}
           variant="christmas"
           isCollapsed={isCollapsed}
@@ -2729,7 +2761,7 @@ export default function YearReviewPage() {
           avgStat="avgRevives"
           totalStat="revives"
           formatValue={(v) => v.toFixed(2)}
-          playerAchievements={playerAchievements}
+          playerAchievements={playerAchievementLookup}
           icon={renderAchievementIcon("Ангел-хранитель")}
           variant="christmas"
           isCollapsed={isCollapsed}
@@ -3221,7 +3253,7 @@ export default function YearReviewPage() {
                         players={players}
                         role={role}
                         metric={selectedRoleMetric}
-                        playerAchievements={playerAchievements}
+                        playerAchievements={playerAchievementLookup}
                         icon={getRoleIcon(role)}
                         isCollapsed={isCollapsed}
                         onToggleCollapse={() => toggleRoleRow(rowIndex)}
@@ -3302,7 +3334,7 @@ export default function YearReviewPage() {
                       rawPlayer={dataIndexes?.playersById.get(player.player_id)}
                       rank={index + 1}
                       footerLabel={seasonalTheme.summaryLabel}
-                      achievements={playerAchievements[player.player_id] ?? []}
+                      achievements={playerAchievementLookup[player.player_id] ?? playerAchievementLookup[player.steam_id] ?? []}
                       playerStats={playerCardData?.player_event_stats ?? []}
                       matchHistory={selectedPlayerHistories.get(player.player_id) ?? []}
                       progress={progress}
