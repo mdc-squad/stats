@@ -630,6 +630,22 @@ function normalizeTextKey(value: string): string {
     .toLowerCase()
 }
 
+function getPlayerIdentityKeys(player: Pick<Player, "nickname" | "steam_id">): string[] {
+  const keys = new Set<string>()
+  const steamId = player.steam_id?.trim()
+  const nickname = normalizeTextKey(player.nickname ?? "")
+
+  if (steamId) {
+    keys.add(`steam:${steamId}`)
+  }
+
+  if (nickname) {
+    keys.add(`nick:${nickname}`)
+  }
+
+  return Array.from(keys)
+}
+
 function mergeStringDomain(primary: string[] = [], secondary: string[] = []): string[] {
   const byKey = new Map<string, string>()
   ;[...primary, ...secondary]
@@ -2257,7 +2273,7 @@ export default function YearReviewPage() {
       Object.entries(playerAchievements).map(([playerId, achievements]) => [playerId, achievements]),
     )
     const playersById = new Map<string, Player>()
-    const playersBySteamId = new Map<string, Player[]>()
+    const playersByIdentityKey = new Map<string, Player[]>()
 
     ;[
       ...(rawData?.players ?? []),
@@ -2266,17 +2282,45 @@ export default function YearReviewPage() {
       ...(playerCardData?.players ?? []),
     ].forEach((player) => {
       playersById.set(player.player_id, player)
-      if (player.steam_id) {
-        playersBySteamId.set(player.steam_id, [...(playersBySteamId.get(player.steam_id) ?? []), player])
-      }
+      getPlayerIdentityKeys(player).forEach((key) => {
+        playersByIdentityKey.set(key, [...(playersByIdentityKey.get(key) ?? []), player])
+      })
     })
 
     Object.entries(playerAchievements).forEach(([playerId, achievements]) => {
       const player = playersById.get(playerId)
-      if (player?.steam_id) {
-        byIdentity.set(player.steam_id, achievements)
-        playersBySteamId.get(player.steam_id)?.forEach((aliasPlayer) => {
-          byIdentity.set(aliasPlayer.player_id, achievements)
+      if (player) {
+        getPlayerIdentityKeys(player).forEach((key) => {
+          byIdentity.set(key, achievements)
+          playersByIdentityKey.get(key)?.forEach((aliasPlayer) => {
+            byIdentity.set(aliasPlayer.player_id, achievements)
+            if (aliasPlayer.steam_id) {
+              byIdentity.set(aliasPlayer.steam_id, achievements)
+            }
+          })
+        })
+      }
+    })
+
+    playersById.forEach((player) => {
+      const achievements = getPlayerIdentityKeys(player)
+        .map((key) => byIdentity.get(key))
+        .find((value): value is string[] => Array.isArray(value))
+
+      if (achievements) {
+        byIdentity.set(player.player_id, achievements)
+        if (player.steam_id) {
+          byIdentity.set(player.steam_id, achievements)
+        }
+        getPlayerIdentityKeys(player).forEach((key) => {
+          byIdentity.set(key, achievements)
+          playersByIdentityKey.get(key)?.forEach((aliasPlayer) => {
+            byIdentity.set(aliasPlayer.player_id, achievements)
+            if (aliasPlayer.steam_id) {
+              byIdentity.set(aliasPlayer.steam_id, achievements)
+            }
+            byIdentity.set(`nick:${normalizeTextKey(aliasPlayer.nickname ?? "")}`, achievements)
+          })
         })
       }
     })

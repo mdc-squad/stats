@@ -78,6 +78,10 @@ function formatMetricValue(player: RolePlayer, metric: RoleLeaderboardMetric): s
   return player.metricValue.toLocaleString("ru-RU")
 }
 
+function normalizeAchievementKey(value: string): string {
+  return value.trim().replace(/\s*\|\s*/g, " | ").replace(/\s+/g, " ").toLowerCase()
+}
+
 export function RoleLeaderboard({
   players,
   role,
@@ -111,7 +115,13 @@ export function RoleLeaderboard({
   const topSummary = topPlayer
     ? `${topPlayer.tag ? `${topPlayer.tag} ` : ""}${topPlayer.nickname} - ${METRIC_LABELS[metric]}: ${formatMetricValue(topPlayer, metric)}`
     : null
-  const topAchievements = topPlayer ? playerAchievements?.[topPlayer.player_id] ?? [] : []
+  const getAchievements = (player: RolePlayer) =>
+    playerAchievements?.[player.player_id] ??
+    playerAchievements?.[player.steam_id] ??
+    playerAchievements?.[`steam:${player.steam_id}`] ??
+    playerAchievements?.[`nick:${normalizeAchievementKey(player.nickname)}`] ??
+    []
+  const topAchievements = topPlayer ? getAchievements(topPlayer) : []
 
   return (
     <div className="relative">
@@ -171,7 +181,7 @@ export function RoleLeaderboard({
             <div className={cn("pr-2", showAll && FULL_TOP_LIST_CLASS)}>
               <div className="space-y-1.5">
                 {visiblePlayers.map((player, index) => {
-                  const achievements = playerAchievements?.[player.player_id] ?? []
+                  const achievements = getAchievements(player)
                   const gamesLine = `${player.games.toLocaleString("ru-RU")} игр на роли`
 
                   return (
