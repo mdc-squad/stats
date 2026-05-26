@@ -2205,40 +2205,12 @@ export default function YearReviewPage() {
   const playerAchievements = useMemo(() => {
     const byPlayerId = new Map<string, string[]>()
 
-    const register = (players: Array<{ player_id: string; totals: { events: number } }>, achievement: string) => {
-      players.slice(0, 3).forEach((player) => {
-        if (player.totals.events < MIN_COMPETITIVE_EVENTS_FOR_TOPS) {
-          return
-        }
-
-        const current = byPlayerId.get(player.player_id) ?? []
-        if (!current.includes(achievement)) {
-          current.push(achievement)
-          byPlayerId.set(player.player_id, current)
-        }
-      })
-    }
-
-    const registerWithoutGameThreshold = (players: Array<{ player_id: string }>, achievement: string) => {
+    const register = (players: Array<{ player_id: string }>, achievement: string) => {
       players.slice(0, 3).forEach((player) => {
         const current = byPlayerId.get(player.player_id) ?? []
         if (!current.includes(achievement)) {
           current.push(achievement)
           byPlayerId.set(player.player_id, current)
-        }
-      })
-    }
-
-    const registerSL = (leaders: Array<{ player_id: string; slGames: number }>, achievement: string) => {
-      leaders.slice(0, 3).forEach((leader) => {
-        if (leader.slGames < 3) {
-          return
-        }
-
-        const current = byPlayerId.get(leader.player_id) ?? []
-        if (!current.includes(achievement)) {
-          current.push(achievement)
-          byPlayerId.set(leader.player_id, current)
         }
       })
     }
@@ -2246,8 +2218,8 @@ export default function YearReviewPage() {
     register(topKills, "Убийца")
     register(topKD, "Каратель")
     register(topKDA, "Доминатор")
-    registerWithoutGameThreshold(topELO, "MVP")
-    registerWithoutGameThreshold(topTBF, "В тонусе")
+    register(topELO, "MVP")
+    register(topTBF, "В тонусе")
     register(topRating, "Эталон")
     register(topWinRate, "Победитель")
     register(topEvents, "Активист")
@@ -2258,7 +2230,7 @@ export default function YearReviewPage() {
     register(topAvgVehicle, "Укротитель машин")
     register(topAvgHeals, "Главврач")
     register(topAvgRevives, "Ангел-хранитель")
-    registerSL(slStats, "Сквад-лидер")
+    register(slStats, "Сквад-лидер")
 
     return Object.fromEntries(byPlayerId)
   }, [
