@@ -428,22 +428,6 @@ const ROLE_METRIC_OPTIONS: Array<{ value: RoleLeaderboardMetric; label: string }
   { value: "avgVehicle", label: "Техника / игра" },
 ]
 
-const ROLE_METRIC_ACHIEVEMENTS: Partial<Record<RoleLeaderboardMetric, string>> = {
-  kd: "Каратель",
-  kda: "Доминатор",
-  kills: "Убийца",
-  downs: "Штурмовик",
-  revives: "Спасатель",
-  avgRevives: "Ангел-хранитель",
-  heals: "Лекарь",
-  avgHeals: "Главврач",
-  vehicle: "Гроза техники",
-  avgVehicle: "Укротитель машин",
-  elo: "MVP",
-  tbf: "В тонусе",
-  rating: "Эталон",
-}
-
 const MIN_COMPETITIVE_EVENTS_FOR_TOPS = 10
 const MIN_PLAYER_CARD_SAMPLE_SIZE = 10
 const LEADERBOARD_PREVIEW_LIMIT = 10
@@ -2268,29 +2252,6 @@ export default function YearReviewPage() {
     topWinRate,
   ])
 
-  const rolePlayerAchievements = useMemo(() => {
-    const roleAchievement = ROLE_METRIC_ACHIEVEMENTS[selectedRoleMetric]
-    if (!roleAchievement) {
-      return playerAchievements
-    }
-
-    const byPlayerId = new Map<string, string[]>(
-      Object.entries(playerAchievements).map(([playerId, achievements]) => [playerId, [...achievements]]),
-    )
-
-    roleLeaderboards.forEach(({ players }) => {
-      players.slice(0, 3).forEach((player) => {
-        const current = byPlayerId.get(player.player_id) ?? []
-        if (!current.includes(roleAchievement)) {
-          current.push(roleAchievement)
-          byPlayerId.set(player.player_id, current)
-        }
-      })
-    })
-
-    return Object.fromEntries(byPlayerId)
-  }, [playerAchievements, roleLeaderboards, selectedRoleMetric])
-
   // Player progress chart data
   const selectedProgressEntries = useMemo(() => {
     if (activeTab !== "progress" || !playerCardData || selectedPlayersForChart.length === 0) return [] as Array<{
@@ -3260,7 +3221,7 @@ export default function YearReviewPage() {
                         players={players}
                         role={role}
                         metric={selectedRoleMetric}
-                        playerAchievements={rolePlayerAchievements}
+                        playerAchievements={playerAchievements}
                         icon={getRoleIcon(role)}
                         isCollapsed={isCollapsed}
                         onToggleCollapse={() => toggleRoleRow(rowIndex)}
