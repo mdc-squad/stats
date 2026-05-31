@@ -413,13 +413,13 @@ function resultTone(item: CalendarGame): string {
   if (item.isSideSwap) {
     const diff = aggregateTicketDiff(item.games)
     if (diff !== null) {
-      if (diff > 0) return "border-emerald-400/45 bg-[#071b12] text-emerald-300 hover:border-emerald-400/60 hover:bg-[#071b12]"
-      if (diff < 0) return "border-red-400/45 bg-[#24070a] text-red-300 hover:border-red-400/60 hover:bg-[#24070a]"
+      if (diff > 0) return "border-emerald-400/45 bg-[#071b12] text-emerald-400 hover:border-emerald-400/60 hover:bg-[#071b12]"
+      if (diff < 0) return "border-red-400/45 bg-[#24070a] text-red-400 hover:border-red-400/60 hover:bg-[#24070a]"
     }
   }
 
-  if (item.primary.is_win === true) return "border-emerald-400/45 bg-[#071b12] text-emerald-300 hover:border-emerald-400/60 hover:bg-[#071b12]"
-  if (item.primary.is_win === false) return "border-red-400/45 bg-[#24070a] text-red-300 hover:border-red-400/60 hover:bg-[#24070a]"
+  if (item.primary.is_win === true) return "border-emerald-400/45 bg-[#071b12] text-emerald-400 hover:border-emerald-400/60 hover:bg-[#071b12]"
+  if (item.primary.is_win === false) return "border-red-400/45 bg-[#24070a] text-red-400 hover:border-red-400/60 hover:bg-[#24070a]"
   return "border-border/60 bg-background/50 text-muted-foreground"
 }
 
