@@ -413,20 +413,20 @@ function resultTone(item: CalendarGame): string {
   if (item.isSideSwap) {
     const diff = aggregateTicketDiff(item.games)
     if (diff !== null) {
-      if (diff > 0) return "border-christmas-green/40 bg-christmas-green/10 text-christmas-green"
-      if (diff < 0) return "border-christmas-red/40 bg-christmas-red/10 text-christmas-red"
+      if (diff > 0) return "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
+      if (diff < 0) return "border-red-400/40 bg-red-400/10 text-red-300"
     }
   }
 
-  if (item.primary.is_win === true) return "border-christmas-green/40 bg-christmas-green/10 text-christmas-green"
-  if (item.primary.is_win === false) return "border-christmas-red/40 bg-christmas-red/10 text-christmas-red"
+  if (item.primary.is_win === true) return "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
+  if (item.primary.is_win === false) return "border-red-400/40 bg-red-400/10 text-red-300"
   return "border-border/60 bg-background/50 text-muted-foreground"
 }
 
 function selectedGameTone(game: PastGameSummary): string {
   if (isPlannedGame(game)) return "border-sky-400/45 bg-[#071827]"
-  if (game.is_win === true) return "border-christmas-green/45 bg-[#071b12]"
-  if (game.is_win === false) return "border-christmas-red/45 bg-[#24070a]"
+  if (game.is_win === true) return "border-emerald-400/45 bg-[#071b12]"
+  if (game.is_win === false) return "border-red-400/45 bg-[#24070a]"
   return "border-border/70 bg-[#090a12]"
 }
 
@@ -1316,8 +1316,8 @@ export function GamesCalendar({ games, onOpenGame, onOpenLineup, focusedEventId 
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-sky-400" />Будущие</span>
-          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-christmas-green" />Победы</span>
-          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-christmas-red" />Поражения</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-400" />Победы</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-400" />Поражения</span>
           <span className="ml-auto text-right">Клик открывает матч во вкладке игр</span>
         </div>
       </CardContent>
