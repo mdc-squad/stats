@@ -435,6 +435,20 @@ const VEHICLE_LEADERBOARD_PREVIEW_LIMIT = 5
 const LOADING_SHOWCASE_INTERVAL_MS = 5000
 const LOADING_SHOWCASE_FADE_MS = 280
 const LOADING_SHOWCASE_ITEMS_COUNT = 4
+const THEME_PREVIEW_INTERVAL_MS = 5000
+const THEME_PREVIEW_DATES = [
+  new Date("2026-01-01T12:00:00+03:00"),
+  new Date("2026-02-23T12:00:00+03:00"),
+  new Date("2026-03-08T12:00:00+03:00"),
+  new Date("2026-05-01T12:00:00+03:00"),
+  new Date("2026-05-09T12:00:00+03:00"),
+  new Date("2026-06-12T12:00:00+03:00"),
+  new Date("2026-11-04T12:00:00+03:00"),
+  new Date("2026-01-15T12:00:00+03:00"),
+  new Date("2026-04-15T12:00:00+03:00"),
+  new Date("2026-07-15T12:00:00+03:00"),
+  new Date("2026-10-15T12:00:00+03:00"),
+]
 
 type LeaderboardCardConfig = {
   key: string
@@ -1275,7 +1289,7 @@ function buildSyncReport(
 
 export default function YearReviewPage() {
   const [rawData, setRawData] = useState<MDCData | null>(null)
-  const [seasonalTheme, setSeasonalTheme] = useState<SeasonalTheme>(() => getSeasonalTheme())
+  const [seasonalTheme, setSeasonalTheme] = useState<SeasonalTheme>(() => getSeasonalTheme(THEME_PREVIEW_DATES[0]))
   const [selectedPeriod, setSelectedPeriod] = useState<StatsPeriod>("all")
   const [customDateFrom, setCustomDateFrom] = useState("")
   const [customDateTo, setCustomDateTo] = useState("")
@@ -1320,21 +1334,11 @@ export default function YearReviewPage() {
   }, [rawData])
 
   useEffect(() => {
+    let themePreviewIndex = 0
     const intervalId = window.setInterval(() => {
-      setSeasonalTheme((currentTheme) => {
-        const nextTheme = getSeasonalTheme()
-        return nextTheme.id === currentTheme.id &&
-          nextTheme.backgroundImage === currentTheme.backgroundImage &&
-          nextTheme.overlayGradient === currentTheme.overlayGradient &&
-          nextTheme.backgroundOpacity === currentTheme.backgroundOpacity &&
-          nextTheme.backgroundSize === currentTheme.backgroundSize &&
-          nextTheme.backgroundPosition === currentTheme.backgroundPosition &&
-          nextTheme.backgroundRepeat === currentTheme.backgroundRepeat &&
-          nextTheme.backgroundBlendMode === currentTheme.backgroundBlendMode
-          ? currentTheme
-          : nextTheme
-      })
-    }, 60 * 60 * 1000)
+      themePreviewIndex = (themePreviewIndex + 1) % THEME_PREVIEW_DATES.length
+      setSeasonalTheme(getSeasonalTheme(THEME_PREVIEW_DATES[themePreviewIndex]))
+    }, THEME_PREVIEW_INTERVAL_MS)
 
     return () => {
       window.clearInterval(intervalId)
