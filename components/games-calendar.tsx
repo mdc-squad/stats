@@ -408,18 +408,18 @@ function isCalendarItemFocused(item: CalendarGame, focusedEventId: string | null
 }
 
 function resultTone(item: CalendarGame): string {
-  if (isPlannedGame(item.primary)) return "border-sky-400/40 bg-sky-400/10 text-sky-200"
+  if (isPlannedGame(item.primary)) return "border-sky-400/45 bg-[#071827] text-sky-200 hover:border-sky-400/60 hover:bg-[#071827]"
 
   if (item.isSideSwap) {
     const diff = aggregateTicketDiff(item.games)
     if (diff !== null) {
-      if (diff > 0) return "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
-      if (diff < 0) return "border-red-400/40 bg-red-400/10 text-red-300"
+      if (diff > 0) return "border-emerald-400/45 bg-[#071b12] text-emerald-300 hover:border-emerald-400/60 hover:bg-[#071b12]"
+      if (diff < 0) return "border-red-400/45 bg-[#24070a] text-red-300 hover:border-red-400/60 hover:bg-[#24070a]"
     }
   }
 
-  if (item.primary.is_win === true) return "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
-  if (item.primary.is_win === false) return "border-red-400/40 bg-red-400/10 text-red-300"
+  if (item.primary.is_win === true) return "border-emerald-400/45 bg-[#071b12] text-emerald-300 hover:border-emerald-400/60 hover:bg-[#071b12]"
+  if (item.primary.is_win === false) return "border-red-400/45 bg-[#24070a] text-red-300 hover:border-red-400/60 hover:bg-[#24070a]"
   return "border-border/60 bg-background/50 text-muted-foreground"
 }
 
