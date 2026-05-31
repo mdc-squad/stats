@@ -1,13 +1,6 @@
 import { withBasePath } from "./base-path"
 
 export type SeasonalThemeId =
-  | "new-year"
-  | "defender-day"
-  | "womens-day"
-  | "labor-day"
-  | "victory-day"
-  | "russia-day"
-  | "unity-day"
   | "winter"
   | "spring"
   | "summer"
@@ -352,50 +345,6 @@ const WINTER_RECIPE: MilitaryBackgroundRecipe = {
   opacity: 0.28,
 }
 
-const NEW_YEAR_RECIPE: MilitaryBackgroundRecipe = {
-  ...WINTER_RECIPE,
-  glowA: "rgba(118, 170, 220, 0.24)",
-  glowB: "rgba(236, 214, 150, 0.18)",
-  contourAccent: "rgba(248, 236, 188, 0.2)",
-  stripe: "rgba(210, 188, 126, 0.18)",
-}
-
-const DEFENDER_RECIPE: MilitaryBackgroundRecipe = {
-  glowA: "rgba(132, 160, 116, 0.3)",
-  glowB: "rgba(171, 123, 72, 0.24)",
-  contour: "rgba(163, 184, 129, 0.2)",
-  contourAccent: "rgba(231, 198, 128, 0.18)",
-  grid: "rgba(168, 178, 122, 0.09)",
-  stripe: "rgba(171, 123, 72, 0.2)",
-  scan: "rgba(199, 176, 116, 0.08)",
-  camoA: "rgba(86, 96, 66, 0.64)",
-  camoB: "rgba(146, 112, 76, 0.42)",
-  camoC: "rgba(26, 34, 28, 0.86)",
-  baseStart: "rgba(22, 36, 28, 0.98)",
-  baseMid: "rgba(18, 30, 38, 0.95)",
-  baseEnd: "rgba(48, 28, 24, 0.92)",
-  overlayTop: "rgba(12, 20, 17, 0.48)",
-  overlayMid: "rgba(12, 20, 17, 0.3)",
-  overlayBottom: "rgba(12, 20, 17, 0.6)",
-  opacity: 0.32,
-}
-
-const WOMENS_DAY_RECIPE: MilitaryBackgroundRecipe = {
-  ...DEFENDER_RECIPE,
-  glowA: "rgba(244, 152, 145, 0.24)",
-  glowB: "rgba(245, 196, 127, 0.24)",
-  contour: "rgba(205, 178, 155, 0.18)",
-  contourAccent: "rgba(244, 208, 188, 0.18)",
-  stripe: "rgba(196, 130, 124, 0.18)",
-  scan: "rgba(245, 206, 180, 0.07)",
-  camoA: "rgba(110, 88, 86, 0.56)",
-  camoB: "rgba(150, 112, 98, 0.4)",
-  camoC: "rgba(40, 34, 44, 0.82)",
-  baseStart: "rgba(38, 28, 34, 0.92)",
-  baseMid: "rgba(37, 26, 44, 0.9)",
-  baseEnd: "rgba(24, 38, 34, 0.9)",
-}
-
 const SPRING_RECIPE: MilitaryBackgroundRecipe = {
   glowA: "rgba(126, 184, 134, 0.22)",
   glowB: "rgba(210, 142, 174, 0.18)",
@@ -414,28 +363,6 @@ const SPRING_RECIPE: MilitaryBackgroundRecipe = {
   overlayMid: "rgba(10, 18, 12, 0.28)",
   overlayBottom: "rgba(12, 12, 18, 0.56)",
   opacity: 0.3,
-}
-
-const LABOR_RECIPE: MilitaryBackgroundRecipe = {
-  ...SPRING_RECIPE,
-  glowA: "rgba(246, 189, 91, 0.28)",
-  glowB: "rgba(118, 182, 120, 0.24)",
-  contourAccent: "rgba(246, 213, 126, 0.18)",
-  stripe: "rgba(196, 156, 78, 0.18)",
-  baseStart: "rgba(28, 36, 22, 0.94)",
-  baseMid: "rgba(24, 40, 34, 0.92)",
-  baseEnd: "rgba(38, 30, 17, 0.93)",
-}
-
-const VICTORY_RECIPE: MilitaryBackgroundRecipe = {
-  ...DEFENDER_RECIPE,
-  glowA: "rgba(198, 132, 74, 0.28)",
-  glowB: "rgba(133, 174, 117, 0.22)",
-  contourAccent: "rgba(232, 187, 112, 0.16)",
-  stripe: "rgba(196, 114, 72, 0.2)",
-  baseStart: "rgba(30, 20, 18, 0.95)",
-  baseMid: "rgba(35, 20, 21, 0.92)",
-  baseEnd: "rgba(20, 32, 28, 0.9)",
 }
 
 const SUMMER_RECIPE: MilitaryBackgroundRecipe = {
@@ -458,17 +385,6 @@ const SUMMER_RECIPE: MilitaryBackgroundRecipe = {
   opacity: 0.3,
 }
 
-const RUSSIA_RECIPE: MilitaryBackgroundRecipe = {
-  ...SUMMER_RECIPE,
-  glowA: "rgba(82, 128, 204, 0.3)",
-  glowB: "rgba(210, 88, 88, 0.2)",
-  contourAccent: "rgba(255, 255, 255, 0.18)",
-  stripe: "rgba(172, 92, 92, 0.16)",
-  baseStart: "rgba(18, 30, 48, 0.94)",
-  baseMid: "rgba(20, 36, 60, 0.9)",
-  baseEnd: "rgba(32, 22, 34, 0.9)",
-}
-
 const AUTUMN_RECIPE: MilitaryBackgroundRecipe = {
   glowA: "rgba(116, 38, 48, 0.24)",
   glowB: "rgba(204, 164, 76, 0.2)",
@@ -489,172 +405,7 @@ const AUTUMN_RECIPE: MilitaryBackgroundRecipe = {
   opacity: 0.3,
 }
 
-const UNITY_RECIPE: MilitaryBackgroundRecipe = {
-  ...AUTUMN_RECIPE,
-  glowA: "rgba(189, 86, 66, 0.28)",
-  glowB: "rgba(211, 151, 67, 0.22)",
-  contourAccent: "rgba(236, 196, 126, 0.18)",
-  stripe: "rgba(185, 92, 72, 0.18)",
-  baseStart: "rgba(38, 20, 16, 0.95)",
-  baseMid: "rgba(30, 26, 16, 0.92)",
-  baseEnd: "rgba(20, 32, 20, 0.9)",
-}
-
 const THEMES: Record<SeasonalThemeId, SeasonalThemeDefinition> = {
-  "new-year": {
-    id: "new-year",
-    icon: "tree",
-    seasonLabel: "Зима",
-    subtitle: "Новый год",
-    contextLabel: "Праздники по календарю РФ",
-    loadingLabel: "Загрузка статистики... Новый год",
-    summaryLabel: "MDC CLAN • НОВЫЙ ГОД",
-    showSnowfall: true,
-    backgrounds: buildMilitaryBackgrounds(NEW_YEAR_RECIPE),
-    palette: {
-      red: "oklch(0.56 0.2 25)",
-      green: "oklch(0.5 0.16 145)",
-      gold: "oklch(0.83 0.14 92)",
-      snow: "oklch(0.97 0.02 250)",
-      primary: "oklch(0.56 0.2 25)",
-      accent: "oklch(0.83 0.14 92)",
-      ring: "oklch(0.83 0.14 92)",
-      chart4: "oklch(0.7 0.13 235)",
-      chart5: "oklch(0.71 0.12 332)",
-    },
-  },
-  "defender-day": {
-    id: "defender-day",
-    icon: "shield",
-    seasonLabel: "Зима",
-    subtitle: "День защитника Отечества",
-    contextLabel: "23 февраля по календарю РФ",
-    loadingLabel: "Загрузка статистики... День защитника Отечества",
-    summaryLabel: "MDC CLAN • ДЕНЬ ЗАЩИТНИКА",
-    showSnowfall: false,
-    backgrounds: buildMilitaryBackgrounds(DEFENDER_RECIPE),
-    palette: {
-      red: "oklch(0.59 0.19 30)",
-      green: "oklch(0.51 0.14 145)",
-      gold: "oklch(0.79 0.12 88)",
-      snow: "oklch(0.97 0.02 95)",
-      primary: "oklch(0.59 0.19 30)",
-      accent: "oklch(0.79 0.12 88)",
-      ring: "oklch(0.79 0.12 88)",
-      chart4: "oklch(0.68 0.12 230)",
-      chart5: "oklch(0.67 0.1 35)",
-    },
-  },
-  "womens-day": {
-    id: "womens-day",
-    icon: "heart",
-    seasonLabel: "Весна",
-    subtitle: "Международный женский день",
-    contextLabel: "8 марта по календарю РФ",
-    loadingLabel: "Загрузка статистики... Международный женский день",
-    summaryLabel: "MDC CLAN • 8 МАРТА",
-    showSnowfall: false,
-    backgrounds: buildMilitaryBackgrounds(WOMENS_DAY_RECIPE),
-    palette: {
-      red: "oklch(0.66 0.2 22)",
-      green: "oklch(0.56 0.13 150)",
-      gold: "oklch(0.84 0.15 85)",
-      snow: "oklch(0.98 0.02 45)",
-      primary: "oklch(0.66 0.2 22)",
-      accent: "oklch(0.84 0.15 85)",
-      ring: "oklch(0.84 0.15 85)",
-      chart4: "oklch(0.7 0.12 225)",
-      chart5: "oklch(0.72 0.11 350)",
-    },
-  },
-  "labor-day": {
-    id: "labor-day",
-    icon: "sparkles",
-    seasonLabel: "Весна",
-    subtitle: "Праздник Весны и Труда",
-    contextLabel: "1 мая по календарю РФ",
-    loadingLabel: "Загрузка статистики... Праздник Весны и Труда",
-    summaryLabel: "MDC CLAN • ПРАЗДНИК ВЕСНЫ И ТРУДА",
-    showSnowfall: false,
-    backgrounds: buildMilitaryBackgrounds(LABOR_RECIPE),
-    palette: {
-      red: "oklch(0.64 0.2 32)",
-      green: "oklch(0.57 0.15 147)",
-      gold: "oklch(0.84 0.16 88)",
-      snow: "oklch(0.98 0.02 95)",
-      primary: "oklch(0.64 0.2 32)",
-      accent: "oklch(0.84 0.16 88)",
-      ring: "oklch(0.84 0.16 88)",
-      chart4: "oklch(0.7 0.12 215)",
-      chart5: "oklch(0.73 0.11 32)",
-    },
-  },
-  "victory-day": {
-    id: "victory-day",
-    icon: "trophy",
-    seasonLabel: "Весна",
-    subtitle: "День Победы",
-    contextLabel: "9 мая по календарю РФ",
-    loadingLabel: "Загрузка статистики... День Победы",
-    summaryLabel: "MDC CLAN • ДЕНЬ ПОБЕДЫ",
-    showSnowfall: false,
-    backgrounds: buildMilitaryBackgrounds(VICTORY_RECIPE),
-    palette: {
-      red: "oklch(0.6 0.2 26)",
-      green: "oklch(0.53 0.13 145)",
-      gold: "oklch(0.8 0.14 80)",
-      snow: "oklch(0.97 0.02 90)",
-      primary: "oklch(0.6 0.2 26)",
-      accent: "oklch(0.8 0.14 80)",
-      ring: "oklch(0.8 0.14 80)",
-      chart4: "oklch(0.69 0.11 214)",
-      chart5: "oklch(0.67 0.1 38)",
-    },
-  },
-  "russia-day": {
-    id: "russia-day",
-    icon: "flag",
-    seasonLabel: "Лето",
-    subtitle: "День России",
-    contextLabel: "12 июня по календарю РФ",
-    loadingLabel: "Загрузка статистики... День России",
-    summaryLabel: "MDC CLAN • ДЕНЬ РОССИИ",
-    showSnowfall: false,
-    backgrounds: buildMilitaryBackgrounds(RUSSIA_RECIPE),
-    palette: {
-      red: "oklch(0.62 0.2 24)",
-      green: "oklch(0.58 0.13 230)",
-      gold: "oklch(0.85 0.08 100)",
-      snow: "oklch(0.99 0.01 250)",
-      primary: "oklch(0.62 0.2 24)",
-      accent: "oklch(0.85 0.08 100)",
-      ring: "oklch(0.85 0.08 100)",
-      chart4: "oklch(0.72 0.12 235)",
-      chart5: "oklch(0.74 0.11 27)",
-    },
-  },
-  "unity-day": {
-    id: "unity-day",
-    icon: "flag",
-    seasonLabel: "Осень",
-    subtitle: "День народного единства",
-    contextLabel: "4 ноября по календарю РФ",
-    loadingLabel: "Загрузка статистики... День народного единства",
-    summaryLabel: "MDC CLAN • ДЕНЬ ЕДИНСТВА",
-    showSnowfall: false,
-    backgrounds: buildMilitaryBackgrounds(UNITY_RECIPE),
-    palette: {
-      red: "oklch(0.61 0.2 28)",
-      green: "oklch(0.55 0.12 136)",
-      gold: "oklch(0.81 0.14 75)",
-      snow: "oklch(0.97 0.02 85)",
-      primary: "oklch(0.61 0.2 28)",
-      accent: "oklch(0.81 0.14 75)",
-      ring: "oklch(0.81 0.14 75)",
-      chart4: "oklch(0.7 0.11 210)",
-      chart5: "oklch(0.71 0.1 30)",
-    },
-  },
   winter: {
     id: "winter",
     icon: "tree",
@@ -746,7 +497,7 @@ const THEMES: Record<SeasonalThemeId, SeasonalThemeDefinition> = {
 }
 
 export function getSeasonalTheme(now: Date = new Date()): SeasonalTheme {
-  const { month, day } = getMoscowCalendarDate(now)
+  const { month } = getMoscowCalendarDate(now)
   const toRuntimeTheme = (theme: SeasonalThemeDefinition, overrides: Partial<Pick<SeasonalThemeDefinition, "subtitle" | "contextLabel" | "summaryLabel" | "loadingLabel">> = {}): SeasonalTheme => {
     const background = selectBackground(theme.id, now, theme.backgrounds)
     const runtimeTheme = { ...theme, ...overrides }
@@ -760,42 +511,6 @@ export function getSeasonalTheme(now: Date = new Date()): SeasonalTheme {
       backgroundRepeat: background.repeat,
       backgroundBlendMode: background.blendMode,
     }
-  }
-
-  if (month === 1 && day === 1) {
-    return toRuntimeTheme(THEMES["new-year"])
-  }
-
-  if (month === 1 && day === 7) {
-    return toRuntimeTheme(THEMES["new-year"], {
-      subtitle: "Рождество Христово",
-      contextLabel: "7 января по календарю РФ",
-      summaryLabel: "MDC CLAN • РОЖДЕСТВО",
-    })
-  }
-
-  if (month === 2 && day === 23) {
-    return toRuntimeTheme(THEMES["defender-day"])
-  }
-
-  if (month === 3 && day === 8) {
-    return toRuntimeTheme(THEMES["womens-day"])
-  }
-
-  if (month === 5 && day === 9) {
-    return toRuntimeTheme(THEMES["victory-day"])
-  }
-
-  if (month === 5 && day === 1) {
-    return toRuntimeTheme(THEMES["labor-day"])
-  }
-
-  if (month === 6 && day === 12) {
-    return toRuntimeTheme(THEMES["russia-day"])
-  }
-
-  if (month === 11 && day === 4) {
-    return toRuntimeTheme(THEMES["unity-day"])
   }
 
   if (month === 12 || month === 1 || month === 2) {
@@ -815,13 +530,6 @@ export function getSeasonalTheme(now: Date = new Date()): SeasonalTheme {
 
 export function getRussianCalendarThemeCatalog(): Array<{ id: SeasonalThemeId; subtitle: string; contextLabel: string }> {
   return [
-    { id: "new-year", subtitle: THEMES["new-year"].subtitle, contextLabel: "1 января" },
-    { id: "defender-day", subtitle: THEMES["defender-day"].subtitle, contextLabel: "23 февраля" },
-    { id: "womens-day", subtitle: THEMES["womens-day"].subtitle, contextLabel: "8 марта" },
-    { id: "labor-day", subtitle: THEMES["labor-day"].subtitle, contextLabel: "1 мая" },
-    { id: "victory-day", subtitle: THEMES["victory-day"].subtitle, contextLabel: "9 мая" },
-    { id: "russia-day", subtitle: THEMES["russia-day"].subtitle, contextLabel: "12 июня" },
-    { id: "unity-day", subtitle: THEMES["unity-day"].subtitle, contextLabel: "4 ноября" },
     { id: "winter", subtitle: THEMES.winter.subtitle, contextLabel: "декабрь - февраль" },
     { id: "spring", subtitle: THEMES.spring.subtitle, contextLabel: "март - май" },
     { id: "summer", subtitle: THEMES.summer.subtitle, contextLabel: "июнь - август" },
