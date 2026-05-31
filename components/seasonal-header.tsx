@@ -105,18 +105,10 @@ const TICKER_GAP_PX = 96
 
 function MapleLeafIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className} {...props}>
-      <path
-        d="M12 1.5 10.6 6.1 7.3 3.9l.6 4.4-4.5-1.1 2.8 3.7-4.7.6 4.2 2.4-3 3 4.7-.2-.7 4 3.5-2.5L12 22.5l1.8-4.3 3.5 2.5-.7-4 4.7.2-3-3 4.2-2.4-4.7-.6 2.8-3.7-4.5 1.1.6-4.4-3.3 2.2L12 1.5Z"
-        fill="currentColor"
-      />
-      <path
-        d="M12 6.8v13.8M7 11.6l5 4 5-4M8.2 16.2l3.8-1.1 3.8 1.1"
-        stroke="rgba(15, 23, 42, 0.55)"
-        strokeWidth="1.05"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} {...props}>
+      <text x="12" y="18.5" textAnchor="middle" fontSize="18" fontFamily="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif">
+        🍁
+      </text>
     </svg>
   )
 }
