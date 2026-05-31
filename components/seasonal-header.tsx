@@ -106,7 +106,7 @@ const TICKER_GAP_PX = 96
 function MapleLeafIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className} {...props}>
-      <path d="M12 2.3 9.9 7.1 6.7 4.2l.5 5.2-4.8-.8 3.2 3.6-4 2.1 5 .9-1.4 4.4 4.5-2 .6 4.1h3.4l.6-4.1 4.5 2-1.4-4.4 5-.9-4-2.1 3.2-3.6-4.8.8.5-5.2-3.2 2.9L12 2.3Z" />
+      <path d="M12 1.9 10.3 7 7.2 4.1l.7 5.1-5.1-1 3.3 3.7-4.7 1.5 5.2 1.7-2.1 4 4.6-1.4.9 4.1h4l.9-4.1 4.6 1.4-2.1-4 5.2-1.7-4.7-1.5 3.3-3.7-5.1 1 .7-5.1L13.7 7 12 1.9Z" />
     </svg>
   )
 }
