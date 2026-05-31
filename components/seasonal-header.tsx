@@ -4,14 +4,11 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import type { LucideIcon } from "lucide-react"
 import {
   CalendarDays,
-  Flag,
-  Heart,
+  Flower2,
   Leaf,
-  Shield,
+  Snowflake,
   Sparkles,
   Sun,
-  TreePine,
-  Trophy,
   Users,
   Volume2,
 } from "lucide-react"
@@ -108,14 +105,10 @@ const TICKER_SPEED_PX_PER_SECOND = 90
 const TICKER_GAP_PX = 96
 
 const ICON_BY_THEME: Record<SeasonalThemeIcon, LucideIcon> = {
-  tree: TreePine,
-  shield: Shield,
-  heart: Heart,
-  flag: Flag,
+  snowflake: Snowflake,
+  flower: Flower2,
   sun: Sun,
-  leaf: Leaf,
-  sparkles: Sparkles,
-  trophy: Trophy,
+  "maple-leaf": Leaf,
 }
 
 function pluralize(value: number, one: string, few: string, many: string) {
@@ -715,7 +708,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayers
                   isCollapsed ? "h-5 w-5" : "h-7 w-7 md:h-8 md:w-8",
                 )}
               >
-                <ThemeIcon className="h-4 w-4 text-christmas-green" />
+                <ThemeIcon className={cn("h-4 w-4", theme.id === "autumn" ? "text-christmas-gold" : "text-christmas-green")} />
               </div>
             </div>
 

@@ -6,7 +6,7 @@ export type SeasonalThemeId =
   | "summer"
   | "autumn"
 
-export type SeasonalThemeIcon = "tree" | "shield" | "heart" | "flag" | "sun" | "leaf" | "sparkles" | "trophy"
+export type SeasonalThemeIcon = "snowflake" | "flower" | "sun" | "maple-leaf"
 
 export type SeasonalTheme = {
   id: SeasonalThemeId
@@ -408,7 +408,7 @@ const AUTUMN_RECIPE: MilitaryBackgroundRecipe = {
 const THEMES: Record<SeasonalThemeId, SeasonalThemeDefinition> = {
   winter: {
     id: "winter",
-    icon: "tree",
+    icon: "snowflake",
     seasonLabel: "Зима",
     subtitle: "Зимний сезон",
     contextLabel: "Авто-тема по календарю РФ",
@@ -430,7 +430,7 @@ const THEMES: Record<SeasonalThemeId, SeasonalThemeDefinition> = {
   },
   spring: {
     id: "spring",
-    icon: "sparkles",
+    icon: "flower",
     seasonLabel: "Весна",
     subtitle: "Весенний сезон",
     contextLabel: "Авто-тема по календарю РФ",
@@ -474,7 +474,7 @@ const THEMES: Record<SeasonalThemeId, SeasonalThemeDefinition> = {
   },
   autumn: {
     id: "autumn",
-    icon: "leaf",
+    icon: "maple-leaf",
     seasonLabel: "Осень",
     subtitle: "Осенний сезон",
     contextLabel: "Авто-тема по календарю РФ",
