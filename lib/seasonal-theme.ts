@@ -17,6 +17,7 @@ export type SeasonalTheme = {
   loadingLabel: string
   summaryLabel: string
   showSnowfall: boolean
+  showLeafFall: boolean
   backgroundImage: string
   overlayGradient: string
   backgroundOpacity: number
@@ -386,22 +387,22 @@ const SUMMER_RECIPE: MilitaryBackgroundRecipe = {
 }
 
 const AUTUMN_RECIPE: MilitaryBackgroundRecipe = {
-  glowA: "rgba(198, 100, 42, 0.24)",
-  glowB: "rgba(232, 178, 84, 0.24)",
-  contour: "rgba(150, 104, 64, 0.18)",
-  contourAccent: "rgba(232, 176, 86, 0.22)",
-  grid: "rgba(190, 150, 86, 0.08)",
-  stripe: "rgba(202, 118, 54, 0.16)",
-  scan: "rgba(218, 164, 88, 0.07)",
-  camoA: "rgba(74, 54, 34, 0.5)",
-  camoB: "rgba(82, 94, 54, 0.34)",
-  camoC: "rgba(18, 18, 14, 0.88)",
-  baseStart: "rgba(24, 20, 14, 0.96)",
-  baseMid: "rgba(30, 28, 18, 0.92)",
-  baseEnd: "rgba(18, 26, 18, 0.93)",
-  overlayTop: "rgba(8, 6, 4, 0.48)",
-  overlayMid: "rgba(8, 8, 5, 0.3)",
-  overlayBottom: "rgba(6, 6, 4, 0.62)",
+  glowA: "rgba(164, 82, 52, 0.22)",
+  glowB: "rgba(230, 192, 84, 0.26)",
+  contour: "rgba(132, 106, 78, 0.18)",
+  contourAccent: "rgba(238, 198, 94, 0.24)",
+  grid: "rgba(178, 152, 92, 0.08)",
+  stripe: "rgba(196, 128, 72, 0.15)",
+  scan: "rgba(218, 178, 92, 0.07)",
+  camoA: "rgba(54, 46, 34, 0.52)",
+  camoB: "rgba(82, 76, 46, 0.34)",
+  camoC: "rgba(18, 16, 12, 0.88)",
+  baseStart: "rgba(22, 18, 14, 0.96)",
+  baseMid: "rgba(28, 24, 16, 0.92)",
+  baseEnd: "rgba(18, 22, 14, 0.93)",
+  overlayTop: "rgba(8, 6, 4, 0.5)",
+  overlayMid: "rgba(8, 7, 5, 0.32)",
+  overlayBottom: "rgba(6, 5, 4, 0.64)",
   opacity: 0.3,
 }
 
@@ -415,6 +416,7 @@ const THEMES: Record<SeasonalThemeId, SeasonalThemeDefinition> = {
     loadingLabel: "Загрузка статистики... зимний сезон",
     summaryLabel: "MDC CLAN • ЗИМНИЙ СЕЗОН",
     showSnowfall: true,
+    showLeafFall: false,
     backgrounds: buildMilitaryBackgrounds(WINTER_RECIPE),
     palette: {
       red: "oklch(0.68 0.09 235)",
@@ -437,6 +439,7 @@ const THEMES: Record<SeasonalThemeId, SeasonalThemeDefinition> = {
     loadingLabel: "Загрузка статистики... весенний сезон",
     summaryLabel: "MDC CLAN • ВЕСЕННИЙ СЕЗОН",
     showSnowfall: false,
+    showLeafFall: false,
     backgrounds: buildMilitaryBackgrounds(SPRING_RECIPE),
     palette: {
       red: "oklch(0.65 0.19 32)",
@@ -459,6 +462,7 @@ const THEMES: Record<SeasonalThemeId, SeasonalThemeDefinition> = {
     loadingLabel: "Загрузка статистики... летний сезон",
     summaryLabel: "MDC CLAN • ЛЕТНИЙ СЕЗОН",
     showSnowfall: false,
+    showLeafFall: false,
     backgrounds: buildMilitaryBackgrounds(SUMMER_RECIPE),
     palette: {
       red: "oklch(0.72 0.12 52)",
@@ -481,17 +485,18 @@ const THEMES: Record<SeasonalThemeId, SeasonalThemeDefinition> = {
     loadingLabel: "Загрузка статистики... осенний сезон",
     summaryLabel: "MDC CLAN • ОСЕННИЙ СЕЗОН",
     showSnowfall: false,
+    showLeafFall: true,
     backgrounds: buildMilitaryBackgrounds(AUTUMN_RECIPE),
     palette: {
-      red: "oklch(0.58 0.12 45)",
-      green: "oklch(0.56 0.08 120)",
-      gold: "oklch(0.8 0.11 82)",
+      red: "oklch(0.54 0.11 42)",
+      green: "oklch(0.55 0.06 115)",
+      gold: "oklch(0.83 0.12 86)",
       snow: "oklch(0.97 0.02 80)",
-      primary: "oklch(0.58 0.12 45)",
-      accent: "oklch(0.8 0.11 82)",
-      ring: "oklch(0.8 0.11 82)",
-      chart4: "oklch(0.6 0.08 112)",
-      chart5: "oklch(0.62 0.1 48)",
+      primary: "oklch(0.54 0.11 42)",
+      accent: "oklch(0.83 0.12 86)",
+      ring: "oklch(0.83 0.12 86)",
+      chart4: "oklch(0.58 0.06 112)",
+      chart5: "oklch(0.62 0.09 48)",
     },
   },
 }

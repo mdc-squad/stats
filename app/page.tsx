@@ -27,6 +27,7 @@ import { PlayerSelector } from "@/components/player-selector"
 import { RoleIcon, formatRoleName } from "@/components/role-icon"
 import { SquadOverview } from "@/components/squad-overview"
 import { Snowfall } from "@/components/snowfall"
+import { LeafFall } from "@/components/leaf-fall"
 import { SeasonalHeader } from "@/components/seasonal-header"
 import { OverallStatsPanel } from "@/components/overall-stats-panel"
 import { EventsExplorer } from "@/components/events-explorer"
@@ -2921,6 +2922,7 @@ export default function YearReviewPage() {
       <div className="fixed inset-0 z-0" style={{ background: seasonalTheme.overlayGradient }} />
 
       {seasonalTheme.showSnowfall && <Snowfall />}
+      {seasonalTheme.showLeafFall && <LeafFall />}
       <SeasonalHeader
         mdcPlayersCount={mdcRosterCount}
         gravePlayersCount={graveRosterCount}
