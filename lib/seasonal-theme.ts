@@ -6,7 +6,7 @@ export type SeasonalThemeId =
   | "summer"
   | "autumn"
 
-export type SeasonalThemeIcon = "snowflake" | "flower" | "sun" | "maple-leaf"
+export type SeasonalThemeIcon = "snowflake" | "sprout" | "sun" | "maple-leaf"
 
 export type SeasonalTheme = {
   id: SeasonalThemeId
@@ -386,22 +386,22 @@ const SUMMER_RECIPE: MilitaryBackgroundRecipe = {
 }
 
 const AUTUMN_RECIPE: MilitaryBackgroundRecipe = {
-  glowA: "rgba(138, 44, 36, 0.25)",
-  glowB: "rgba(234, 146, 34, 0.28)",
-  contour: "rgba(156, 70, 44, 0.18)",
-  contourAccent: "rgba(240, 158, 48, 0.25)",
-  grid: "rgba(224, 126, 34, 0.08)",
-  stripe: "rgba(234, 146, 34, 0.18)",
-  scan: "rgba(238, 150, 42, 0.07)",
-  camoA: "rgba(88, 28, 24, 0.5)",
-  camoB: "rgba(140, 74, 22, 0.36)",
-  camoC: "rgba(28, 12, 10, 0.88)",
-  baseStart: "rgba(36, 10, 10, 0.96)",
-  baseMid: "rgba(38, 18, 12, 0.92)",
-  baseEnd: "rgba(26, 14, 8, 0.93)",
-  overlayTop: "rgba(12, 4, 4, 0.48)",
-  overlayMid: "rgba(12, 6, 4, 0.3)",
-  overlayBottom: "rgba(10, 4, 4, 0.62)",
+  glowA: "rgba(118, 74, 132, 0.24)",
+  glowB: "rgba(220, 172, 70, 0.25)",
+  contour: "rgba(132, 92, 126, 0.18)",
+  contourAccent: "rgba(226, 180, 86, 0.24)",
+  grid: "rgba(188, 150, 74, 0.08)",
+  stripe: "rgba(210, 164, 76, 0.17)",
+  scan: "rgba(218, 170, 84, 0.07)",
+  camoA: "rgba(52, 34, 62, 0.52)",
+  camoB: "rgba(98, 96, 46, 0.34)",
+  camoC: "rgba(18, 14, 24, 0.88)",
+  baseStart: "rgba(24, 12, 30, 0.96)",
+  baseMid: "rgba(28, 22, 18, 0.92)",
+  baseEnd: "rgba(18, 24, 14, 0.93)",
+  overlayTop: "rgba(8, 4, 12, 0.48)",
+  overlayMid: "rgba(9, 7, 6, 0.3)",
+  overlayBottom: "rgba(6, 4, 8, 0.62)",
   opacity: 0.3,
 }
 
@@ -430,7 +430,7 @@ const THEMES: Record<SeasonalThemeId, SeasonalThemeDefinition> = {
   },
   spring: {
     id: "spring",
-    icon: "flower",
+    icon: "sprout",
     seasonLabel: "Весна",
     subtitle: "Весенний сезон",
     contextLabel: "Авто-тема по календарю РФ",
@@ -483,15 +483,15 @@ const THEMES: Record<SeasonalThemeId, SeasonalThemeDefinition> = {
     showSnowfall: false,
     backgrounds: buildMilitaryBackgrounds(AUTUMN_RECIPE),
     palette: {
-      red: "oklch(0.5 0.14 28)",
-      green: "oklch(0.62 0.1 54)",
-      gold: "oklch(0.82 0.15 70)",
+      red: "oklch(0.5 0.1 320)",
+      green: "oklch(0.58 0.08 112)",
+      gold: "oklch(0.8 0.12 82)",
       snow: "oklch(0.97 0.02 80)",
-      primary: "oklch(0.5 0.14 28)",
-      accent: "oklch(0.82 0.15 70)",
-      ring: "oklch(0.82 0.15 70)",
-      chart4: "oklch(0.66 0.1 54)",
-      chart5: "oklch(0.56 0.12 30)",
+      primary: "oklch(0.5 0.1 320)",
+      accent: "oklch(0.8 0.12 82)",
+      ring: "oklch(0.8 0.12 82)",
+      chart4: "oklch(0.62 0.08 105)",
+      chart5: "oklch(0.56 0.09 318)",
     },
   },
 }
