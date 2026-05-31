@@ -1,11 +1,10 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
+import { useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties, type SVGProps } from "react"
 import type { LucideIcon } from "lucide-react"
 import {
   CalendarDays,
   Flower2,
-  Leaf,
   Snowflake,
   Sparkles,
   Sun,
@@ -104,11 +103,24 @@ const SLIDE_FADE_MS = 280
 const TICKER_SPEED_PX_PER_SECOND = 90
 const TICKER_GAP_PX = 96
 
-const ICON_BY_THEME: Record<SeasonalThemeIcon, LucideIcon> = {
+function MapleLeafIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className} {...props}>
+      <path d="M12 2.3 9.9 7.1 6.7 4.2l.5 5.2-4.8-.8 3.2 3.6-4 2.1 5 .9-1.4 4.4 4.5-2 .6 4.1h3.4l.6-4.1 4.5 2-1.4-4.4 5-.9-4-2.1 3.2-3.6-4.8.8.5-5.2-3.2 2.9L12 2.3Z" />
+    </svg>
+  )
+}
+
+const ICON_BY_THEME: Record<SeasonalThemeIcon, ComponentType<{ className?: string }>> = {
   snowflake: Snowflake,
   flower: Flower2,
   sun: Sun,
-  "maple-leaf": Leaf,
+  "maple-leaf": MapleLeafIcon,
+}
+
+function getThemeIconClassName(themeId: SeasonalTheme["id"]) {
+  if (themeId === "winter") return "text-christmas-green"
+  return "text-christmas-gold"
 }
 
 function pluralize(value: number, one: string, few: string, many: string) {
@@ -708,7 +720,7 @@ export function SeasonalHeader({ mdcPlayersCount, gravePlayersCount, nklvPlayers
                   isCollapsed ? "h-5 w-5" : "h-7 w-7 md:h-8 md:w-8",
                 )}
               >
-                <ThemeIcon className={cn("h-4 w-4", theme.id === "autumn" ? "text-christmas-gold" : "text-christmas-green")} />
+                <ThemeIcon className={cn("h-4 w-4", getThemeIconClassName(theme.id))} />
               </div>
             </div>
 
