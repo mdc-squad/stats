@@ -152,6 +152,10 @@ function isSameUpstreamSignature(left: UpstreamSignature | null | undefined, rig
   return left.fingerprint === right.fingerprint
 }
 
+function isSuspiciouslySmallCachedData(data: MDCData): boolean {
+  return data.events.length > 0 && (data.events.length < 10 || data.player_event_stats.length < 200)
+}
+
 function openCacheDatabase(): Promise<IDBDatabase | null> {
   if (typeof window === "undefined" || !("indexedDB" in window)) {
     return Promise.resolve(null)
@@ -1391,10 +1395,11 @@ export default function YearReviewPage() {
     }
 
     let upstreamSignature: UpstreamSignature | null = null
+    const canUseIncrementalCache = cached ? !resetCache && !isSuspiciouslySmallCachedData(cached.data) : false
 
     // In regular page reload flow, show the cached snapshot first, then do a lightweight
     // upstream check. The expensive paged protocol sync only runs when that signature changed.
-    if (!forceRefresh && !resetCache && cached) {
+    if (!forceRefresh && canUseIncrementalCache && cached) {
       try {
         upstreamSignature = await fetchUpstreamSignature(true)
         if (isSameUpstreamSignature(cached.upstreamSignature, upstreamSignature)) {
@@ -1425,7 +1430,7 @@ export default function YearReviewPage() {
         publish: true,
         skipPagedStats: false,
         preferSplitEndpoints: Boolean(cached) && !resetCache,
-        cachedPlayerEventStats: cached?.data.player_event_stats,
+        cachedPlayerEventStats: canUseIncrementalCache ? cached?.data.player_event_stats : undefined,
         onProgress: (progress) => {
           latestProgress = progress
           setSyncProgress((current) => ({
@@ -1441,7 +1446,8 @@ export default function YearReviewPage() {
         ? null
         : pickMoreCompleteData(rawDataRef.current, cached?.data ?? null)
       const refreshedData = forceRefresh ? preserveCachedPlayerStatsWhenRefreshIsEmpty(previousDataForReport, normalizedData) : normalizedData
-      const finalData = forceRefresh ? refreshedData : previousDataForReport ? mergeMDCData(previousDataForReport, refreshedData) : refreshedData
+      const shouldMergeWithPrevious = Boolean(previousDataForReport) && !resetCache
+      const finalData = shouldMergeWithPrevious && previousDataForReport ? mergeMDCData(previousDataForReport, refreshedData) : refreshedData
       const syncReport = buildSyncReport(previousDataForReport, finalData, resetCache, latestProgress, startedAt)
 
       setRawData(finalData)
