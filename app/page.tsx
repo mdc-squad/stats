@@ -71,6 +71,7 @@ import { getAchievementIcon, getMetricIcon } from "@/lib/app-icons"
 import { fetchAllData, type SyncProgressUpdate } from "@/lib/api"
 import { withBasePath } from "@/lib/base-path"
 import { getSeasonalTheme, type SeasonalTheme } from "@/lib/seasonal-theme"
+import { fetchUpstreamSignature, type UpstreamSignature } from "@/lib/upstream-signature"
 import { cn } from "@/lib/utils"
 import {
   Calendar,
@@ -109,12 +110,14 @@ type CachedPayload = {
   savedAt: number
   buildId?: string
   data: MDCData
+  upstreamSignature?: UpstreamSignature | null
 }
 
 type CachedMetaPayload = {
   savedAt: number
   buildId?: string
   storage?: "indexeddb"
+  upstreamSignature?: UpstreamSignature | null
 }
 
 const API_CACHE_DB_NAME = "mdc-stats-cache"
@@ -129,6 +132,7 @@ const API_CACHE_CHUNK_KEYS = [
   "player_event_stats",
   "clans",
   "dictionaries",
+  "upstreamSignature",
 ] as const
 
 type CacheChunkKey = (typeof API_CACHE_CHUNK_KEYS)[number]
@@ -141,6 +145,11 @@ function isValidCachedData(data: MDCData | null | undefined): data is MDCData {
   if (!Array.isArray(data.clans)) return false
   if (data.events.length > 0 && data.player_event_stats.length === 0) return false
   return true
+}
+
+function isSameUpstreamSignature(left: UpstreamSignature | null | undefined, right: UpstreamSignature | null | undefined): boolean {
+  if (!left?.fingerprint || !right?.fingerprint) return false
+  return left.fingerprint === right.fingerprint
 }
 
 function openCacheDatabase(): Promise<IDBDatabase | null> {
@@ -188,6 +197,7 @@ function writeCacheChunks(database: IDBDatabase, payload: CachedPayload): Promis
     store.put(payload.data.player_event_stats, "player_event_stats")
     store.put(payload.data.clans, "clans")
     store.put(payload.data.dictionaries, "dictionaries")
+    store.put(payload.upstreamSignature ?? null, "upstreamSignature")
 
     transaction.oncomplete = () => resolve()
     transaction.onerror = () => reject(transaction.error ?? new Error("IndexedDB cache write failed"))
@@ -211,7 +221,7 @@ async function readIndexedCachedData(): Promise<CachedPayload | null> {
   if (!database) return null
 
   try {
-    const [savedAt, buildId, meta, events, players, playerEventStats, clans, dictionaries] = await Promise.all([
+    const [savedAt, buildId, meta, events, players, playerEventStats, clans, dictionaries, upstreamSignature] = await Promise.all([
       readCacheChunk<number>(database, "savedAt"),
       readCacheChunk<string>(database, "buildId"),
       readCacheChunk<MDCData["meta"]>(database, "meta"),
@@ -220,6 +230,7 @@ async function readIndexedCachedData(): Promise<CachedPayload | null> {
       readCacheChunk<MDCData["player_event_stats"]>(database, "player_event_stats"),
       readCacheChunk<MDCData["clans"]>(database, "clans"),
       readCacheChunk<MDCData["dictionaries"]>(database, "dictionaries"),
+      readCacheChunk<UpstreamSignature | null>(database, "upstreamSignature"),
     ])
 
     const data = {
@@ -257,6 +268,7 @@ async function readIndexedCachedData(): Promise<CachedPayload | null> {
       savedAt,
       buildId,
       data,
+      upstreamSignature: upstreamSignature ?? null,
     }
   } catch {
     return null
@@ -305,18 +317,19 @@ async function readCachedData(): Promise<CachedPayload | null> {
 
   const local = readLocalCachedData()
   if (local) {
-    void writeCachedData(local.data, local.savedAt)
+    void writeCachedData(local.data, local.savedAt, local.upstreamSignature ?? null)
     return local
   }
 
   return null
 }
 
-async function writeCachedData(data: MDCData, savedAt = Date.now()): Promise<void> {
+async function writeCachedData(data: MDCData, savedAt = Date.now(), upstreamSignature: UpstreamSignature | null = null): Promise<void> {
   const payload: CachedPayload = {
     savedAt,
     buildId: APP_BUILD_ID,
     data,
+    upstreamSignature,
   }
 
   try {
@@ -335,6 +348,7 @@ async function writeCachedData(data: MDCData, savedAt = Date.now()): Promise<voi
       savedAt,
       buildId: APP_BUILD_ID,
       storage: "indexeddb",
+      upstreamSignature,
     }
     clearObsoleteCaches(API_CACHE_KEY)
     localStorage.setItem(API_CACHE_KEY, JSON.stringify(metaPayload))
@@ -1376,10 +1390,20 @@ export default function YearReviewPage() {
       setLastUpdatedAt(cached.savedAt)
     }
 
-    // In regular page reload flow, show the cached snapshot first.
-    // Manual sync keeps the current snapshot visible while the cache refreshes in the header.
+    let upstreamSignature: UpstreamSignature | null = null
+
+    // In regular page reload flow, show the cached snapshot first, then do a lightweight
+    // upstream check. The expensive paged protocol sync only runs when that signature changed.
     if (!forceRefresh && !resetCache && cached) {
-      return true
+      try {
+        upstreamSignature = await fetchUpstreamSignature(true)
+        if (isSameUpstreamSignature(cached.upstreamSignature, upstreamSignature)) {
+          return true
+        }
+      } catch (error) {
+        console.warn("Failed to check upstream signature:", error)
+        return true
+      }
     }
 
     setIsRefreshing(true)
@@ -1397,10 +1421,11 @@ export default function YearReviewPage() {
     })
     try {
       const normalizedData = await fetchAllData({
-        forceRefresh,
+        forceRefresh: forceRefresh || Boolean(cached),
         publish: true,
         skipPagedStats: false,
         preferSplitEndpoints: Boolean(cached) && !resetCache,
+        cachedPlayerEventStats: cached?.data.player_event_stats,
         onProgress: (progress) => {
           latestProgress = progress
           setSyncProgress((current) => ({
@@ -1423,7 +1448,14 @@ export default function YearReviewPage() {
       setLoading(false)
       setLoadError(null)
       const savedAt = Date.now()
-      await writeCachedData(finalData, savedAt)
+      if (!upstreamSignature) {
+        try {
+          upstreamSignature = await fetchUpstreamSignature(true)
+        } catch {
+          upstreamSignature = null
+        }
+      }
+      await writeCachedData(finalData, savedAt, upstreamSignature)
       setLastUpdatedAt(savedAt)
       setLastSyncReport(syncReport)
       setSyncProgress((current) => ({
