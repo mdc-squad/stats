@@ -83,7 +83,7 @@ import {
 const API_CACHE_NAMESPACE = "mdc-api-cache"
 const APP_BUILD_ID = process.env.NEXT_PUBLIC_APP_BUILD_ID?.trim() || "dev"
 const API_CACHE_KEY = `${API_CACHE_NAMESPACE}-${APP_BUILD_ID}`
-const API_CACHE_TTL_MS = 5 * 60 * 1000
+const API_CACHE_TTL_MS = 6 * 60 * 60 * 1000
 const ROLE_TAB_ORDER = [
   "SL",
   "Стрелок",
@@ -1461,17 +1461,7 @@ export default function YearReviewPage() {
   }, [])
 
   useEffect(() => {
-    let isMounted = true
-
-    void loadData(false, false).then((usedCachedData) => {
-      if (isMounted && usedCachedData) {
-        void loadData(true, false)
-      }
-    })
-
-    return () => {
-      isMounted = false
-    }
+    void loadData(false, false)
   }, [loadData])
 
   const handleHardCacheReset = useCallback(() => {
