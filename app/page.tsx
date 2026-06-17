@@ -1324,6 +1324,7 @@ export default function YearReviewPage() {
   const [loadingShowcaseReady, setLoadingShowcaseReady] = useState(false)
   const [, setLastSyncReport] = useState<SyncReport | null>(null)
   const rawDataRef = useRef<MDCData | null>(null)
+  const activeLoadRef = useRef(false)
   const calendarSectionRef = useRef<HTMLDivElement | null>(null)
   const playerSectionRef = useRef<HTMLDivElement | null>(null)
 
@@ -1382,8 +1383,19 @@ export default function YearReviewPage() {
   }, [loading, loadingShowcaseReady])
 
   const loadData = useCallback(async (forceRefresh = false, resetCache = false) => {
+    if (activeLoadRef.current) {
+      return Boolean(rawDataRef.current)
+    }
+
+    activeLoadRef.current = true
     const cached = await readCachedData()
     const syncMode: SyncMode = resetCache ? "reset" : "auto"
+    const startedAt = Date.now()
+    let latestProgress: SyncProgressUpdate = {
+      percent: 2,
+      stage: "prepare",
+      message: "Проверяем обновления...",
+    }
 
     if (resetCache) {
       await clearCachedData()
@@ -1400,20 +1412,49 @@ export default function YearReviewPage() {
     // In regular page reload flow, show the cached snapshot first, then do a lightweight
     // upstream check. The expensive paged protocol sync only runs when that signature changed.
     if (!forceRefresh && canUseIncrementalCache && cached) {
+      setIsRefreshing(true)
+      setSyncProgress({
+        active: true,
+        startedAt,
+        mode: syncMode,
+        ...latestProgress,
+      })
+
       try {
         upstreamSignature = await fetchUpstreamSignature(true)
         if (isSameUpstreamSignature(cached.upstreamSignature, upstreamSignature)) {
+          setSyncProgress((current) => ({
+            active: false,
+            startedAt: current?.startedAt ?? startedAt,
+            mode: current?.mode ?? syncMode,
+            percent: 100,
+            stage: "done",
+            message: "Данные актуальны",
+            finishedAt: Date.now(),
+          }))
+          setIsRefreshing(false)
+          activeLoadRef.current = false
           return true
         }
       } catch (error) {
         console.warn("Failed to check upstream signature:", error)
+        setSyncProgress((current) => ({
+          active: false,
+          startedAt: current?.startedAt ?? startedAt,
+          mode: current?.mode ?? syncMode,
+          percent: current?.percent ?? 100,
+          stage: "done",
+          message: "Не удалось проверить обновления, показан кэш",
+          finishedAt: Date.now(),
+        }))
+        setIsRefreshing(false)
+        activeLoadRef.current = false
         return true
       }
     }
 
     setIsRefreshing(true)
-    const startedAt = Date.now()
-    let latestProgress: SyncProgressUpdate = {
+    latestProgress = {
       percent: 2,
       stage: "prepare",
       message: "Подготовка синхронизации...",
@@ -1493,6 +1534,7 @@ export default function YearReviewPage() {
         finishedAt: Date.now(),
       }))
     } finally {
+      activeLoadRef.current = false
       setIsRefreshing(false)
     }
     return Boolean(cached)
