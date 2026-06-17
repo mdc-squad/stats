@@ -945,7 +945,7 @@ function normalizePlayer(raw: UnknownRecord): Player {
     nickname,
     tag,
     is_mdc_member: isMdcMember,
-    discord: toString(raw.discord, ""),
+    discord: toString(raw.discord ?? raw.discord_user_id ?? raw.discordUserId ?? raw.discord_used_id ?? raw.discordUsedId, ""),
     steam_id: steamId,
     note: toNullableString(raw.note),
     joined_at: toString(raw.joined_at, ""),

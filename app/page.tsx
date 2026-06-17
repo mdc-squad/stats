@@ -665,6 +665,68 @@ function getPlayerIdentityKeys(player: Pick<Player, "nickname" | "steam_id">): s
   return Array.from(keys)
 }
 
+function normalizePlayerQuery(value: string | null | undefined): string {
+  const rawValue = value ?? ""
+  let decoded = rawValue
+
+  try {
+    decoded = decodeURIComponent(rawValue)
+  } catch {
+    decoded = rawValue
+  }
+
+  return decoded
+    .trim()
+    .replace(/^<@!?(\d+)>$/, "$1")
+}
+
+function normalizePlayerSearchText(value: string | null | undefined): string {
+  return normalizeTextKey(value ?? "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+function resolvePlayerByQuery(players: Player[], rawQuery: string): Player | null {
+  const query = normalizePlayerQuery(rawQuery)
+  if (!query) return null
+
+  const normalizedQuery = normalizeTextKey(query)
+  const textQuery = normalizePlayerSearchText(query)
+  const numericQuery = query.replace(/\D/g, "")
+
+  if (numericQuery.length >= 16) {
+    const byDiscord = players.find((player) => {
+      const discord = normalizePlayerQuery(player.discord)
+      return discord === numericQuery || discord.replace(/\D/g, "") === numericQuery
+    })
+
+    if (byDiscord) return byDiscord
+  }
+
+  const byExactId = players.find((player) =>
+    [player.player_id, player.steam_id].some((value) => normalizeTextKey(value ?? "") === normalizedQuery),
+  )
+  if (byExactId) return byExactId
+
+  const byExactName = players.find((player) => {
+    const nickname = normalizePlayerSearchText(player.nickname)
+    const tagAndNickname = normalizePlayerSearchText(`${player.tag ?? ""} ${player.nickname ?? ""}`)
+    return nickname === textQuery || tagAndNickname === textQuery
+  })
+  if (byExactName) return byExactName
+
+  return players.find((player) => {
+    const nickname = normalizePlayerSearchText(player.nickname)
+    const tagAndNickname = normalizePlayerSearchText(`${player.tag ?? ""} ${player.nickname ?? ""}`)
+    return Boolean(
+      textQuery &&
+        ((nickname && (nickname.includes(textQuery) || textQuery.includes(nickname))) ||
+          (tagAndNickname && tagAndNickname.includes(textQuery))),
+    )
+  }) ?? null
+}
+
 function mergeStringDomain(primary: string[] = [], secondary: string[] = []): string[] {
   const byKey = new Map<string, string>()
   ;[...primary, ...secondary]
@@ -1325,6 +1387,7 @@ export default function YearReviewPage() {
   const [, setLastSyncReport] = useState<SyncReport | null>(null)
   const rawDataRef = useRef<MDCData | null>(null)
   const activeLoadRef = useRef(false)
+  const handledPlayerQueryRef = useRef<string | null>(null)
   const calendarSectionRef = useRef<HTMLDivElement | null>(null)
   const playerSectionRef = useRef<HTMLDivElement | null>(null)
 
@@ -2584,6 +2647,23 @@ export default function YearReviewPage() {
       scrollToPlayerSectionStart("smooth")
     }, 360)
   }, [scrollToPlayerSectionStart])
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !data) return
+
+    const params = new URLSearchParams(window.location.search)
+    const rawQuery = params.get("query") ?? params.get("discord_user_id") ?? params.get("discord_used_id")
+    const query = normalizePlayerQuery(rawQuery)
+
+    if (!query || handledPlayerQueryRef.current === query) return
+
+    const player = resolvePlayerByQuery(rawData?.players ?? data.players, query)
+    if (!player) return
+
+    handledPlayerQueryRef.current = query
+    resetSliceFilters()
+    handleOpenPlayer(player.player_id)
+  }, [data, handleOpenPlayer, rawData, resetSliceFilters])
 
   const handleOpenCalendarEvent = useCallback((eventId: string) => {
     startTransition(() => {
