@@ -85,6 +85,7 @@ const API_CACHE_NAMESPACE = "mdc-api-cache"
 const APP_BUILD_ID = process.env.NEXT_PUBLIC_APP_BUILD_ID?.trim() || "dev"
 const API_CACHE_KEY = `${API_CACHE_NAMESPACE}-${APP_BUILD_ID}`
 const API_CACHE_TTL_MS = 6 * 60 * 60 * 1000
+const FULL_PROTOCOL_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000
 const ROLE_TAB_ORDER = [
   "SL",
   "Стрелок",
@@ -111,6 +112,7 @@ type CachedPayload = {
   buildId?: string
   data: MDCData
   upstreamSignature?: UpstreamSignature | null
+  lastFullProtocolSyncAt?: number | null
 }
 
 type CachedMetaPayload = {
@@ -118,6 +120,7 @@ type CachedMetaPayload = {
   buildId?: string
   storage?: "indexeddb"
   upstreamSignature?: UpstreamSignature | null
+  lastFullProtocolSyncAt?: number | null
 }
 
 const API_CACHE_DB_NAME = "mdc-stats-cache"
@@ -133,6 +136,7 @@ const API_CACHE_CHUNK_KEYS = [
   "clans",
   "dictionaries",
   "upstreamSignature",
+  "lastFullProtocolSyncAt",
 ] as const
 
 type CacheChunkKey = (typeof API_CACHE_CHUNK_KEYS)[number]
@@ -154,6 +158,13 @@ function isSameUpstreamSignature(left: UpstreamSignature | null | undefined, rig
 
 function isSuspiciouslySmallCachedData(data: MDCData): boolean {
   return data.events.length > 0 && (data.events.length < 10 || data.player_event_stats.length < 200)
+}
+
+function isFullProtocolSyncDue(cached: CachedPayload | null, now = Date.now()): boolean {
+  if (!cached) return true
+  if (isSuspiciouslySmallCachedData(cached.data)) return true
+  if (typeof cached.lastFullProtocolSyncAt !== "number") return true
+  return now - cached.lastFullProtocolSyncAt > FULL_PROTOCOL_SYNC_INTERVAL_MS
 }
 
 function openCacheDatabase(): Promise<IDBDatabase | null> {
@@ -202,6 +213,7 @@ function writeCacheChunks(database: IDBDatabase, payload: CachedPayload): Promis
     store.put(payload.data.clans, "clans")
     store.put(payload.data.dictionaries, "dictionaries")
     store.put(payload.upstreamSignature ?? null, "upstreamSignature")
+    store.put(payload.lastFullProtocolSyncAt ?? null, "lastFullProtocolSyncAt")
 
     transaction.oncomplete = () => resolve()
     transaction.onerror = () => reject(transaction.error ?? new Error("IndexedDB cache write failed"))
@@ -225,7 +237,7 @@ async function readIndexedCachedData(): Promise<CachedPayload | null> {
   if (!database) return null
 
   try {
-    const [savedAt, buildId, meta, events, players, playerEventStats, clans, dictionaries, upstreamSignature] = await Promise.all([
+    const [savedAt, buildId, meta, events, players, playerEventStats, clans, dictionaries, upstreamSignature, lastFullProtocolSyncAt] = await Promise.all([
       readCacheChunk<number>(database, "savedAt"),
       readCacheChunk<string>(database, "buildId"),
       readCacheChunk<MDCData["meta"]>(database, "meta"),
@@ -235,6 +247,7 @@ async function readIndexedCachedData(): Promise<CachedPayload | null> {
       readCacheChunk<MDCData["clans"]>(database, "clans"),
       readCacheChunk<MDCData["dictionaries"]>(database, "dictionaries"),
       readCacheChunk<UpstreamSignature | null>(database, "upstreamSignature"),
+      readCacheChunk<number | null>(database, "lastFullProtocolSyncAt"),
     ])
 
     const data = {
@@ -273,6 +286,7 @@ async function readIndexedCachedData(): Promise<CachedPayload | null> {
       buildId,
       data,
       upstreamSignature: upstreamSignature ?? null,
+      lastFullProtocolSyncAt: typeof lastFullProtocolSyncAt === "number" ? lastFullProtocolSyncAt : null,
     }
   } catch {
     return null
@@ -321,19 +335,25 @@ async function readCachedData(): Promise<CachedPayload | null> {
 
   const local = readLocalCachedData()
   if (local) {
-    void writeCachedData(local.data, local.savedAt, local.upstreamSignature ?? null)
+    void writeCachedData(local.data, local.savedAt, local.upstreamSignature ?? null, local.lastFullProtocolSyncAt ?? null)
     return local
   }
 
   return null
 }
 
-async function writeCachedData(data: MDCData, savedAt = Date.now(), upstreamSignature: UpstreamSignature | null = null): Promise<void> {
+async function writeCachedData(
+  data: MDCData,
+  savedAt = Date.now(),
+  upstreamSignature: UpstreamSignature | null = null,
+  lastFullProtocolSyncAt: number | null = null,
+): Promise<void> {
   const payload: CachedPayload = {
     savedAt,
     buildId: APP_BUILD_ID,
     data,
     upstreamSignature,
+    lastFullProtocolSyncAt,
   }
 
   try {
@@ -353,6 +373,7 @@ async function writeCachedData(data: MDCData, savedAt = Date.now(), upstreamSign
       buildId: APP_BUILD_ID,
       storage: "indexeddb",
       upstreamSignature,
+      lastFullProtocolSyncAt,
     }
     clearObsoleteCaches(API_CACHE_KEY)
     localStorage.setItem(API_CACHE_KEY, JSON.stringify(metaPayload))
@@ -1471,10 +1492,11 @@ export default function YearReviewPage() {
 
     let upstreamSignature: UpstreamSignature | null = null
     const canUseIncrementalCache = cached ? !resetCache && !isSuspiciouslySmallCachedData(cached.data) : false
+    const shouldRunFullProtocolSync = resetCache || isFullProtocolSyncDue(cached, startedAt)
 
     // In regular page reload flow, show the cached snapshot first, then do a lightweight
     // upstream check. The expensive paged protocol sync only runs when that signature changed.
-    if (!forceRefresh && canUseIncrementalCache && cached) {
+    if (!forceRefresh && canUseIncrementalCache && !shouldRunFullProtocolSync && cached) {
       setIsRefreshing(true)
       setSyncProgress({
         active: true,
@@ -1534,7 +1556,7 @@ export default function YearReviewPage() {
         publish: true,
         skipPagedStats: false,
         preferSplitEndpoints: Boolean(cached) && !resetCache,
-        cachedPlayerEventStats: canUseIncrementalCache ? cached?.data.player_event_stats : undefined,
+        cachedPlayerEventStats: canUseIncrementalCache && !shouldRunFullProtocolSync ? cached?.data.player_event_stats : undefined,
         onProgress: (progress) => {
           latestProgress = progress
           setSyncProgress((current) => ({
@@ -1565,7 +1587,8 @@ export default function YearReviewPage() {
           upstreamSignature = null
         }
       }
-      await writeCachedData(finalData, savedAt, upstreamSignature)
+      const lastFullProtocolSyncAt = shouldRunFullProtocolSync ? savedAt : cached?.lastFullProtocolSyncAt ?? null
+      await writeCachedData(finalData, savedAt, upstreamSignature, lastFullProtocolSyncAt)
       setLastUpdatedAt(savedAt)
       setLastSyncReport(syncReport)
       setSyncProgress((current) => ({
