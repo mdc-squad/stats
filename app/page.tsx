@@ -85,7 +85,7 @@ const API_CACHE_NAMESPACE = "mdc-api-cache"
 const APP_BUILD_ID = process.env.NEXT_PUBLIC_APP_BUILD_ID?.trim() || "dev"
 const API_CACHE_KEY = `${API_CACHE_NAMESPACE}-${APP_BUILD_ID}`
 const API_CACHE_TTL_MS = 6 * 60 * 60 * 1000
-const FULL_PROTOCOL_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000
+const FULL_PROTOCOL_SYNC_INTERVAL_MS = 48 * 60 * 60 * 1000
 const ROLE_TAB_ORDER = [
   "SL",
   "Стрелок",
