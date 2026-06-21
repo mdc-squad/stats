@@ -1151,7 +1151,7 @@ async function fetchPagedPlayerEventStatsRaw(options: FetchApiOptions = {}): Pro
   const canStopAtCachedPage = cachedSignatures.size > 0
   const pageIndexes = Array.from({ length: pagesCount }, (_, index) => index)
   const collectedRows: unknown[] = []
-  const BATCH_SIZE = canStopAtCachedPage ? 1 : 16
+  const BATCH_SIZE = canStopAtCachedPage ? 1 : 24
   let completedPages = 0
   let reachedCachedPage = false
 
