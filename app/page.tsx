@@ -85,7 +85,6 @@ const API_CACHE_NAMESPACE = "mdc-api-cache"
 const APP_BUILD_ID = process.env.NEXT_PUBLIC_APP_BUILD_ID?.trim() || "dev"
 const API_CACHE_KEY = `${API_CACHE_NAMESPACE}-${APP_BUILD_ID}`
 const API_CACHE_TTL_MS = 6 * 60 * 60 * 1000
-const FULL_PROTOCOL_SYNC_INTERVAL_MS = 48 * 60 * 60 * 1000
 const ROLE_TAB_ORDER = [
   "SL",
   "Стрелок",
@@ -154,17 +153,6 @@ function isValidCachedData(data: MDCData | null | undefined): data is MDCData {
 function isSameUpstreamSignature(left: UpstreamSignature | null | undefined, right: UpstreamSignature | null | undefined): boolean {
   if (!left?.fingerprint || !right?.fingerprint) return false
   return left.fingerprint === right.fingerprint
-}
-
-function isSuspiciouslySmallCachedData(data: MDCData): boolean {
-  return data.events.length > 0 && (data.events.length < 10 || data.player_event_stats.length < 200)
-}
-
-function isFullProtocolSyncDue(cached: CachedPayload | null, now = Date.now()): boolean {
-  if (!cached) return true
-  if (isSuspiciouslySmallCachedData(cached.data)) return true
-  if (typeof cached.lastFullProtocolSyncAt !== "number") return true
-  return now - cached.lastFullProtocolSyncAt > FULL_PROTOCOL_SYNC_INTERVAL_MS
 }
 
 function openCacheDatabase(): Promise<IDBDatabase | null> {
@@ -1491,11 +1479,12 @@ export default function YearReviewPage() {
     }
 
     let upstreamSignature: UpstreamSignature | null = null
-    const canUseIncrementalCache = cached ? !resetCache && !isSuspiciouslySmallCachedData(cached.data) : false
-    const shouldRunFullProtocolSync = resetCache || isFullProtocolSyncDue(cached, startedAt)
+    // Keep the cached snapshot as the first paint, but always run a full refresh after it.
+    // Schedule and event endpoints can change outside the paged protocol, so skipping refresh is unsafe.
+    const canUseIncrementalCache = false
+    const shouldRunFullProtocolSync = true
 
-    // In regular page reload flow, show the cached snapshot first, then do a lightweight
-    // upstream check. The expensive paged protocol sync only runs when that signature changed.
+    // Left disabled for now: correctness is more important than skipping refreshes.
     if (!forceRefresh && canUseIncrementalCache && !shouldRunFullProtocolSync && cached) {
       setIsRefreshing(true)
       setSyncProgress({
@@ -1556,7 +1545,6 @@ export default function YearReviewPage() {
         publish: true,
         skipPagedStats: false,
         preferSplitEndpoints: Boolean(cached) && !resetCache,
-        cachedPlayerEventStats: canUseIncrementalCache && !shouldRunFullProtocolSync ? cached?.data.player_event_stats : undefined,
         onProgress: (progress) => {
           latestProgress = progress
           setSyncProgress((current) => ({
