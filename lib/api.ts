@@ -1151,7 +1151,7 @@ async function fetchPagedPlayerEventStatsRaw(options: FetchApiOptions = {}): Pro
   const canStopAtCachedPage = cachedSignatures.size > 0
   const pageIndexes = Array.from({ length: pagesCount }, (_, index) => index)
   const collectedRows: unknown[] = []
-  const BATCH_SIZE = canStopAtCachedPage ? 1 : 8
+  const BATCH_SIZE = canStopAtCachedPage ? 1 : 16
   let completedPages = 0
   let reachedCachedPage = false
 
@@ -1376,7 +1376,7 @@ export async function fetchAllData(options: FetchApiOptions = {}): Promise<MDCDa
       fetchJsonWithOptions(`${API_BASE}/events`, options),
       fetchJsonWithOptions(`${API_BASE}/players`, options),
       pagedRawStatsPromise,
-      fetchJsonWithOptions(`${API_BASE}/playersevents`, options),
+      options.skipPagedStats ? Promise.resolve(null) : fetchJsonWithOptions(`${API_BASE}/playersevents`, options),
       fetchJsonWithOptions(`${API_BASE}/clans`, options),
       fetchJsonWithOptions(`${API_BASE}/dictionaries`, options),
     ])

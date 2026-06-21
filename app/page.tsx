@@ -1540,6 +1540,55 @@ export default function YearReviewPage() {
       ...latestProgress,
     })
     try {
+      const previousSnapshot = resetCache
+        ? null
+        : pickMoreCompleteData(rawDataRef.current, cached?.data ?? null)
+
+      if (!resetCache) {
+        setSyncProgress((current) => ({
+          active: true,
+          startedAt: current?.startedAt ?? startedAt,
+          mode: current?.mode ?? syncMode,
+          percent: Math.max(current?.percent ?? 0, 6),
+          stage: "all",
+          message: "Р‘С‹СЃС‚СЂРѕ РѕР±РЅРѕРІР»СЏРµРј СЂР°СЃРїРёСЃР°РЅРёРµ...",
+          pagesDone: current?.pagesDone,
+          pagesTotal: current?.pagesTotal,
+        }))
+
+        try {
+          const quickData = await fetchAllData({
+            forceRefresh: true,
+            publish: true,
+            skipPagedStats: true,
+            preferSplitEndpoints: true,
+          })
+          const quickMergedData = previousSnapshot ? mergeMDCData(previousSnapshot, quickData) : quickData
+          const quickSavedAt = Date.now()
+
+          setRawData(quickMergedData)
+          setLoading(false)
+          setLoadError(null)
+          if (previousSnapshot || isValidCachedData(quickMergedData)) {
+            await writeCachedData(quickMergedData, quickSavedAt, cached?.upstreamSignature ?? null, cached?.lastFullProtocolSyncAt ?? null)
+          }
+          setLastUpdatedAt(quickSavedAt)
+        } catch (error) {
+          console.warn("Failed to refresh lightweight data:", error)
+        }
+
+        setSyncProgress((current) => ({
+          active: true,
+          startedAt: current?.startedAt ?? startedAt,
+          mode: current?.mode ?? syncMode,
+          percent: Math.max(current?.percent ?? 0, 18),
+          stage: "prepare",
+          message: "Р—Р°РіСЂСѓР¶Р°РµРј РїРѕР»РЅС‹Р№ РїСЂРѕС‚РѕРєРѕР»...",
+          pagesDone: current?.pagesDone,
+          pagesTotal: current?.pagesTotal,
+        }))
+      }
+
       const normalizedData = await fetchAllData({
         forceRefresh: forceRefresh || Boolean(cached),
         publish: true,
@@ -1552,6 +1601,7 @@ export default function YearReviewPage() {
             startedAt: current?.startedAt ?? startedAt,
             mode: current?.mode ?? syncMode,
             ...progress,
+            percent: Math.max(progress.percent, current?.percent ?? 0),
           }))
         },
       })
