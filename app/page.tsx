@@ -1551,7 +1551,7 @@ export default function YearReviewPage() {
           mode: current?.mode ?? syncMode,
           percent: Math.max(current?.percent ?? 0, 6),
           stage: "all",
-          message: "Р‘С‹СЃС‚СЂРѕ РѕР±РЅРѕРІР»СЏРµРј СЂР°СЃРїРёСЃР°РЅРёРµ...",
+          message: "Быстро обновляем расписание...",
           pagesDone: current?.pagesDone,
           pagesTotal: current?.pagesTotal,
         }))
@@ -1583,7 +1583,7 @@ export default function YearReviewPage() {
           mode: current?.mode ?? syncMode,
           percent: Math.max(current?.percent ?? 0, 18),
           stage: "prepare",
-          message: "Р—Р°РіСЂСѓР¶Р°РµРј РїРѕР»РЅС‹Р№ РїСЂРѕС‚РѕРєРѕР»...",
+          message: "Загружаем полный протокол...",
           pagesDone: current?.pagesDone,
           pagesTotal: current?.pagesTotal,
         }))
