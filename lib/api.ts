@@ -27,7 +27,6 @@ export interface FetchApiOptions {
   publish?: boolean
   skipPagedStats?: boolean
   preferSplitEndpoints?: boolean
-  cachedPlayerEventStats?: PlayerEventStat[]
   onProgress?: (progress: SyncProgressUpdate) => void
 }
 
@@ -441,90 +440,6 @@ function hasEventId(value: unknown): boolean {
   }
 
   return Boolean(toNullableString(record.event_id ?? record.id))
-}
-
-function normalizeProtocolText(value: unknown): string {
-  return toString(value, "").trim().toLowerCase()
-}
-
-function normalizeProtocolNumber(value: unknown): string {
-  return String(toNumber(value, 0))
-}
-
-function getProtocolIdentity(record: UnknownRecord): string {
-  return [
-    normalizeProtocolText(record.event_id ?? record.id),
-    normalizeProtocolText(record.tag),
-    normalizeProtocolText(record.nickname),
-    normalizeProtocolText(record.role),
-  ].join("|")
-}
-
-function getProtocolSignature(record: UnknownRecord): string {
-  return [
-    getProtocolIdentity(record),
-    normalizeProtocolText(record.enter),
-    normalizeProtocolText(normalizeSquadIdentifier(record.squad_no)),
-    normalizeProtocolText(resolveSpecializationValue(record)),
-    normalizeProtocolNumber(record.revives),
-    normalizeProtocolNumber(record.heals),
-    normalizeProtocolNumber(record.downs),
-    normalizeProtocolNumber(record.kills),
-    normalizeProtocolNumber(record.deaths),
-    normalizeProtocolNumber(record.vehicle),
-    normalizeProtocolNumber(record.kd),
-    normalizeProtocolNumber(record.kda),
-    normalizeProtocolNumber(record.elo ?? record.ELO),
-    normalizeProtocolNumber(record.battleRating ?? record.battle_rating ?? record.br ?? record.BR),
-    normalizeProtocolNumber(record.basePoints ?? record.base_points ?? record.bp ?? record.BP),
-  ].join("|")
-}
-
-function buildCachedProtocolSignatures(stats: PlayerEventStat[] | undefined): Map<string, string> {
-  const signatures = new Map<string, string>()
-
-  stats?.forEach((stat) => {
-    const record: UnknownRecord = {
-      event_id: stat.event_id,
-      tag: stat.tag,
-      nickname: stat.nickname,
-      enter: stat.enter,
-      squad_no: stat.squad_no,
-      role: stat.role,
-      specialization: stat.specialization,
-      revives: stat.revives,
-      heals: stat.heals,
-      downs: stat.downs,
-      kills: stat.kills,
-      deaths: stat.deaths,
-      vehicle: stat.vehicle,
-      kd: stat.kd,
-      kda: stat.kda,
-      elo: stat.elo,
-      battleRating: stat.battleRating,
-      basePoints: stat.basePoints,
-    }
-    const identity = getProtocolIdentity(record)
-    if (identity) {
-      signatures.set(identity, getProtocolSignature(record))
-    }
-  })
-
-  return signatures
-}
-
-function isUnchangedProtocolPage(rows: unknown[], cachedSignatures: Map<string, string>): boolean {
-  if (rows.length === 0 || cachedSignatures.size === 0) {
-    return false
-  }
-
-  return rows.every((row) => {
-    const record = toRecord(row)
-    if (!record) return false
-
-    const cachedSignature = cachedSignatures.get(getProtocolIdentity(record))
-    return Boolean(cachedSignature && cachedSignature === getProtocolSignature(record))
-  })
 }
 
 function extractArray(value: unknown, aliases: string[]): unknown[] {
@@ -1147,13 +1062,10 @@ async function fetchPagedPlayerEventStatsRaw(options: FetchApiOptions = {}): Pro
     pagesTotal: pagesCount,
   })
 
-  const cachedSignatures = buildCachedProtocolSignatures(options.cachedPlayerEventStats)
-  const canStopAtCachedPage = cachedSignatures.size > 0
   const pageIndexes = Array.from({ length: pagesCount }, (_, index) => index)
   const collectedRows: unknown[] = []
-  const BATCH_SIZE = canStopAtCachedPage ? 1 : 24
+  const BATCH_SIZE = 8
   let completedPages = 0
-  let reachedCachedPage = false
 
   for (let start = 0; start < pageIndexes.length; start += BATCH_SIZE) {
     const batch = pageIndexes.slice(start, start + BATCH_SIZE)
@@ -1173,10 +1085,6 @@ async function fetchPagedPlayerEventStatsRaw(options: FetchApiOptions = {}): Pro
       if (rows.length > 0) {
         collectedRows.push(...rows)
       }
-
-      if (canStopAtCachedPage && isUnchangedProtocolPage(rows, cachedSignatures)) {
-        reachedCachedPage = true
-      }
     })
 
     completedPages = Math.min(pagesCount, completedPages + batch.length)
@@ -1187,17 +1095,13 @@ async function fetchPagedPlayerEventStatsRaw(options: FetchApiOptions = {}): Pro
       pagesDone: completedPages,
       pagesTotal: pagesCount,
     })
-
-    if (reachedCachedPage) {
-      break
-    }
   }
 
   reportSyncProgress(options, {
     stage: "pages",
     percent: 90,
     message: `Протокол собран: ${collectedRows.length} записей`,
-    pagesDone: completedPages,
+    pagesDone: pagesCount,
     pagesTotal: pagesCount,
   })
 
@@ -1376,7 +1280,7 @@ export async function fetchAllData(options: FetchApiOptions = {}): Promise<MDCDa
       fetchJsonWithOptions(`${API_BASE}/events`, options),
       fetchJsonWithOptions(`${API_BASE}/players`, options),
       pagedRawStatsPromise,
-      options.skipPagedStats ? Promise.resolve(null) : fetchJsonWithOptions(`${API_BASE}/playersevents`, options),
+      fetchJsonWithOptions(`${API_BASE}/playersevents`, options),
       fetchJsonWithOptions(`${API_BASE}/clans`, options),
       fetchJsonWithOptions(`${API_BASE}/dictionaries`, options),
     ])

@@ -5,33 +5,12 @@ export type UpstreamSignature = {
   etag: string | null
   lastModified: string | null
   cachedUpdatedAt: string | null
-  fingerprint: string | null
   url: string
 }
 
 function normalizeHeaderValue(value: string | null): string | null {
   const trimmed = value?.trim()
   return trimmed ? trimmed : null
-}
-
-function hashText(value: string): string {
-  let hash = 2166136261
-
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index)
-    hash = Math.imul(hash, 16777619)
-  }
-
-  return (hash >>> 0).toString(16)
-}
-
-function getHeaderFingerprint(response: Response): string | null {
-  const etag = normalizeHeaderValue(response.headers.get("etag"))
-  const lastModified = normalizeHeaderValue(response.headers.get("last-modified"))
-  const cachedUpdatedAt = normalizeHeaderValue(response.headers.get("x-cached-last-updated-timestamp"))
-  const parts = [etag, lastModified, cachedUpdatedAt].filter(Boolean)
-
-  return parts.length > 0 ? parts.join("|") : null
 }
 
 /**
@@ -61,23 +40,11 @@ export async function fetchUpstreamSignature(forceRefresh = false): Promise<Upst
     response = await attemptFetch("GET")
   }
 
-  let fingerprint = getHeaderFingerprint(response)
-
-  if (!fingerprint && response.body === null) {
-    response = await attemptFetch("GET")
-    fingerprint = getHeaderFingerprint(response)
-  }
-
-  if (!fingerprint && response.body !== null) {
-    fingerprint = `body:${hashText(await response.text())}`
-  }
-
   return {
     url,
     etag: normalizeHeaderValue(response.headers.get("etag")),
     lastModified: normalizeHeaderValue(response.headers.get("last-modified")),
     cachedUpdatedAt: normalizeHeaderValue(response.headers.get("x-cached-last-updated-timestamp")),
-    fingerprint,
   }
 }
 

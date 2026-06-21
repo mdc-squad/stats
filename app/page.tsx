@@ -71,7 +71,6 @@ import { getAchievementIcon, getMetricIcon } from "@/lib/app-icons"
 import { fetchAllData, type SyncProgressUpdate } from "@/lib/api"
 import { withBasePath } from "@/lib/base-path"
 import { getSeasonalTheme, type SeasonalTheme } from "@/lib/seasonal-theme"
-import { fetchUpstreamSignature, type UpstreamSignature } from "@/lib/upstream-signature"
 import { cn } from "@/lib/utils"
 import {
   Calendar,
@@ -84,7 +83,7 @@ import {
 const API_CACHE_NAMESPACE = "mdc-api-cache"
 const APP_BUILD_ID = process.env.NEXT_PUBLIC_APP_BUILD_ID?.trim() || "dev"
 const API_CACHE_KEY = `${API_CACHE_NAMESPACE}-${APP_BUILD_ID}`
-const API_CACHE_TTL_MS = 6 * 60 * 60 * 1000
+const API_CACHE_TTL_MS = 5 * 60 * 1000
 const ROLE_TAB_ORDER = [
   "SL",
   "Стрелок",
@@ -110,16 +109,12 @@ type CachedPayload = {
   savedAt: number
   buildId?: string
   data: MDCData
-  upstreamSignature?: UpstreamSignature | null
-  lastFullProtocolSyncAt?: number | null
 }
 
 type CachedMetaPayload = {
   savedAt: number
   buildId?: string
   storage?: "indexeddb"
-  upstreamSignature?: UpstreamSignature | null
-  lastFullProtocolSyncAt?: number | null
 }
 
 const API_CACHE_DB_NAME = "mdc-stats-cache"
@@ -134,8 +129,6 @@ const API_CACHE_CHUNK_KEYS = [
   "player_event_stats",
   "clans",
   "dictionaries",
-  "upstreamSignature",
-  "lastFullProtocolSyncAt",
 ] as const
 
 type CacheChunkKey = (typeof API_CACHE_CHUNK_KEYS)[number]
@@ -148,11 +141,6 @@ function isValidCachedData(data: MDCData | null | undefined): data is MDCData {
   if (!Array.isArray(data.clans)) return false
   if (data.events.length > 0 && data.player_event_stats.length === 0) return false
   return true
-}
-
-function isSameUpstreamSignature(left: UpstreamSignature | null | undefined, right: UpstreamSignature | null | undefined): boolean {
-  if (!left?.fingerprint || !right?.fingerprint) return false
-  return left.fingerprint === right.fingerprint
 }
 
 function openCacheDatabase(): Promise<IDBDatabase | null> {
@@ -200,8 +188,6 @@ function writeCacheChunks(database: IDBDatabase, payload: CachedPayload): Promis
     store.put(payload.data.player_event_stats, "player_event_stats")
     store.put(payload.data.clans, "clans")
     store.put(payload.data.dictionaries, "dictionaries")
-    store.put(payload.upstreamSignature ?? null, "upstreamSignature")
-    store.put(payload.lastFullProtocolSyncAt ?? null, "lastFullProtocolSyncAt")
 
     transaction.oncomplete = () => resolve()
     transaction.onerror = () => reject(transaction.error ?? new Error("IndexedDB cache write failed"))
@@ -225,7 +211,7 @@ async function readIndexedCachedData(): Promise<CachedPayload | null> {
   if (!database) return null
 
   try {
-    const [savedAt, buildId, meta, events, players, playerEventStats, clans, dictionaries, upstreamSignature, lastFullProtocolSyncAt] = await Promise.all([
+    const [savedAt, buildId, meta, events, players, playerEventStats, clans, dictionaries] = await Promise.all([
       readCacheChunk<number>(database, "savedAt"),
       readCacheChunk<string>(database, "buildId"),
       readCacheChunk<MDCData["meta"]>(database, "meta"),
@@ -234,8 +220,6 @@ async function readIndexedCachedData(): Promise<CachedPayload | null> {
       readCacheChunk<MDCData["player_event_stats"]>(database, "player_event_stats"),
       readCacheChunk<MDCData["clans"]>(database, "clans"),
       readCacheChunk<MDCData["dictionaries"]>(database, "dictionaries"),
-      readCacheChunk<UpstreamSignature | null>(database, "upstreamSignature"),
-      readCacheChunk<number | null>(database, "lastFullProtocolSyncAt"),
     ])
 
     const data = {
@@ -273,8 +257,6 @@ async function readIndexedCachedData(): Promise<CachedPayload | null> {
       savedAt,
       buildId,
       data,
-      upstreamSignature: upstreamSignature ?? null,
-      lastFullProtocolSyncAt: typeof lastFullProtocolSyncAt === "number" ? lastFullProtocolSyncAt : null,
     }
   } catch {
     return null
@@ -323,25 +305,18 @@ async function readCachedData(): Promise<CachedPayload | null> {
 
   const local = readLocalCachedData()
   if (local) {
-    void writeCachedData(local.data, local.savedAt, local.upstreamSignature ?? null, local.lastFullProtocolSyncAt ?? null)
+    void writeCachedData(local.data, local.savedAt)
     return local
   }
 
   return null
 }
 
-async function writeCachedData(
-  data: MDCData,
-  savedAt = Date.now(),
-  upstreamSignature: UpstreamSignature | null = null,
-  lastFullProtocolSyncAt: number | null = null,
-): Promise<void> {
+async function writeCachedData(data: MDCData, savedAt = Date.now()): Promise<void> {
   const payload: CachedPayload = {
     savedAt,
     buildId: APP_BUILD_ID,
     data,
-    upstreamSignature,
-    lastFullProtocolSyncAt,
   }
 
   try {
@@ -360,8 +335,6 @@ async function writeCachedData(
       savedAt,
       buildId: APP_BUILD_ID,
       storage: "indexeddb",
-      upstreamSignature,
-      lastFullProtocolSyncAt,
     }
     clearObsoleteCaches(API_CACHE_KEY)
     localStorage.setItem(API_CACHE_KEY, JSON.stringify(metaPayload))
@@ -1395,7 +1368,6 @@ export default function YearReviewPage() {
   const [loadingShowcaseReady, setLoadingShowcaseReady] = useState(false)
   const [, setLastSyncReport] = useState<SyncReport | null>(null)
   const rawDataRef = useRef<MDCData | null>(null)
-  const activeLoadRef = useRef(false)
   const handledPlayerQueryRef = useRef<string | null>(null)
   const calendarSectionRef = useRef<HTMLDivElement | null>(null)
   const playerSectionRef = useRef<HTMLDivElement | null>(null)
@@ -1455,19 +1427,8 @@ export default function YearReviewPage() {
   }, [loading, loadingShowcaseReady])
 
   const loadData = useCallback(async (forceRefresh = false, resetCache = false) => {
-    if (activeLoadRef.current) {
-      return Boolean(rawDataRef.current)
-    }
-
-    activeLoadRef.current = true
     const cached = await readCachedData()
     const syncMode: SyncMode = resetCache ? "reset" : "auto"
-    const startedAt = Date.now()
-    let latestProgress: SyncProgressUpdate = {
-      percent: 2,
-      stage: "prepare",
-      message: "Проверяем обновления...",
-    }
 
     if (resetCache) {
       await clearCachedData()
@@ -1478,57 +1439,15 @@ export default function YearReviewPage() {
       setLastUpdatedAt(cached.savedAt)
     }
 
-    let upstreamSignature: UpstreamSignature | null = null
-    // Keep the cached snapshot as the first paint, but always run a full refresh after it.
-    // Schedule and event endpoints can change outside the paged protocol, so skipping refresh is unsafe.
-    const canUseIncrementalCache = false
-    const shouldRunFullProtocolSync = true
-
-    // Left disabled for now: correctness is more important than skipping refreshes.
-    if (!forceRefresh && canUseIncrementalCache && !shouldRunFullProtocolSync && cached) {
-      setIsRefreshing(true)
-      setSyncProgress({
-        active: true,
-        startedAt,
-        mode: syncMode,
-        ...latestProgress,
-      })
-
-      try {
-        upstreamSignature = await fetchUpstreamSignature(true)
-        if (isSameUpstreamSignature(cached.upstreamSignature, upstreamSignature)) {
-          setSyncProgress((current) => ({
-            active: false,
-            startedAt: current?.startedAt ?? startedAt,
-            mode: current?.mode ?? syncMode,
-            percent: 100,
-            stage: "done",
-            message: "Данные актуальны",
-            finishedAt: Date.now(),
-          }))
-          setIsRefreshing(false)
-          activeLoadRef.current = false
-          return true
-        }
-      } catch (error) {
-        console.warn("Failed to check upstream signature:", error)
-        setSyncProgress((current) => ({
-          active: false,
-          startedAt: current?.startedAt ?? startedAt,
-          mode: current?.mode ?? syncMode,
-          percent: current?.percent ?? 100,
-          stage: "done",
-          message: "Не удалось проверить обновления, показан кэш",
-          finishedAt: Date.now(),
-        }))
-        setIsRefreshing(false)
-        activeLoadRef.current = false
-        return true
-      }
+    // In regular page reload flow, show the cached snapshot first.
+    // Manual sync keeps the current snapshot visible while the cache refreshes in the header.
+    if (!forceRefresh && !resetCache && cached) {
+      return true
     }
 
     setIsRefreshing(true)
-    latestProgress = {
+    const startedAt = Date.now()
+    let latestProgress: SyncProgressUpdate = {
       percent: 2,
       stage: "prepare",
       message: "Подготовка синхронизации...",
@@ -1540,57 +1459,8 @@ export default function YearReviewPage() {
       ...latestProgress,
     })
     try {
-      const previousSnapshot = resetCache
-        ? null
-        : pickMoreCompleteData(rawDataRef.current, cached?.data ?? null)
-
-      if (!resetCache) {
-        setSyncProgress((current) => ({
-          active: true,
-          startedAt: current?.startedAt ?? startedAt,
-          mode: current?.mode ?? syncMode,
-          percent: Math.max(current?.percent ?? 0, 6),
-          stage: "all",
-          message: "Быстро обновляем расписание...",
-          pagesDone: current?.pagesDone,
-          pagesTotal: current?.pagesTotal,
-        }))
-
-        try {
-          const quickData = await fetchAllData({
-            forceRefresh: true,
-            publish: true,
-            skipPagedStats: true,
-            preferSplitEndpoints: true,
-          })
-          const quickMergedData = previousSnapshot ? mergeMDCData(previousSnapshot, quickData) : quickData
-          const quickSavedAt = Date.now()
-
-          setRawData(quickMergedData)
-          setLoading(false)
-          setLoadError(null)
-          if (previousSnapshot || isValidCachedData(quickMergedData)) {
-            await writeCachedData(quickMergedData, quickSavedAt, cached?.upstreamSignature ?? null, cached?.lastFullProtocolSyncAt ?? null)
-          }
-          setLastUpdatedAt(quickSavedAt)
-        } catch (error) {
-          console.warn("Failed to refresh lightweight data:", error)
-        }
-
-        setSyncProgress((current) => ({
-          active: true,
-          startedAt: current?.startedAt ?? startedAt,
-          mode: current?.mode ?? syncMode,
-          percent: Math.max(current?.percent ?? 0, 18),
-          stage: "prepare",
-          message: "Загружаем полный протокол...",
-          pagesDone: current?.pagesDone,
-          pagesTotal: current?.pagesTotal,
-        }))
-      }
-
       const normalizedData = await fetchAllData({
-        forceRefresh: forceRefresh || Boolean(cached),
+        forceRefresh,
         publish: true,
         skipPagedStats: false,
         preferSplitEndpoints: Boolean(cached) && !resetCache,
@@ -1601,7 +1471,6 @@ export default function YearReviewPage() {
             startedAt: current?.startedAt ?? startedAt,
             mode: current?.mode ?? syncMode,
             ...progress,
-            percent: Math.max(progress.percent, current?.percent ?? 0),
           }))
         },
       })
@@ -1610,23 +1479,14 @@ export default function YearReviewPage() {
         ? null
         : pickMoreCompleteData(rawDataRef.current, cached?.data ?? null)
       const refreshedData = forceRefresh ? preserveCachedPlayerStatsWhenRefreshIsEmpty(previousDataForReport, normalizedData) : normalizedData
-      const shouldMergeWithPrevious = Boolean(previousDataForReport) && !resetCache
-      const finalData = shouldMergeWithPrevious && previousDataForReport ? mergeMDCData(previousDataForReport, refreshedData) : refreshedData
+      const finalData = forceRefresh ? refreshedData : previousDataForReport ? mergeMDCData(previousDataForReport, refreshedData) : refreshedData
       const syncReport = buildSyncReport(previousDataForReport, finalData, resetCache, latestProgress, startedAt)
 
       setRawData(finalData)
       setLoading(false)
       setLoadError(null)
       const savedAt = Date.now()
-      if (!upstreamSignature) {
-        try {
-          upstreamSignature = await fetchUpstreamSignature(true)
-        } catch {
-          upstreamSignature = null
-        }
-      }
-      const lastFullProtocolSyncAt = shouldRunFullProtocolSync ? savedAt : cached?.lastFullProtocolSyncAt ?? null
-      await writeCachedData(finalData, savedAt, upstreamSignature, lastFullProtocolSyncAt)
+      await writeCachedData(finalData, savedAt)
       setLastUpdatedAt(savedAt)
       setLastSyncReport(syncReport)
       setSyncProgress((current) => ({
@@ -1658,14 +1518,23 @@ export default function YearReviewPage() {
         finishedAt: Date.now(),
       }))
     } finally {
-      activeLoadRef.current = false
       setIsRefreshing(false)
     }
     return Boolean(cached)
   }, [])
 
   useEffect(() => {
-    void loadData(false, false)
+    let isMounted = true
+
+    void loadData(false, false).then((usedCachedData) => {
+      if (isMounted && usedCachedData) {
+        void loadData(true, false)
+      }
+    })
+
+    return () => {
+      isMounted = false
+    }
   }, [loadData])
 
   const handleHardCacheReset = useCallback(() => {
