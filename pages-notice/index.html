@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, follow">
-    <meta http-equiv="refresh" content="5; url=https://mdc-squad.org/">
+    <meta http-equiv="refresh" content="12; url=https://mdc-squad.org/">
     <title>Сайт переехал | MDC и DCAI</title>
     <style>
       :root {
@@ -34,18 +34,30 @@
         text-align: center;
       }
 
-      .emblems {
-        display: flex;
+      .emblem {
+        display: grid;
         align-items: center;
         justify-content: center;
-        gap: 22px;
         margin-bottom: 20px;
+        transition: opacity 280ms ease, transform 280ms ease;
       }
 
-      .emblems img {
-        width: 120px;
-        height: 120px;
+      .emblem.is-changing {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+
+      .emblem img {
+        width: 150px;
+        height: 150px;
         object-fit: contain;
+      }
+
+      .emblem-name {
+        min-height: 24px;
+        margin-top: 8px;
+        font-size: 20px;
+        font-weight: 700;
       }
 
       h1 {
@@ -85,9 +97,9 @@
   </head>
   <body>
     <main>
-      <div class="emblems">
-        <img src="./mdc-clan-emblem.png" alt="MDC">
-        <img src="./dcia-emblem.png" alt="DCAI">
+      <div class="emblem" id="emblem">
+        <img id="emblem-image" src="./mdc-clan-emblem.png" alt="Эмблема MDC">
+        <div class="emblem-name" id="emblem-name">Mors De Caelo</div>
       </div>
       <h1>Сайт переехал</h1>
       <p>
@@ -96,5 +108,34 @@
       </p>
       <a href="https://mdc-squad.org/">Перейти на mdc-squad.org</a>
     </main>
+    <script>
+      const emblems = [
+        {
+          src: "./mdc-clan-emblem.png",
+          alt: "Эмблема MDC",
+          name: "Mors De Caelo",
+        },
+        {
+          src: "./dcia-emblem.png",
+          alt: "Эмблема DCAI",
+          name: "De Caelo Ad Inferos",
+        },
+      ];
+      const container = document.querySelector("#emblem");
+      const image = document.querySelector("#emblem-image");
+      const name = document.querySelector("#emblem-name");
+      let currentIndex = 0;
+
+      window.setInterval(() => {
+        container.classList.add("is-changing");
+        window.setTimeout(() => {
+          currentIndex = (currentIndex + 1) % emblems.length;
+          image.src = emblems[currentIndex].src;
+          image.alt = emblems[currentIndex].alt;
+          name.textContent = emblems[currentIndex].name;
+          container.classList.remove("is-changing");
+        }, 280);
+      }, 5000);
+    </script>
   </body>
 </html>
