@@ -37,7 +37,9 @@
       .emblem {
         display: grid;
         align-items: center;
+        justify-items: center;
         justify-content: center;
+        width: 100%;
         margin-bottom: 20px;
         transition: opacity 280ms ease, transform 280ms ease;
       }
@@ -48,16 +50,19 @@
       }
 
       .emblem img {
+        display: block;
         width: 150px;
         height: 150px;
         object-fit: contain;
       }
 
       .emblem-name {
+        width: 100%;
         min-height: 24px;
         margin-top: 8px;
         font-size: 20px;
         font-weight: 700;
+        text-align: center;
       }
 
       h1 {
