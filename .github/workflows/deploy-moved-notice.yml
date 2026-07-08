@@ -1,0 +1,45 @@
+name: Deploy moved notice
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "pages-notice/**"
+      - "public/grave-emblem.png"
+      - ".github/workflows/deploy-moved-notice.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare notice
+        run: cp public/grave-emblem.png pages-notice/grave-emblem.png
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload notice
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages-notice
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
