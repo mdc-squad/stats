@@ -6,7 +6,8 @@ on:
       - main
     paths:
       - "pages-notice/**"
-      - "public/grave-emblem.png"
+      - "public/mdc-clan-emblem.png"
+      - "public/dcia-emblem.png"
       - ".github/workflows/deploy-moved-notice.yml"
   workflow_dispatch:
 
@@ -30,7 +31,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Prepare notice
-        run: cp public/grave-emblem.png pages-notice/grave-emblem.png
+        run: |
+          cp public/mdc-clan-emblem.png pages-notice/mdc-clan-emblem.png
+          cp public/dcia-emblem.png pages-notice/dcia-emblem.png
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
