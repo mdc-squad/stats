@@ -2969,7 +2969,7 @@ export default function YearReviewPage() {
     return leftLabel.localeCompare(rightLabel, "ru")
   })
 
-  const roleRows = orderedRoleLeaderboards.reduce<typeof orderedRoleLeaderboards>((rows, entry, index) => {
+  const roleRows = orderedRoleLeaderboards.reduce<(typeof orderedRoleLeaderboards)[number][][]>((rows, entry, index) => {
     if (index % 3 === 0) {
       rows.push([entry])
     } else {
