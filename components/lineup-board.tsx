@@ -19,10 +19,10 @@ const LINEUP_API_BASE = (process.env.NEXT_PUBLIC_MDC_API_BASE ?? "https://api.hu
 const LINEUP_API_URL = `${LINEUP_API_BASE}/lineup?publish=true`
 const SQUAD_ORDER = ["GREEN", "RED", "YELLOW", "BLUE", "PURPLE", "ORANGE", "BROWN", "BLACK", "PINK", "WHITE"] as const
 
-type SquadName = (typeof SQUAD_ORDER)[number]
+export type SquadName = (typeof SQUAD_ORDER)[number]
 type LineupSideKey = "siteOne" | "siteTwo"
 
-type LineupPlayer = {
+export type LineupPlayer = {
   vehicle?: string | number | null
   role?: string | null
   specialist?: string | null
@@ -35,7 +35,7 @@ type LineupPlayer = {
   nickname?: string | null
 }
 
-type LineupPayload = {
+export type LineupPayload = {
   name?: string | null
   siteOne?: Partial<Record<SquadName, LineupPlayer[]>>
   siteTwo?: Partial<Record<SquadName, LineupPlayer[]>>
@@ -45,6 +45,8 @@ interface LineupBoardProps {
   games?: PastGameSummary[]
   players?: Player[]
   onOpenPlayer?: (playerId: string) => void
+  /** Overrides the default legacy-API fetch (e.g. to source the lineup from the new REST API instead). */
+  fetchLineup?: () => Promise<LineupPayload>
 }
 
 type LineupPlayerMetric = {
@@ -575,7 +577,7 @@ function SquadTable({
   )
 }
 
-export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBoardProps) {
+export function LineupBoard({ games = [], players = [], onOpenPlayer, fetchLineup }: LineupBoardProps) {
   const [lineup, setLineup] = useState<LineupPayload | null>(null)
   const [side, setSide] = useState<LineupSideKey>("siteOne")
   const [loading, setLoading] = useState(true)
@@ -587,9 +589,13 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
       setLoading(true)
       setError(null)
       try {
-        const response = await fetch(LINEUP_API_URL, { cache: "no-store" })
-        if (!response.ok) throw new Error(`API ${response.status}`)
-        const payload = (await response.json()) as LineupPayload
+        const payload = fetchLineup
+          ? await fetchLineup()
+          : await (async () => {
+              const response = await fetch(LINEUP_API_URL, { cache: "no-store" })
+              if (!response.ok) throw new Error(`API ${response.status}`)
+              return (await response.json()) as LineupPayload
+            })()
         setLineup(payload)
       } catch (err) {
         setError(err instanceof Error ? err.message : "Не удалось загрузить лайнап")
@@ -597,7 +603,7 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
         setLoading(false)
       }
     },
-    [],
+    [fetchLineup],
   )
 
   useEffect(() => {

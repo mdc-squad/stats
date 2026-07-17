@@ -69,6 +69,7 @@ import {
 } from "@/lib/data-utils"
 import { getAchievementIcon, getMetricIcon } from "@/lib/app-icons"
 import { fetchAllData, type SyncProgressUpdate } from "@/lib/api"
+import { fetchAllDataFromRestApi, fetchLineupFromRestApi } from "@/lib/rest-api"
 import { withBasePath } from "@/lib/base-path"
 import { getSeasonalTheme, type SeasonalTheme } from "@/lib/seasonal-theme"
 import { cn } from "@/lib/utils"
@@ -79,6 +80,10 @@ import {
   RotateCcw,
   Trash2,
 } from "lucide-react"
+
+// Routes Календарь/Лайнап/Игроки/Игры through the new .NET REST API instead of the legacy Apps
+// Script API; every other tab (leaderboards, roles, records, group) keeps using the legacy data.
+const USE_REST_API = process.env.NEXT_PUBLIC_USE_REST_API === "true"
 
 const API_CACHE_NAMESPACE = "mdc-api-cache"
 const APP_BUILD_ID = process.env.NEXT_PUBLIC_APP_BUILD_ID?.trim() || "dev"
@@ -1367,6 +1372,8 @@ export default function YearReviewPage() {
   const [loadingShowcaseVisible, setLoadingShowcaseVisible] = useState(true)
   const [loadingShowcaseReady, setLoadingShowcaseReady] = useState(false)
   const [, setLastSyncReport] = useState<SyncReport | null>(null)
+  const [restData, setRestData] = useState<MDCData | null>(null)
+  const [restDataError, setRestDataError] = useState<string | null>(null)
   const rawDataRef = useRef<MDCData | null>(null)
   const handledPlayerQueryRef = useRef<string | null>(null)
   const calendarSectionRef = useRef<HTMLDivElement | null>(null)
@@ -1382,6 +1389,28 @@ export default function YearReviewPage() {
   useEffect(() => {
     rawDataRef.current = rawData
   }, [rawData])
+
+  useEffect(() => {
+    if (!USE_REST_API) return
+    let cancelled = false
+
+    fetchAllDataFromRestApi()
+      .then((data) => {
+        if (!cancelled) {
+          setRestData(data)
+          setRestDataError(null)
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setRestDataError(error instanceof Error ? error.message : "Не удалось загрузить данные REST API")
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -1886,17 +1915,20 @@ export default function YearReviewPage() {
   ])
 
   const data = rawData
+  // Календарь/Лайнап/Игроки/Игры source from restAwareData, which is REST-backed when the toggle is
+  // on; every other tab keeps reading rawData/data (legacy) directly, untouched.
+  const restAwareData = USE_REST_API ? restData : rawData
   const dataIndexes = useMemo(() => (data ? buildDataIndexes(data) : null), [data])
   const shouldPrepareLeaderboardStats = activeTab === "leaderboards" || activeTab === "roles" || activeTab === "progress"
   const leaderboardFilters = useDataTabFilters(rawData, shouldPrepareLeaderboardStats, true)
   const roleFilters = useDataTabFilters(rawData, activeTab === "roles", true)
   const recordFilters = useDataTabFilters(rawData, activeTab === "records", true)
-  const playerFilters = useDataTabFilters(rawData, activeTab === "progress", false)
+  const playerFilters = useDataTabFilters(restAwareData, activeTab === "progress", false)
   const groupFilters = useDataTabFilters(rawData, activeTab === "group", false)
   const leaderboardData = leaderboardFilters.data ?? data
   const roleData = roleFilters.data ?? data
   const recordData = recordFilters.data ?? data
-  const playerData = playerFilters.data ?? data
+  const playerData = playerFilters.data ?? restAwareData
   const groupData = groupFilters.data ?? data
 
   const leaderboardCompetitiveData = useMemo(
@@ -1916,8 +1948,8 @@ export default function YearReviewPage() {
     [activeTab, playerData],
   )
   const playerCardData = useMemo(
-    () => (activeTab === "progress" ? playerCompetitiveData ?? playerData ?? data : data),
-    [activeTab, data, playerCompetitiveData, playerData],
+    () => (activeTab === "progress" ? playerCompetitiveData ?? playerData ?? restAwareData : restAwareData),
+    [activeTab, restAwareData, playerCompetitiveData, playerData],
   )
   const playerCardIndexes = useMemo(() => (playerCardData ? buildDataIndexes(playerCardData) : null), [playerCardData])
   const isDefaultTagSelection = useMemo(
@@ -2129,10 +2161,14 @@ export default function YearReviewPage() {
     [fullRecordLimit, qualifiedRecordClanPlayerStats, recordCompetitiveData],
   )
   const pastGames = useMemo(() => {
-    if (!data) return []
-    const protocolEvents = rawData?.events ?? data.events
-    return getPastGames(protocolEvents, data.player_event_stats, data.players, data.dictionaries?.squads ?? [])
-  }, [data, rawData])
+    if (!restAwareData) return []
+    return getPastGames(
+      restAwareData.events,
+      restAwareData.player_event_stats,
+      restAwareData.players,
+      restAwareData.dictionaries?.squads ?? [],
+    )
+  }, [restAwareData])
   const groupPastGames = useMemo(() => {
     if (activeTab !== "group" || !groupData) return []
     const protocolEvents = rawData?.events ?? groupData.events
@@ -2150,14 +2186,14 @@ export default function YearReviewPage() {
   )
   const playerCardPastGames = useMemo(() => {
     if (activeTab !== "progress" || !playerCardData) return []
-    const protocolEvents = rawData?.events ?? playerCardData.events
+    const protocolEvents = restAwareData?.events ?? playerCardData.events
     return getPastGames(
       protocolEvents,
       playerCardData.player_event_stats,
       playerCardData.players,
       playerCardData.dictionaries?.squads ?? [],
     )
-  }, [activeTab, playerCardData, rawData])
+  }, [activeTab, playerCardData, restAwareData])
 
   const roleLeaderboards = useMemo(() => {
     if (!roleCompetitiveData) return []
@@ -3059,6 +3095,12 @@ export default function YearReviewPage() {
           </Card>
         </section>
 
+        {USE_REST_API && restDataError ? (
+          <div className="rounded-md border border-christmas-red/40 bg-christmas-red/10 px-3 py-2 text-sm text-christmas-red">
+            Не удалось загрузить данные из REST API: {restDataError}. Календарь/Лайнап/Игроки/Игры используют кэш legacy API.
+          </div>
+        ) : null}
+
         {/* Tabs for different views - Removed export tab */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="w-full flex flex-wrap justify-start gap-2 bg-transparent border-0 h-auto p-0">
@@ -3130,8 +3172,9 @@ export default function YearReviewPage() {
           <TabsContent value="lineup" className="space-y-4">
             <LineupBoard
               games={pastGames}
-              players={data.players}
+              players={restAwareData?.players ?? data.players}
               onOpenPlayer={handleOpenPlayer}
+              fetchLineup={USE_REST_API ? fetchLineupFromRestApi : undefined}
             />
           </TabsContent>
 
@@ -3438,8 +3481,8 @@ export default function YearReviewPage() {
           <TabsContent value="games" className="space-y-4">
             <EventsExplorer
               games={pastGames}
-              players={data.players}
-              squadDomain={data.dictionaries?.squads ?? []}
+              players={restAwareData?.players ?? data.players}
+              squadDomain={restAwareData?.dictionaries?.squads ?? data.dictionaries?.squads ?? []}
               focusTarget={gameFocusTarget}
               onOpenPlayer={handleOpenPlayer}
             />
