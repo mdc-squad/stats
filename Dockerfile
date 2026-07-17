@@ -20,9 +20,10 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3001
 COPY package.json next.config.mjs ./
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-EXPOSE 80
-CMD ["pnpm", "start", "-H", "0.0.0.0", "-p", "80"]
+EXPOSE 3001
+CMD ["sh", "-c", "pnpm start -H 0.0.0.0 -p ${PORT:-3001}"]
