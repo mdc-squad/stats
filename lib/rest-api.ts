@@ -109,6 +109,8 @@ interface RestPlayerDetail {
     faction: string | null
     map: string | null
   }
+  teams: string[]
+  teamLeads: string[]
 }
 
 interface RestClan {
@@ -329,6 +331,8 @@ function shimPlayer(detail: RestPlayerDetail): Record<string, unknown> {
       faction: detail.favorites.faction,
       map: detail.favorites.map ?? "Не указана",
     },
+    teams: detail.teams,
+    team_leads: detail.teamLeads,
   }
 }
 

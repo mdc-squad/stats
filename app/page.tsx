@@ -81,8 +81,8 @@ import {
   Trash2,
 } from "lucide-react"
 
-// Routes Календарь/Лайнап/Игроки/Игры through the new .NET REST API instead of the legacy Apps
-// Script API; every other tab (leaderboards, roles, records, group) keeps using the legacy data.
+// Routes every tab through the new .NET REST API instead of the legacy Google Apps Script API.
+// When true, the legacy fetch/cache is skipped entirely (see loadData's early return).
 const USE_REST_API = process.env.NEXT_PUBLIC_USE_REST_API === "true"
 
 const API_CACHE_NAMESPACE = "mdc-api-cache"
@@ -1374,6 +1374,9 @@ export default function YearReviewPage() {
   const [, setLastSyncReport] = useState<SyncReport | null>(null)
   const [restData, setRestData] = useState<MDCData | null>(null)
   const [restDataError, setRestDataError] = useState<string | null>(null)
+  // Every tab sources from restAwareData: REST-backed when the toggle is on, legacy rawData otherwise.
+  // The legacy fetch itself is skipped entirely when the toggle is on (see loadData's early return).
+  const restAwareData = USE_REST_API ? restData : rawData
   const rawDataRef = useRef<MDCData | null>(null)
   const handledPlayerQueryRef = useRef<string | null>(null)
   const calendarSectionRef = useRef<HTMLDivElement | null>(null)
@@ -1456,6 +1459,10 @@ export default function YearReviewPage() {
   }, [loading, loadingShowcaseReady])
 
   const loadData = useCallback(async (forceRefresh = false, resetCache = false) => {
+    if (USE_REST_API) {
+      return false
+    }
+
     const cached = await readCachedData()
     const syncMode: SyncMode = resetCache ? "reset" : "auto"
 
@@ -1819,9 +1826,9 @@ export default function YearReviewPage() {
   )
 
   const dateFilteredData = useMemo(() => {
-    if (!rawData) return null
-    return filterDataByDateRange(rawData, periodRange)
-  }, [periodRange, rawData])
+    if (!restAwareData) return null
+    return filterDataByDateRange(restAwareData, periodRange)
+  }, [periodRange, restAwareData])
 
   const tagOptions = useMemo<GlobalTagFilterOption[]>(
     () => buildGlobalTagFilterOptions(dateFilteredData?.players, dateFilteredData?.dictionaries?.tags),
@@ -1915,21 +1922,18 @@ export default function YearReviewPage() {
   ])
 
   const data = rawData
-  // Календарь/Лайнап/Игроки/Игры source from restAwareData, which is REST-backed when the toggle is
-  // on; every other tab keeps reading rawData/data (legacy) directly, untouched.
-  const restAwareData = USE_REST_API ? restData : rawData
   const dataIndexes = useMemo(() => (data ? buildDataIndexes(data) : null), [data])
   const shouldPrepareLeaderboardStats = activeTab === "leaderboards" || activeTab === "roles" || activeTab === "progress"
-  const leaderboardFilters = useDataTabFilters(rawData, shouldPrepareLeaderboardStats, true)
-  const roleFilters = useDataTabFilters(rawData, activeTab === "roles", true)
-  const recordFilters = useDataTabFilters(rawData, activeTab === "records", true)
+  const leaderboardFilters = useDataTabFilters(restAwareData, shouldPrepareLeaderboardStats, true)
+  const roleFilters = useDataTabFilters(restAwareData, activeTab === "roles", true)
+  const recordFilters = useDataTabFilters(restAwareData, activeTab === "records", true)
   const playerFilters = useDataTabFilters(restAwareData, activeTab === "progress", false)
-  const groupFilters = useDataTabFilters(rawData, activeTab === "group", false)
-  const leaderboardData = leaderboardFilters.data ?? data
-  const roleData = roleFilters.data ?? data
-  const recordData = recordFilters.data ?? data
+  const groupFilters = useDataTabFilters(restAwareData, activeTab === "group", false)
+  const leaderboardData = leaderboardFilters.data ?? restAwareData
+  const roleData = roleFilters.data ?? restAwareData
+  const recordData = recordFilters.data ?? restAwareData
   const playerData = playerFilters.data ?? restAwareData
-  const groupData = groupFilters.data ?? data
+  const groupData = groupFilters.data ?? restAwareData
 
   const leaderboardCompetitiveData = useMemo(
     () => (shouldPrepareLeaderboardStats && leaderboardData ? filterDataToCompetitiveEvents(leaderboardData) : null),
@@ -2048,18 +2052,18 @@ export default function YearReviewPage() {
   )
   const mdcRosterCount = useMemo(
     () =>
-      rawData
-        ? rawData.players.filter((player) => hasJoinedAt(player) && (matchesTagToken(player.tag, "mdc") || player.is_mdc_member)).length
+      restAwareData
+        ? restAwareData.players.filter((player) => hasJoinedAt(player) && (matchesTagToken(player.tag, "mdc") || player.is_mdc_member)).length
         : 0,
-    [rawData],
+    [restAwareData],
   )
   const graveRosterCount = useMemo(
-    () => (rawData ? rawData.players.filter((player) => hasJoinedAt(player) && matchesTagToken(player.tag, "grave")).length : 0),
-    [rawData],
+    () => (restAwareData ? restAwareData.players.filter((player) => hasJoinedAt(player) && matchesTagToken(player.tag, "grave")).length : 0),
+    [restAwareData],
   )
   const nklvRosterCount = useMemo(
-    () => (rawData ? rawData.players.filter((player) => hasJoinedAt(player) && matchesTagToken(player.tag, "nklv")).length : 0),
-    [rawData],
+    () => (restAwareData ? restAwareData.players.filter((player) => hasJoinedAt(player) && matchesTagToken(player.tag, "nklv")).length : 0),
+    [restAwareData],
   )
   const competitiveClanPlayers = useMemo(
     () => (leaderboardCompetitiveData ? leaderboardCompetitiveData.players : []),
@@ -2171,9 +2175,9 @@ export default function YearReviewPage() {
   }, [restAwareData])
   const groupPastGames = useMemo(() => {
     if (activeTab !== "group" || !groupData) return []
-    const protocolEvents = rawData?.events ?? groupData.events
+    const protocolEvents = restAwareData?.events ?? groupData.events
     return getPastGames(protocolEvents, groupData.player_event_stats, groupData.players, groupData.dictionaries?.squads ?? [])
-  }, [activeTab, groupData, rawData])
+  }, [activeTab, groupData, restAwareData])
   const futureEvents = useMemo(
     () =>
       pastGames
@@ -2272,20 +2276,20 @@ export default function YearReviewPage() {
   const leaderboardELO = useMemo(
     () =>
       getTopPlayersByStat(
-        applyApiRatingTotals(competitiveClanPlayers, rawData?.players, ["elo"]),
+        applyApiRatingTotals(competitiveClanPlayers, restAwareData?.players, ["elo"]),
         "elo",
         fullApiRatingLeaderboardLimit,
       ),
-    [competitiveClanPlayers, fullApiRatingLeaderboardLimit, rawData?.players],
+    [competitiveClanPlayers, fullApiRatingLeaderboardLimit, restAwareData?.players],
   )
   const leaderboardTBF = useMemo(
     () =>
       getTopPlayersByStat(
-        applyApiRatingTotals(competitiveClanPlayers, rawData?.players, ["tbf"]),
+        applyApiRatingTotals(competitiveClanPlayers, restAwareData?.players, ["tbf"]),
         "tbf",
         fullApiRatingLeaderboardLimit,
       ),
-    [competitiveClanPlayers, fullApiRatingLeaderboardLimit, rawData?.players],
+    [competitiveClanPlayers, fullApiRatingLeaderboardLimit, restAwareData?.players],
   )
   const leaderboardRating = useMemo(
     () => getTopPlayersByStat(qualifiedCompetitiveClanPlayers, "rating", fullCompetitiveLeaderboardLimit),
@@ -2615,7 +2619,7 @@ export default function YearReviewPage() {
   }, [scrollToPlayerSectionStart])
 
   useEffect(() => {
-    if (typeof window === "undefined" || !data) return
+    if (typeof window === "undefined" || !restAwareData) return
 
     const params = new URLSearchParams(window.location.search)
     const rawQuery = params.get("query") ?? params.get("discord_user_id") ?? params.get("discord_used_id")
@@ -2623,13 +2627,13 @@ export default function YearReviewPage() {
 
     if (!query || handledPlayerQueryRef.current === query) return
 
-    const player = resolvePlayerByQuery(rawData?.players ?? data.players, query)
+    const player = resolvePlayerByQuery(restAwareData.players, query)
     if (!player) return
 
     handledPlayerQueryRef.current = query
     resetSliceFilters()
     handleOpenPlayer(player.player_id)
-  }, [data, handleOpenPlayer, rawData, resetSliceFilters])
+  }, [restAwareData, handleOpenPlayer, resetSliceFilters])
 
   const handleOpenCalendarEvent = useCallback((eventId: string) => {
     startTransition(() => {
@@ -2641,7 +2645,7 @@ export default function YearReviewPage() {
     }, 120)
   }, [])
 
-  if (loading) {
+  if (USE_REST_API ? !restData && !restDataError : loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-full max-w-md px-4 text-center space-y-6">
@@ -2679,18 +2683,20 @@ export default function YearReviewPage() {
     )
   }
 
-  if (!rawData) {
+  if (USE_REST_API ? !restData : !rawData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="space-y-2 text-center">
-          <p className="text-christmas-red">Ошибка загрузки данных с сервера</p>
-          {loadError && <p className="text-xs text-muted-foreground">{loadError}</p>}
+          <p className="text-christmas-red">{USE_REST_API ? "Ошибка загрузки данных из REST API" : "Ошибка загрузки данных с сервера"}</p>
+          {(USE_REST_API ? restDataError : loadError) && (
+            <p className="text-xs text-muted-foreground">{USE_REST_API ? restDataError : loadError}</p>
+          )}
         </div>
       </div>
     )
   }
 
-  if (!data || !overallStats) {
+  if (!restAwareData || !overallStats) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <p className="text-christmas-red">Ошибка обработки данных</p>
@@ -3052,52 +3058,54 @@ export default function YearReviewPage() {
       />
 
       <main className="container mx-auto px-4 py-6 space-y-6 relative z-10">
-        <section>
-          <Card className="border-christmas-gold/20 bg-card/60">
-            <CardContent className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className={`truncate text-xs font-medium ${syncStatusClassName}`}>{syncCompactLabel}</p>
-                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{syncCompactHint}</p>
+        {!USE_REST_API && (
+          <section>
+            <Card className="border-christmas-gold/20 bg-card/60">
+              <CardContent className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className={`truncate text-xs font-medium ${syncStatusClassName}`}>{syncCompactLabel}</p>
+                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{syncCompactHint}</p>
+                    </div>
+                    <p className={`shrink-0 text-[11px] font-medium ${syncMetaClassName}`}>
+                      {syncProgress ? `${Math.round(displayedSyncPercent)}%` : isCacheProbablyStale ? "нужна синхр." : "готово"}
+                    </p>
                   </div>
-                  <p className={`shrink-0 text-[11px] font-medium ${syncMetaClassName}`}>
-                    {syncProgress ? `${Math.round(displayedSyncPercent)}%` : isCacheProbablyStale ? "нужна синхр." : "готово"}
-                  </p>
+                  <div className="mt-2" style={syncProgressStyle}>
+                    <Progress value={displayedSyncPercent} className="h-1.5 bg-muted/30" />
+                  </div>
                 </div>
-                <div className="mt-2" style={syncProgressStyle}>
-                  <Progress value={displayedSyncPercent} className="h-1.5 bg-muted/30" />
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-christmas-gold/30 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold"
+                    onClick={() => void loadData(true, false)}
+                    disabled={isRefreshing}
+                  >
+                    <RotateCcw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+                    {isRefreshing ? "Синхронизируем..." : "Обновить"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-christmas-red/35 bg-background/50 text-christmas-snow hover:border-christmas-red/55 hover:bg-christmas-red/10 hover:text-christmas-red"
+                    onClick={handleHardCacheReset}
+                    disabled={isRefreshing}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Сброс кеша
+                  </Button>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-christmas-gold/30 bg-background/50 text-christmas-snow hover:bg-christmas-gold/10 hover:text-christmas-gold"
-                  onClick={() => void loadData(true, false)}
-                  disabled={isRefreshing}
-                >
-                  <RotateCcw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-                  {isRefreshing ? "Синхронизируем..." : "Обновить"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-christmas-red/35 bg-background/50 text-christmas-snow hover:border-christmas-red/55 hover:bg-christmas-red/10 hover:text-christmas-red"
-                  onClick={handleHardCacheReset}
-                  disabled={isRefreshing}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Сброс кеша
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+              </CardContent>
+            </Card>
+          </section>
+        )}
 
         {USE_REST_API && restDataError ? (
           <div className="rounded-md border border-christmas-red/40 bg-christmas-red/10 px-3 py-2 text-sm text-christmas-red">
-            Не удалось загрузить данные из REST API: {restDataError}. Календарь/Лайнап/Игроки/Игры используют кэш legacy API.
+            Не удалось обновить данные из REST API: {restDataError}. Показаны последние успешно загруженные данные.
           </div>
         ) : null}
 
@@ -3172,7 +3180,7 @@ export default function YearReviewPage() {
           <TabsContent value="lineup" className="space-y-4">
             <LineupBoard
               games={pastGames}
-              players={restAwareData?.players ?? data.players}
+              players={restAwareData?.players ?? data?.players ?? []}
               onOpenPlayer={handleOpenPlayer}
               fetchLineup={USE_REST_API ? fetchLineupFromRestApi : undefined}
             />
@@ -3467,7 +3475,7 @@ export default function YearReviewPage() {
                         title={entry.title}
                         metric={entry.metric}
                         matches={entry.matches}
-                        players={(recordData?.players ?? data.players).map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
+                        players={(recordData?.players ?? data?.players ?? []).map((player) => ({ player_id: player.player_id, steam_id: player.steam_id }))}
                         isCollapsed={isCollapsed}
                         onToggleCollapse={() => toggleRecordRow(rowIndex)}
                       />
@@ -3481,8 +3489,8 @@ export default function YearReviewPage() {
           <TabsContent value="games" className="space-y-4">
             <EventsExplorer
               games={pastGames}
-              players={restAwareData?.players ?? data.players}
-              squadDomain={restAwareData?.dictionaries?.squads ?? data.dictionaries?.squads ?? []}
+              players={restAwareData?.players ?? data?.players ?? []}
+              squadDomain={restAwareData?.dictionaries?.squads ?? data?.dictionaries?.squads ?? []}
               focusTarget={gameFocusTarget}
               onOpenPlayer={handleOpenPlayer}
             />
@@ -3610,9 +3618,9 @@ export default function YearReviewPage() {
             </Card>
             <SquadOverview
               games={groupPastGames}
-              players={groupData?.players ?? data.players}
-              rosterPlayers={data.players}
-              squadDomain={groupData?.dictionaries?.squads ?? data.dictionaries?.squads ?? []}
+              players={groupData?.players ?? restAwareData?.players ?? data?.players ?? []}
+              rosterPlayers={restAwareData?.players ?? data?.players ?? []}
+              squadDomain={groupData?.dictionaries?.squads ?? restAwareData?.dictionaries?.squads ?? data?.dictionaries?.squads ?? []}
               onOpenGame={(eventId) => handleOpenGame(eventId, "")}
               onOpenPlayer={handleOpenPlayer}
             />
