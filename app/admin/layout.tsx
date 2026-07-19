@@ -14,6 +14,7 @@ interface CurrentUser {
 
 const NAV_ITEMS = [
   { href: "/admin/events", label: "Матчи", roles: ["SuperAdmin", "Editor"] },
+  { href: "/admin/lineups", label: "Лайнап", roles: ["SuperAdmin", "Editor"] },
   { href: "/admin/players", label: "Игроки", roles: ["SuperAdmin", "Editor"] },
   { href: "/admin/squads", label: "Отряды", roles: ["SuperAdmin", "Editor"] },
   { href: "/admin/dictionaries", label: "Справочники", roles: ["SuperAdmin", "Editor"] },
