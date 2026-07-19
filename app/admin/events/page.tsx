@@ -23,6 +23,11 @@ interface Clan {
   name: string | null
 }
 
+interface ReferenceItem {
+  id: number
+  name: string
+}
+
 interface EventListItem {
   eventId: number
   legacyIdentifier: string
@@ -46,6 +51,11 @@ interface RosterEntry {
   kills: number | null
   deaths: number | null
   vehicle: number | null
+  kd?: number | null
+  kda?: number | null
+  elo?: number | null
+  battleRating?: number | null
+  basePoints?: number | null
 }
 
 interface PlayerSearchResult {
@@ -68,6 +78,7 @@ function emptyMatchForm() {
     homeTickets: "",
     opponentTickets: "",
     result: NONE,
+    opponentStrength: NONE,
     opponent: NONE,
     castUrl: "",
     tacticsUrl: "",
@@ -82,6 +93,7 @@ function emptyRosterDraft() {
 export default function AdminEventsPage() {
   const [dictionaries, setDictionaries] = useState<Dictionaries | null>(null)
   const [clans, setClans] = useState<Clan[]>([])
+  const [strengthCategories, setStrengthCategories] = useState<ReferenceItem[]>([])
   const [events, setEvents] = useState<EventListItem[]>([])
   const [error, setError] = useState<string | null>(null)
 
@@ -97,6 +109,7 @@ export default function AdminEventsPage() {
   useEffect(() => {
     fetch("/api/admin/rest/dictionaries", { cache: "no-store" }).then((r) => r.json()).then(setDictionaries)
     fetch("/api/admin/rest/clans", { cache: "no-store" }).then((r) => r.json()).then(setClans)
+    fetch("/api/admin/rest/admin/dictionaries/strength-categories", { cache: "no-store" }).then((r) => r.json()).then(setStrengthCategories)
     void loadEvents()
   }, [])
 
@@ -141,6 +154,7 @@ export default function AdminEventsPage() {
       homeTickets: data.homeTickets?.toString() ?? "",
       opponentTickets: data.opponentTickets?.toString() ?? "",
       result: data.result ?? NONE,
+      opponentStrength: data.opponentStrength ?? NONE,
       opponent: data.opponent ?? NONE,
       castUrl: data.castUrl ?? "",
       tacticsUrl: data.tacticsUrl ?? "",
@@ -207,6 +221,7 @@ export default function AdminEventsPage() {
       homeTickets: form.homeTickets === "" ? null : Number(form.homeTickets),
       opponentTickets: form.opponentTickets === "" ? null : Number(form.opponentTickets),
       result: form.result === NONE ? null : form.result,
+      opponentStrength: form.opponentStrength === NONE ? null : form.opponentStrength,
       opponent: form.opponent === NONE ? null : form.opponent,
       castUrl: form.castUrl || null,
       tacticsUrl: form.tacticsUrl || null,
@@ -309,6 +324,16 @@ export default function AdminEventsPage() {
                       <SelectItem value={NONE}>—</SelectItem>
                       <SelectItem value="ПОБЕДА">ПОБЕДА</SelectItem>
                       <SelectItem value="ПОРАЖЕНИЕ">ПОРАЖЕНИЕ</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Соперник (сила)</Label>
+                  <Select value={form.opponentStrength} onValueChange={(v) => setForm((f) => ({ ...f, opponentStrength: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>—</SelectItem>
+                      {strengthCategories.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -465,6 +490,10 @@ export default function AdminEventsPage() {
                     <TableHead>Отряд</TableHead>
                     <TableHead>Роль</TableHead>
                     <TableHead>K/D</TableHead>
+                    <TableHead>KDA</TableHead>
+                    <TableHead>ELO</TableHead>
+                    <TableHead>БР</TableHead>
+                    <TableHead>БП</TableHead>
                     <TableHead className="text-right">Действия</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -476,6 +505,10 @@ export default function AdminEventsPage() {
                       <TableCell>{r.squadColor ?? "—"}</TableCell>
                       <TableCell>{r.role ?? "—"}</TableCell>
                       <TableCell>{r.kills ?? 0}/{r.deaths ?? 0}</TableCell>
+                      <TableCell>{r.kda?.toFixed(2) ?? "—"}</TableCell>
+                      <TableCell>{r.elo?.toFixed(0) ?? "—"}</TableCell>
+                      <TableCell>{r.battleRating?.toFixed(1) ?? "—"}</TableCell>
+                      <TableCell>{r.basePoints ?? "—"}</TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" variant="outline" onClick={() => handleRemoveRosterEntry(r.playerId)}>
                           Убрать
