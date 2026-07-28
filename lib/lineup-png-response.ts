@@ -112,7 +112,7 @@ export async function createLineupPngResponse(side: LineupPngSide, force = false
   return new Response(screenshot.body, {
     headers: {
       "Accept-Ranges": "bytes",
-      "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
+      "Cache-Control": "no-store, max-age=0",
       "Content-Type": "image/png",
       "Content-Length": String(screenshot.body.byteLength),
       "Content-Disposition": `inline; filename="lineup-side-${side}.png"`,

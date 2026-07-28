@@ -233,7 +233,7 @@ function truncate(value: string, limit: number) {
 }
 
 function renderText(text: string, x: number, y: number, size: number, color: string, weight = 600, extra = "") {
-  return `<text x="${x}" y="${y}" fill="${color}" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="${size}" font-weight="${weight}" ${extra}>${esc(text)}</text>`
+  return `<text x="${x}" y="${y}" fill="${color}" font-family="DejaVu Sans, Noto Sans, sans-serif" font-size="${size}" font-weight="${weight}" ${extra}>${esc(text)}</text>`
 }
 
 function renderImage(uri: string | null, x: number, y: number, size: number) {
@@ -336,7 +336,7 @@ export function renderLineupPng(lineup: LineupPayload, side: LineupSideKey) {
     fitTo: { mode: "width", value: WIDTH * 2 },
     font: {
       loadSystemFonts: true,
-      defaultFontFamily: "Arial",
+      defaultFontFamily: "DejaVu Sans",
     },
   }).render().asPng()
 }
