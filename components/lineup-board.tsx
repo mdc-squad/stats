@@ -802,12 +802,13 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 shrink-0 !border !border-christmas-gold/30 bg-background/40 px-3 text-christmas-gold hover:!border-christmas-gold/60 hover:bg-christmas-gold/10 hover:text-christmas-gold"
+                className="h-10 w-10 shrink-0 !border !border-christmas-gold/30 bg-background/40 p-0 text-christmas-gold hover:!border-christmas-gold/60 hover:bg-christmas-gold/10 hover:text-christmas-gold"
                 onClick={() => void downloadLineupPngs()}
                 disabled={!canExportLineup || exporting}
+                aria-label="Скачать лайнап"
+                title="Скачать лайнап"
               >
-                <Download className="mr-2 h-4 w-4" />
-                {exporting ? "Export..." : "Скачать"}
+                <Download className={cn("h-4 w-4", exporting && "animate-pulse")} />
               </Button>
             </div>
           </div>

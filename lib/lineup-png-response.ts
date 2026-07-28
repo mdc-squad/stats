@@ -68,7 +68,7 @@ async function renderLineupBrowserPng(side: LineupPngSide): Promise<Buffer> {
   try {
     page = await browser.newPage({
       viewport: { width: 1500, height: 1400 },
-      deviceScaleFactor: 2,
+      deviceScaleFactor: 1,
     })
 
     await page.goto(renderUrl.toString(), {
