@@ -28,7 +28,7 @@ export function LineupExportShot({ side: rawSide }: { side?: string | null }) {
   useEffect(() => {
     let active = true
 
-    fetch(`${LINEUP_API_URL}&_=${Date.now()}`, { cache: "no-store" })
+    fetch(`${LINEUP_API_URL}?_=${Date.now()}`, { cache: "no-store" })
       .then((response) => {
         if (!response.ok) throw new Error(`API ${response.status}`)
         return response.json() as Promise<LineupPayload>

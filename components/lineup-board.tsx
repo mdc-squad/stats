@@ -13,10 +13,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { withBasePath } from "@/lib/base-path"
 import { getMetricIcon, type AppMetricIconKey } from "@/lib/app-icons"
 import type { PastGameSummary, Player } from "@/lib/data-utils"
+import { getLineupDataUrl } from "@/lib/lineup-source"
 import { cn } from "@/lib/utils"
 
-const LINEUP_API_BASE = (process.env.NEXT_PUBLIC_MDC_API_BASE ?? "https://api.hungryfishteam.org/gas/mdc").replace(/\/$/, "")
-export const LINEUP_API_URL = `${LINEUP_API_BASE}/lineup?publish=true`
+export const LINEUP_API_URL = withBasePath(getLineupDataUrl())
 export const SQUAD_ORDER = ["GREEN", "RED", "YELLOW", "BLUE", "PURPLE", "ORANGE", "BROWN", "BLACK", "PINK", "WHITE"] as const
 export const LINEUP_SIDE_KEYS = ["siteOne", "siteTwo"] as const
 
@@ -678,18 +678,18 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
     setExporting(true)
     try {
       const cacheKey = Date.now()
-      const downloads = await Promise.all(
-        LINEUP_SIDE_KEYS.map(async (sideKey) => {
-          const response = await fetch(`${getLineupPngApiUrl(sideKey)}&t=${cacheKey}`, { cache: "no-store" })
-          if (!response.ok) throw new Error(`PNG ${response.status}`)
+      const downloads: Array<{ dataUrl: string; filename: string }> = []
 
-          const blob = await response.blob()
-          return {
-            dataUrl: URL.createObjectURL(blob),
-            filename: getLineupDownloadFileName(lineup, sideKey),
-          }
+      for (const sideKey of LINEUP_SIDE_KEYS) {
+        const response = await fetch(`${getLineupPngApiUrl(sideKey)}&t=${cacheKey}`, { cache: "no-store" })
+        if (!response.ok) throw new Error(`PNG ${response.status}`)
+
+        const blob = await response.blob()
+        downloads.push({
+          dataUrl: URL.createObjectURL(blob),
+          filename: getLineupDownloadFileName(lineup, sideKey),
         })
-      )
+      }
 
       downloads.forEach((download, index) => {
         window.setTimeout(() => {

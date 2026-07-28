@@ -67,8 +67,7 @@ const WEEKDAY_GUIDE_OFFSET = 0
 const WEEKDAY_GUIDE_MOUSE_LOCK_MS = 650
 const WEEKDAY_GUIDE_STICKY_TOP = 12
 const WEEKDAY_GUIDE_PINNED_STORAGE_KEY = "mdc-calendar-weekday-guide-pinned"
-const LINEUP_API_BASE = (process.env.NEXT_PUBLIC_MDC_API_BASE ?? "https://api.hungryfishteam.org/gas/mdc").replace(/\/$/, "")
-const LINEUP_API_URL = `${LINEUP_API_BASE}/lineup?publish=true`
+const LINEUP_API_URL = withBasePath("/api/lineup/data")
 const MONTH_NAMES = [
   "Январь",
   "Февраль",
