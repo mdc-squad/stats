@@ -9,17 +9,16 @@ function resolveSide(value: string | null): "1" | "2" {
   return ["2", "two", "right", "second", "sitetwo", "site-two"].includes(normalized) ? "2" : "1"
 }
 
-function getScreenshotOrigin(request: NextRequest) {
+function getScreenshotOrigin() {
   return (
     process.env.LINEUP_SCREENSHOT_ORIGIN ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    request.nextUrl.origin
+    "http://127.0.0.1:80"
   ).replace(/\/$/, "")
 }
 
 export async function GET(request: NextRequest) {
   const side = resolveSide(request.nextUrl.searchParams.get("side"))
-  const renderUrl = new URL("/lineup-export", getScreenshotOrigin(request))
+  const renderUrl = new URL("/lineup-export", getScreenshotOrigin())
   renderUrl.searchParams.set("side", side)
   renderUrl.searchParams.set("t", String(Date.now()))
 
