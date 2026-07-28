@@ -20,12 +20,10 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core fonts-noto-core fonts-noto-color-emoji \
-    && rm -rf /var/lib/apt/lists/*
 COPY package.json next.config.mjs ./
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
+RUN pnpm exec playwright install --with-deps chromium
 EXPOSE 80
 CMD ["pnpm", "start", "-H", "0.0.0.0", "-p", "80"]

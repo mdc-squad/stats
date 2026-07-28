@@ -1,14 +1,11 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { FactionMatchup } from "@/components/faction-icon"
 import {
   LINEUP_API_URL,
   SQUAD_ORDER,
   SquadTable,
   hasSquadContent,
-  parseMatchTitle,
-  splitMatchTitle,
   type LineupPayload,
   type LineupSideKey,
 } from "@/components/lineup-board"
@@ -46,8 +43,6 @@ export function LineupExportShot({ side: rawSide }: { side?: string | null }) {
   }, [])
 
   const sideData = lineup?.[side] ?? {}
-  const title = parseMatchTitle(lineup?.name, side)
-  const titleMeta = splitMatchTitle(title)
   const visibleSquads = SQUAD_ORDER.filter((squadName) => hasSquadContent(sideData[squadName] ?? []))
 
   useEffect(() => {
@@ -75,24 +70,8 @@ export function LineupExportShot({ side: rawSide }: { side?: string | null }) {
   }
 
   return (
-    <main className="min-h-screen bg-[#05070d] p-6 text-christmas-snow">
+    <main className="min-h-screen bg-[#05070d] text-christmas-snow">
       <div data-lineup-export-card className="w-[1440px] bg-[#05070d] text-christmas-snow">
-        <div className="mb-5 rounded-2xl border border-christmas-gold/25 bg-card/80 px-6 py-5 text-center shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
-          <h1 className="text-3xl font-black text-christmas-snow">{titleMeta.lead}</h1>
-          {titleMeta.details.length > 0 ? (
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-              {titleMeta.details.map((detail) => (
-                <span
-                  key={detail}
-                  className="rounded-full border border-christmas-gold/20 bg-background/55 px-3 py-1.5 text-sm font-semibold text-muted-foreground"
-                >
-                  {detail.includes(" vs ") ? <FactionMatchup value={detail} /> : detail}
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </div>
-
         {visibleSquads.length > 0 ? (
           <div className="grid grid-cols-4 gap-3">
             {visibleSquads.map((squadName) => (

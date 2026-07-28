@@ -1,5 +1,4 @@
-import { EXTERNAL_LINEUP_API_URL } from "@/lib/lineup-source"
-import { renderLineupPng, type LineupPayload, type LineupSideKey } from "@/lib/lineup-renderer"
+import { chromium } from "playwright"
 
 const FRESH_TTL_MS = 60_000
 const STALE_TTL_MS = 15 * 60_000
@@ -10,15 +9,10 @@ type PngCacheEntry = {
   body: Buffer
   updatedAt: number
 }
-type DataCacheEntry = {
-  body: LineupPayload
-  updatedAt: number
-}
 type LineupPngGlobal = typeof globalThis & {
   __lineupPngCache?: Partial<Record<LineupPngSide, PngCacheEntry>>
   __lineupPngInflight?: Partial<Record<LineupPngSide, Promise<PngCacheEntry>>>
-  __lineupPngDataCache?: DataCacheEntry
-  __lineupPngDataInflight?: Promise<DataCacheEntry>
+  __lineupPngRenderQueue?: Promise<unknown>
 }
 
 const pngGlobal = globalThis as LineupPngGlobal
@@ -30,50 +24,71 @@ export function resolveLineupPngSide(value: string | null | undefined): LineupPn
     : "1"
 }
 
-function sideToKey(side: LineupPngSide): LineupSideKey {
-  return side === "2" ? "siteTwo" : "siteOne"
-}
-
-async function fetchLineupData(): Promise<DataCacheEntry> {
-  const response = await fetch(EXTERNAL_LINEUP_API_URL, { cache: "no-store" })
-  if (!response.ok) throw new Error(`Lineup API ${response.status}`)
-
-  return {
-    body: (await response.json()) as LineupPayload,
-    updatedAt: Date.now(),
-  }
-}
-
-async function getCachedLineupData(force = false) {
-  const now = Date.now()
-  const cached = pngGlobal.__lineupPngDataCache
-  const isFresh = cached && now - cached.updatedAt < FRESH_TTL_MS
-  if (!force && isFresh) return cached
-
-  if (!pngGlobal.__lineupPngDataInflight) {
-    pngGlobal.__lineupPngDataInflight = fetchLineupData()
-      .then((entry) => {
-        pngGlobal.__lineupPngDataCache = entry
-        return entry
-      })
-      .finally(() => {
-        pngGlobal.__lineupPngDataInflight = undefined
-      })
-  }
+function getScreenshotOrigin() {
+  const configuredOrigin = (process.env.LINEUP_SCREENSHOT_ORIGIN ?? "").trim()
+  if (!configuredOrigin) return "http://127.0.0.1:80"
 
   try {
-    return await pngGlobal.__lineupPngDataInflight
-  } catch (error) {
-    if (cached && now - cached.updatedAt < STALE_TTL_MS) return cached
-    throw error
+    const url = new URL(configuredOrigin)
+    if (["0.0.0.0", "127.0.0.1", "localhost"].includes(url.hostname)) {
+      return `http://127.0.0.1:${url.port || "80"}`
+    }
+    return url.toString().replace(/\/$/, "")
+  } catch {
+    return "http://127.0.0.1:80"
   }
 }
 
-async function buildLineupPng(side: LineupPngSide, force = false): Promise<PngCacheEntry> {
-  const lineup = await getCachedLineupData(force)
-  return {
-    body: Buffer.from(renderLineupPng(lineup.body, sideToKey(side))),
-    updatedAt: Date.now(),
+function enqueueRender(task: () => Promise<PngCacheEntry>) {
+  const previous = pngGlobal.__lineupPngRenderQueue ?? Promise.resolve()
+  const next = previous.catch(() => undefined).then(task)
+  pngGlobal.__lineupPngRenderQueue = next.catch(() => undefined)
+  return next
+}
+
+async function renderLineupBrowserPng(side: LineupPngSide): Promise<PngCacheEntry> {
+  const renderUrl = new URL("/lineup-export", getScreenshotOrigin())
+  renderUrl.searchParams.set("side", side)
+  renderUrl.searchParams.set("t", String(Date.now()))
+
+  const browser = await chromium.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+  })
+
+  let page: Awaited<ReturnType<typeof browser.newPage>> | null = null
+
+  try {
+    page = await browser.newPage({
+      viewport: { width: 1500, height: 1400 },
+      deviceScaleFactor: 2,
+    })
+
+    await page.goto(renderUrl.toString(), {
+      waitUntil: "domcontentloaded",
+      timeout: 45_000,
+    })
+    await page.waitForSelector('html[data-lineup-export-ready="true"]', { timeout: 45_000 })
+    await page.waitForFunction(
+      () => Array.from(document.images).every((image) => image.complete && image.naturalWidth > 0),
+      null,
+      { timeout: 45_000 },
+    )
+
+    const card = page.locator("[data-lineup-export-card]").first()
+    await card.waitFor({ state: "visible", timeout: 15_000 })
+
+    const screenshot = await card.screenshot({
+      type: "png",
+      animations: "disabled",
+      scale: "device",
+      timeout: 45_000,
+    })
+
+    return { body: Buffer.from(screenshot), updatedAt: Date.now() }
+  } finally {
+    await page?.close().catch(() => undefined)
+    await browser.close().catch(() => undefined)
   }
 }
 
@@ -87,7 +102,7 @@ async function getCachedLineupPng(side: LineupPngSide, force = false) {
   if (!force && isFresh) return cached
 
   if (!pngGlobal.__lineupPngInflight[side]) {
-    pngGlobal.__lineupPngInflight[side] = buildLineupPng(side, force)
+    pngGlobal.__lineupPngInflight[side] = enqueueRender(() => renderLineupBrowserPng(side))
       .then((entry) => {
         pngGlobal.__lineupPngCache![side] = entry
         return entry
