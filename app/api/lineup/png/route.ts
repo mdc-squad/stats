@@ -44,11 +44,10 @@ export async function GET(request: NextRequest) {
     })
 
     await page.goto(renderUrl.toString(), {
-      waitUntil: "networkidle",
+      waitUntil: "domcontentloaded",
       timeout: 45_000,
     })
     await page.waitForSelector('html[data-lineup-export-ready="true"]', { timeout: 45_000 })
-    await page.waitForLoadState("networkidle", { timeout: 45_000 })
     await page.waitForFunction(
       () => Array.from(document.images).every((image) => image.complete && image.naturalWidth > 0),
       null,
