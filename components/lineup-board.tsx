@@ -16,14 +16,14 @@ import type { PastGameSummary, Player } from "@/lib/data-utils"
 import { cn } from "@/lib/utils"
 
 const LINEUP_API_BASE = (process.env.NEXT_PUBLIC_MDC_API_BASE ?? "https://api.hungryfishteam.org/gas/mdc").replace(/\/$/, "")
-const LINEUP_API_URL = `${LINEUP_API_BASE}/lineup?publish=true`
-const SQUAD_ORDER = ["GREEN", "RED", "YELLOW", "BLUE", "PURPLE", "ORANGE", "BROWN", "BLACK", "PINK", "WHITE"] as const
-const LINEUP_SIDE_KEYS = ["siteOne", "siteTwo"] as const
+export const LINEUP_API_URL = `${LINEUP_API_BASE}/lineup?publish=true`
+export const SQUAD_ORDER = ["GREEN", "RED", "YELLOW", "BLUE", "PURPLE", "ORANGE", "BROWN", "BLACK", "PINK", "WHITE"] as const
+export const LINEUP_SIDE_KEYS = ["siteOne", "siteTwo"] as const
 
-type SquadName = (typeof SQUAD_ORDER)[number]
-type LineupSideKey = "siteOne" | "siteTwo"
+export type SquadName = (typeof SQUAD_ORDER)[number]
+export type LineupSideKey = "siteOne" | "siteTwo"
 
-type LineupPlayer = {
+export type LineupPlayer = {
   vehicle?: string | number | null
   role?: string | null
   specialist?: string | null
@@ -36,7 +36,7 @@ type LineupPlayer = {
   nickname?: string | null
 }
 
-type LineupPayload = {
+export type LineupPayload = {
   name?: string | null
   siteOne?: Partial<Record<SquadName, LineupPlayer[]>>
   siteTwo?: Partial<Record<SquadName, LineupPlayer[]>>
@@ -177,7 +177,7 @@ function hasLineupRowContent(player: LineupPlayer) {
   return [player.nickname, player.tag, player.role, player.specialist, player.vehicle].some(isMeaningful)
 }
 
-function hasSquadContent(rows: LineupPlayer[] | undefined) {
+export function hasSquadContent(rows: LineupPlayer[] | undefined) {
   return normalizeRows(rows).some(hasLineupRowContent)
 }
 
@@ -188,7 +188,7 @@ function normalizeRows(rows: LineupPlayer[] | undefined) {
   return Array.from({ length: 9 }, (_, index) => normalizedRows[index] ?? { number: index + 1 })
 }
 
-function parseMatchTitle(name: string | null | undefined, side: LineupSideKey) {
+export function parseMatchTitle(name: string | null | undefined, side: LineupSideKey) {
   const source = String(name ?? "").trim()
   if (!source) return side === "siteOne" ? "Сторона 1" : "Сторона 2"
 
@@ -202,7 +202,7 @@ function parseMatchTitle(name: string | null | undefined, side: LineupSideKey) {
   return [...parts.slice(0, -1), `${right} vs ${left}`].join(" | ")
 }
 
-function getMatchupLabel(name: string | null | undefined, side: LineupSideKey) {
+export function getMatchupLabel(name: string | null | undefined, side: LineupSideKey) {
   const title = parseMatchTitle(name, side)
   return title.split("|").map((part) => part.trim()).filter(Boolean).at(-1) ?? (side === "siteOne" ? "Сторона 1" : "Сторона 2")
 }
@@ -370,7 +370,7 @@ function LineupPlayerTooltip({ player }: { player: Player }) {
   )
 }
 
-function splitMatchTitle(title: string) {
+export function splitMatchTitle(title: string) {
   const parts = title.split("|").map((part) => part.trim()).filter(Boolean)
   return {
     lead: parts[0] ?? title,
@@ -466,7 +466,7 @@ function VehicleIconBadge({ vehicle, color }: { vehicle: string; color?: string 
   )
 }
 
-function SquadTable({
+export function SquadTable({
   name,
   rows,
   playerLookup,
