@@ -514,68 +514,76 @@ function renderSquad(request: NextRequest, name: SquadName, rows: LineupPlayer[]
 }
 
 export async function GET(request: NextRequest) {
-  const side = resolveSide(request.nextUrl.searchParams.get("side"))
-  const response = await fetch(LINEUP_API_URL, { cache: "no-store" })
+  try {
+    const side = resolveSide(request.nextUrl.searchParams.get("side"))
+    const response = await fetch(LINEUP_API_URL, { cache: "no-store" })
 
-  if (!response.ok) {
-    return new Response(`Lineup API ${response.status}`, { status: 502 })
-  }
+    if (!response.ok) {
+      return new Response(`Lineup API ${response.status}`, { status: 502 })
+    }
 
-  const lineup = (await response.json()) as LineupPayload
-  const title = splitMatchTitle(parseMatchTitle(lineup.name, side))
-  const sideData = lineup[side] ?? {}
-  const squads = SQUAD_ORDER.map((squadName) => ({ name: squadName, rows: normalizeRows(sideData[squadName] ?? []) })).filter((squad) => squad.rows.length > 0)
+    const lineup = (await response.json()) as LineupPayload
+    const title = splitMatchTitle(parseMatchTitle(lineup.name, side))
+    const sideData = lineup[side] ?? {}
+    const squads = SQUAD_ORDER.map((squadName) => ({ name: squadName, rows: normalizeRows(sideData[squadName] ?? []) })).filter((squad) => squad.rows.length > 0)
 
-  const image = h(
-    "div",
-    {
-      style: {
-        display: "flex",
-        flexDirection: "column",
-        width: "100%",
-        height: "100%",
-        padding: 30,
-        background: "#05070d",
-        color: "#f8fafc",
-        fontFamily: "Arial",
-      },
-    },
-    h(
+    const image = h(
       "div",
       {
         style: {
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: 132,
-          border: "2px solid #d8a92d55",
-          borderRadius: 20,
-          background: "#0b0f1acc",
-          marginBottom: 20,
+          width: "100%",
+          height: "100%",
+          padding: 30,
+          background: "#05070d",
+          color: "#f8fafc",
+          fontFamily: "Arial",
         },
       },
-      h("div", { style: { fontSize: 36, fontWeight: 900, maxWidth: 1420, textAlign: "center" } }, title.lead),
       h(
         "div",
-        { style: { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 12 } },
-        ...title.details.map((detail) =>
-          h("div", { key: detail, style: { padding: "7px 13px", borderRadius: 999, border: "1px solid #d8a92d55", color: "#cbd5e1", fontSize: 18, fontWeight: 700 } }, renderFactionMatchup(request, detail)),
+        {
+          style: {
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: 132,
+            border: "2px solid #d8a92d55",
+            borderRadius: 20,
+            background: "#0b0f1acc",
+            marginBottom: 20,
+          },
+        },
+        h("div", { style: { fontSize: 36, fontWeight: 900, maxWidth: 1420, textAlign: "center" } }, title.lead),
+        h(
+          "div",
+          { style: { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 12 } },
+          ...title.details.map((detail) =>
+            h("div", { key: detail, style: { padding: "7px 13px", borderRadius: 999, border: "1px solid #d8a92d55", color: "#cbd5e1", fontSize: 18, fontWeight: 700 } }, renderFactionMatchup(request, detail)),
+          ),
+          h("div", { style: { padding: "7px 13px", borderRadius: 999, border: "1px solid #d8a92d55", color: "#d8a92d", fontSize: 18, fontWeight: 800 } }, side === "siteOne" ? "Side 1" : "Side 2"),
         ),
-        h("div", { style: { padding: "7px 13px", borderRadius: 999, border: "1px solid #d8a92d55", color: "#d8a92d", fontSize: 18, fontWeight: 800 } }, side === "siteOne" ? "Side 1" : "Side 2"),
       ),
-    ),
-    squads.length > 0
-      ? h("div", { style: { display: "flex", flexWrap: "wrap", gap: 14 } }, ...squads.map((squad) => renderSquad(request, squad.name, squad.rows)))
-      : h("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", flex: 1, color: "#94a3b8", fontSize: 30 } }, "Lineup is empty"),
-  )
+      squads.length > 0
+        ? h("div", { style: { display: "flex", flexWrap: "wrap", gap: 14 } }, ...squads.map((squad) => renderSquad(request, squad.name, squad.rows)))
+        : h("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", flex: 1, color: "#94a3b8", fontSize: 30 } }, "Lineup is empty"),
+    )
 
-  return new ImageResponse(image, {
-    width: 1600,
-    height: 1200,
-    headers: {
-      "Cache-Control": "no-store",
-      "Content-Disposition": `inline; filename="lineup-${side === "siteOne" ? "side-1" : "side-2"}.png"`,
-    },
-  })
+    return new ImageResponse(image, {
+      width: 1600,
+      height: 1200,
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Disposition": `inline; filename="lineup-${side === "siteOne" ? "side-1" : "side-2"}.png"`,
+      },
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.stack || error.message : String(error)
+    return new Response(message, {
+      status: 500,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    })
+  }
 }
