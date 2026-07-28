@@ -4,8 +4,12 @@ import { createLineupPngErrorResponse, createLineupPngResponse, resolveLineupPng
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-export async function GET(request: NextRequest) {
-  const side = resolveLineupPngSide(request.nextUrl.searchParams.get("side"))
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ file?: string }> },
+) {
+  const { file } = await params
+  const side = resolveLineupPngSide(file)
   const force = request.nextUrl.searchParams.get("refresh") === "true"
 
   try {
