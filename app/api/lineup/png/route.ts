@@ -1,10 +1,6 @@
 import React from "react"
 import { ImageResponse } from "next/og"
 import type { NextRequest } from "next/server"
-import { readFileSync } from "node:fs"
-import nodePath from "node:path"
-
-export const runtime = "nodejs"
 
 const LINEUP_API_BASE = (process.env.NEXT_PUBLIC_MDC_API_BASE ?? "https://api.hungryfishteam.org/gas/mdc").replace(/\/$/, "")
 const LINEUP_API_URL = `${LINEUP_API_BASE}/lineup?publish=true`
@@ -190,23 +186,8 @@ function h(type: React.ElementType, props: Record<string, unknown> | null, ...ch
   return React.createElement(type, props, ...children)
 }
 
-const imageDataUriCache = new Map<string, string | null>()
-
 function assetUrl(request: NextRequest, assetPath: string) {
-  const normalizedPath = assetPath.startsWith("/") ? assetPath.slice(1) : assetPath
-  const cached = imageDataUriCache.get(normalizedPath)
-  if (cached !== undefined) return cached
-
-  try {
-    const filePath = nodePath.join(process.cwd(), "public", normalizedPath)
-    const buffer = readFileSync(filePath)
-    const dataUri = `data:image/png;base64,${buffer.toString("base64")}`
-    imageDataUriCache.set(normalizedPath, dataUri)
-    return dataUri
-  } catch {
-    imageDataUriCache.set(normalizedPath, null)
-    return new URL(assetPath, request.nextUrl.origin).toString()
-  }
+  return new URL(assetPath, request.nextUrl.origin).toString()
 }
 
 function normalizeLookupText(value: string | number | null | undefined) {
@@ -286,34 +267,8 @@ function getFactionIconPath(value: string | null | undefined) {
   return fileName ? `/faction-icons/${fileName}` : null
 }
 
-function renderFactionMatchup(request: NextRequest, value: string) {
-  const parts = value.split(/\s+vs\s+/i).map((part) => part.trim()).filter(Boolean)
-  if (parts.length < 2) return value
-
-  return h(
-    "div",
-    { style: { display: "flex", alignItems: "center", gap: 8 } },
-    ...parts.flatMap((part, index) => {
-      const iconPath = getFactionIconPath(part)
-      const item = h(
-        "div",
-        { key: `${part}-${index}`, style: { display: "flex", alignItems: "center", gap: 6 } },
-        iconPath
-          ? h("img", {
-              src: assetUrl(request, iconPath),
-              width: 36,
-              height: 22,
-              style: { objectFit: "cover", borderRadius: 3, border: "1px solid rgba(255,255,255,0.2)" },
-            })
-          : null,
-        h("span", null, getFactionKey(part)),
-      )
-
-      return index > 0
-        ? [h("span", { key: `vs-${index}`, style: { color: "#94a3b8" } }, "vs"), item]
-        : [item]
-    }),
-  )
+function renderFactionMatchup(_request: NextRequest, value: string) {
+  return value
 }
 
 function isMeaningful(value: unknown) {
@@ -392,14 +347,7 @@ function renderImageBadge(request: NextRequest, src: string | null, background: 
         border: "1px solid rgba(255,255,255,0.18)",
       },
     },
-    src
-      ? h("img", {
-          src: assetUrl(request, src),
-          width: size - 8,
-          height: size - 8,
-          style: { objectFit: "contain" },
-        })
-      : null,
+    null,
   )
 }
 
