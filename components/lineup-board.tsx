@@ -796,7 +796,7 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
                 disabled={!canExportLineup || exporting}
               >
                 <Download className="mr-2 h-4 w-4" />
-                {exporting ? "Export..." : "PNG x2"}
+                {exporting ? "Export..." : "PNG"}
               </Button>
             </div>
           </div>
