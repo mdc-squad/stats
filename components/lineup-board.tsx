@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import Image from "next/image"
 import { Download, RefreshCw } from "lucide-react"
-import { toPng } from "html-to-image"
 import { FactionMatchup } from "@/components/faction-icon"
 import { RoleIcon, formatRoleName } from "@/components/role-icon"
 import { SpecializationIcon, getSpecializationLabel } from "@/components/specialization-icon"
@@ -398,6 +397,10 @@ function getLineupDownloadFileName(lineup: LineupPayload | null, side: LineupSid
   return `${sanitizeLineupFileName(parseMatchTitle(lineup?.name, side))}-${getLineupSideLabel(side)}.png`
 }
 
+function getLineupPngApiUrl(side: LineupSideKey) {
+  return withBasePath(`/api/lineup/png?side=${side === "siteOne" ? "1" : "2"}`)
+}
+
 function parseLineupDate(value: string | null | undefined): Date | null {
   const match = String(value ?? "").match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{1,2}):(\d{2})/)
   if (!match) return null
@@ -596,70 +599,6 @@ function SquadTable({
   )
 }
 
-function ExportSquadTable({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
-  const style = SQUAD_STYLES[name]
-  const displayRows = normalizeRows(rows).filter(hasLineupRowContent)
-
-  return (
-    <div className={cn("overflow-hidden rounded-[18px] border bg-[#070a12]", style.border)}>
-      <div className={cn("border-b border-white/8", style.panel)}>
-        <div className="px-4 py-3">
-          <span className={cn("text-lg font-bold tracking-[0.22em]", style.text)}>{name}</span>
-        </div>
-      </div>
-
-      <div className="space-y-2 p-3">
-        {displayRows.length > 0 ? (
-          displayRows.map((player, index) => {
-            const nickname = isMeaningful(player.nickname) ? String(player.nickname) : ""
-            const tag = isMeaningful(player.tag) ? String(player.tag) : ""
-            const vehicleText = isMeaningful(player.vehicle) ? String(player.vehicle) : ""
-            const role = isMeaningful(player.role) ? String(player.role) : ""
-            const specialist = isMeaningful(player.specialist) ? String(player.specialist) : ""
-
-            return (
-              <div
-                key={`${name}-export-${index}-${nickname || tag || vehicleText}`}
-                className={cn("grid grid-cols-[28px_28px_28px_28px_minmax(0,1fr)] items-center gap-2 rounded-xl border bg-[#05070d] px-3 py-2.5", style.rowBorder)}
-              >
-                <div className="flex items-center justify-center">
-                  <span className={cn("flex h-7 w-7 items-center justify-center rounded-full text-[15px] font-black leading-none text-slate-950", style.accent)}>
-                    {Number(player.number) || index + 1}
-                  </span>
-                </div>
-                <div className="flex items-center justify-center">
-                  {vehicleText ? <VehicleIconBadge vehicle={vehicleText} color={player.vehicle_color} /> : null}
-                </div>
-                <div className="flex items-center justify-center">
-                  {role ? <RoleIcon role={role} className="h-7 w-7" /> : null}
-                </div>
-                <div className="flex items-center justify-center">
-                  {specialist ? <SpecializationIcon specialization={specialist} className="text-xl" /> : null}
-                </div>
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-christmas-snow">
-                    {tag ? `${tag} ` : ""}
-                    {nickname}
-                  </div>
-                  <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                    {role ? <span className="truncate">{formatRoleName(role) || role}</span> : null}
-                    {role && specialist ? <span className="text-white/20">•</span> : null}
-                    {specialist ? <span className="truncate">{getSpecializationLabel(specialist)}</span> : null}
-                  </div>
-                </div>
-              </div>
-            )
-          })
-        ) : (
-          <div className="rounded-xl border border-dashed border-white/10 bg-[#05070d] px-4 py-6 text-center text-sm text-muted-foreground">
-            Empty squad
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBoardProps) {
   const [lineup, setLineup] = useState<LineupPayload | null>(null)
   const [side, setSide] = useState<LineupSideKey>("siteOne")
@@ -667,7 +606,6 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
   const [loadProgress, setLoadProgress] = useState(8)
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
-  const exportRefs = useRef<Record<LineupSideKey, HTMLDivElement | null>>({ siteOne: null, siteTwo: null })
 
   const loadLineup = useCallback(
     async () => {
@@ -739,25 +677,24 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
 
     setExporting(true)
     try {
-      const downloads: Array<{ dataUrl: string; filename: string }> = []
+      const cacheKey = Date.now()
+      const downloads = await Promise.all(
+        LINEUP_SIDE_KEYS.map(async (sideKey) => {
+          const response = await fetch(`${getLineupPngApiUrl(sideKey)}&t=${cacheKey}`, { cache: "no-store" })
+          if (!response.ok) throw new Error(`PNG ${response.status}`)
 
-      for (const sideKey of LINEUP_SIDE_KEYS) {
-        const element = exportRefs.current[sideKey]
-        if (!element) continue
-
-        const dataUrl = await toPng(element, {
-          cacheBust: true,
-          pixelRatio: 2,
-          backgroundColor: "#05070d",
-          style: { transform: "none" },
+          const blob = await response.blob()
+          return {
+            dataUrl: URL.createObjectURL(blob),
+            filename: getLineupDownloadFileName(lineup, sideKey),
+          }
         })
-
-        downloads.push({ dataUrl, filename: getLineupDownloadFileName(lineup, sideKey) })
-      }
+      )
 
       downloads.forEach((download, index) => {
         window.setTimeout(() => {
           downloadDataUrl(download.dataUrl, download.filename)
+          window.setTimeout(() => URL.revokeObjectURL(download.dataUrl), 10_000)
         }, index * 250)
       })
     } finally {
@@ -897,56 +834,6 @@ export function LineupBoard({ games = [], players = [], onOpenPlayer }: LineupBo
             </div>
           </div>
         )}
-
-        {lineup ? (
-          <div className="pointer-events-none fixed left-[-10000px] top-0" aria-hidden="true">
-            {LINEUP_SIDE_KEYS.map((sideKey) => {
-              const exportSide = lineup[sideKey] ?? {}
-              const exportTitle = parseMatchTitle(lineup.name, sideKey)
-              const exportTitleMeta = splitMatchTitle(exportTitle)
-              const exportOpponent = calendarGame?.opponent?.trim() ?? ""
-              const exportVisibleSquads = SQUAD_ORDER.filter((squadName) => hasSquadContent(exportSide[squadName] ?? []))
-
-              return (
-                <div
-                  key={`export-${sideKey}`}
-                  ref={(node) => {
-                    exportRefs.current[sideKey] = node
-                  }}
-                  className="w-[1440px] bg-[#05070d] p-6 text-christmas-snow"
-                >
-                  <div className="mb-5 rounded-2xl border border-christmas-gold/25 bg-[#070a12] px-6 py-5 text-center">
-                    <h2 className="text-3xl font-black text-christmas-snow">{exportTitleMeta.lead}</h2>
-                    {exportTitleMeta.details.length > 0 || exportOpponent ? (
-                      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                        {exportTitleMeta.details.map((detail) => (
-                          <span
-                            key={detail}
-                            className="rounded-full border border-christmas-gold/20 bg-background/55 px-3 py-1.5 text-sm font-semibold text-muted-foreground"
-                          >
-                            {detail.includes(" vs ") ? <FactionMatchup value={detail} /> : detail}
-                          </span>
-                        ))}
-                        <span className="rounded-full border border-christmas-gold/20 bg-background/55 px-3 py-1.5 text-sm font-semibold text-muted-foreground">
-                          Opponent: {exportOpponent || "not set"}
-                        </span>
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="grid grid-cols-4 gap-3">
-                    {exportVisibleSquads.map((squadName) => (
-                      <ExportSquadTable
-                        key={`export-${sideKey}-${squadName}`}
-                        name={squadName}
-                        rows={exportSide[squadName] ?? []}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   )
