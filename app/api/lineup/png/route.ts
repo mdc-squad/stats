@@ -1,6 +1,10 @@
 import React from "react"
 import { ImageResponse } from "next/og"
 import type { NextRequest } from "next/server"
+import { readFileSync } from "node:fs"
+import nodePath from "node:path"
+
+export const runtime = "nodejs"
 
 const LINEUP_API_BASE = (process.env.NEXT_PUBLIC_MDC_API_BASE ?? "https://api.hungryfishteam.org/gas/mdc").replace(/\/$/, "")
 const LINEUP_API_URL = `${LINEUP_API_BASE}/lineup?publish=true`
@@ -186,8 +190,23 @@ function h(type: React.ElementType, props: Record<string, unknown> | null, ...ch
   return React.createElement(type, props, ...children)
 }
 
-function assetUrl(request: NextRequest, path: string) {
-  return new URL(path, request.nextUrl.origin).toString()
+const imageDataUriCache = new Map<string, string | null>()
+
+function assetUrl(request: NextRequest, assetPath: string) {
+  const normalizedPath = assetPath.startsWith("/") ? assetPath.slice(1) : assetPath
+  const cached = imageDataUriCache.get(normalizedPath)
+  if (cached !== undefined) return cached
+
+  try {
+    const filePath = nodePath.join(process.cwd(), "public", normalizedPath)
+    const buffer = readFileSync(filePath)
+    const dataUri = `data:image/png;base64,${buffer.toString("base64")}`
+    imageDataUriCache.set(normalizedPath, dataUri)
+    return dataUri
+  } catch {
+    imageDataUriCache.set(normalizedPath, null)
+    return new URL(assetPath, request.nextUrl.origin).toString()
+  }
 }
 
 function normalizeLookupText(value: string | number | null | undefined) {
