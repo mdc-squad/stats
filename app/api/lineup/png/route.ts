@@ -10,10 +10,18 @@ function resolveSide(value: string | null): "1" | "2" {
 }
 
 function getScreenshotOrigin() {
-  return (
-    process.env.LINEUP_SCREENSHOT_ORIGIN ??
-    "http://127.0.0.1:80"
-  ).replace(/\/$/, "")
+  const configuredOrigin = (process.env.LINEUP_SCREENSHOT_ORIGIN ?? "").trim()
+  if (!configuredOrigin) return "http://127.0.0.1:80"
+
+  try {
+    const url = new URL(configuredOrigin)
+    if (["0.0.0.0", "127.0.0.1", "localhost"].includes(url.hostname)) {
+      return `http://127.0.0.1:${url.port || "80"}`
+    }
+    return url.toString().replace(/\/$/, "")
+  } catch {
+    return "http://127.0.0.1:80"
+  }
 }
 
 export async function GET(request: NextRequest) {
