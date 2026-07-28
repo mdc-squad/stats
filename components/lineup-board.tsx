@@ -394,7 +394,7 @@ function getLineupSideLabel(side: LineupSideKey) {
 }
 
 function getLineupDownloadFileName(lineup: LineupPayload | null, side: LineupSideKey) {
-  return `${sanitizeLineupFileName(parseMatchTitle(lineup?.name, side))}-${getLineupSideLabel(side)}.png`
+  return `${sanitizeLineupFileName(parseMatchTitle(lineup?.name, side))}-${getLineupSideLabel(side)}.avif`
 }
 
 function getLineupPngApiUrl(side: LineupSideKey) {

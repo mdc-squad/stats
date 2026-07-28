@@ -1,17 +1,20 @@
 import { chromium } from "playwright"
+import sharp from "sharp"
 
 const FRESH_TTL_MS = 60_000
 const STALE_TTL_MS = 15 * 60_000
 
 export type LineupPngSide = "1" | "2"
+export type LineupImageFormat = "avif" | "png"
 
 type PngCacheEntry = {
   body: Buffer
+  format: LineupImageFormat
   updatedAt: number
 }
 type LineupPngGlobal = typeof globalThis & {
-  __lineupPngCache?: Partial<Record<LineupPngSide, PngCacheEntry>>
-  __lineupPngInflight?: Partial<Record<LineupPngSide, Promise<PngCacheEntry>>>
+  __lineupPngCache?: Partial<Record<string, PngCacheEntry>>
+  __lineupPngInflight?: Partial<Record<string, Promise<PngCacheEntry>>>
   __lineupPngRenderQueue?: Promise<unknown>
 }
 
@@ -22,6 +25,10 @@ export function resolveLineupPngSide(value: string | null | undefined): LineupPn
   return ["2", "two", "right", "second", "sitetwo", "site-two", "side-2", "side2", "2.png", "side-2.png"].includes(normalized)
     ? "2"
     : "1"
+}
+
+export function resolveLineupImageFormat(value: string | null | undefined): LineupImageFormat {
+  return String(value ?? "").trim().toLowerCase() === "png" ? "png" : "avif"
 }
 
 function getScreenshotOrigin() {
@@ -46,7 +53,7 @@ function enqueueRender(task: () => Promise<PngCacheEntry>) {
   return next
 }
 
-async function renderLineupBrowserPng(side: LineupPngSide): Promise<PngCacheEntry> {
+async function renderLineupBrowserPng(side: LineupPngSide): Promise<Buffer> {
   const renderUrl = new URL("/lineup-export", getScreenshotOrigin())
   renderUrl.searchParams.set("side", side)
   renderUrl.searchParams.set("t", String(Date.now()))
@@ -85,52 +92,64 @@ async function renderLineupBrowserPng(side: LineupPngSide): Promise<PngCacheEntr
       timeout: 45_000,
     })
 
-    return { body: Buffer.from(screenshot), updatedAt: Date.now() }
+    return Buffer.from(screenshot)
   } finally {
     await page?.close().catch(() => undefined)
     await browser.close().catch(() => undefined)
   }
 }
 
-async function getCachedLineupPng(side: LineupPngSide, force = false) {
+async function renderLineupImage(side: LineupPngSide, format: LineupImageFormat): Promise<PngCacheEntry> {
+  const screenshot = await renderLineupBrowserPng(side)
+  const body = format === "avif"
+    ? await sharp(screenshot).avif({ quality: 82, effort: 4 }).toBuffer()
+    : screenshot
+
+  return { body, format, updatedAt: Date.now() }
+}
+
+async function getCachedLineupPng(side: LineupPngSide, format: LineupImageFormat, force = false) {
   const now = Date.now()
+  const cacheKey = `${side}:${format}`
   pngGlobal.__lineupPngCache ??= {}
   pngGlobal.__lineupPngInflight ??= {}
 
-  const cached = pngGlobal.__lineupPngCache[side]
+  const cached = pngGlobal.__lineupPngCache[cacheKey]
   const isFresh = cached && now - cached.updatedAt < FRESH_TTL_MS
   if (!force && isFresh) return cached
 
-  if (!pngGlobal.__lineupPngInflight[side]) {
-    pngGlobal.__lineupPngInflight[side] = enqueueRender(() => renderLineupBrowserPng(side))
+  if (!pngGlobal.__lineupPngInflight[cacheKey]) {
+    pngGlobal.__lineupPngInflight[cacheKey] = enqueueRender(() => renderLineupImage(side, format))
       .then((entry) => {
-        pngGlobal.__lineupPngCache![side] = entry
+        pngGlobal.__lineupPngCache![cacheKey] = entry
         return entry
       })
       .finally(() => {
-        delete pngGlobal.__lineupPngInflight?.[side]
+        delete pngGlobal.__lineupPngInflight?.[cacheKey]
       })
   }
 
   try {
-    return await pngGlobal.__lineupPngInflight[side]
+    return await pngGlobal.__lineupPngInflight[cacheKey]
   } catch (error) {
     if (cached && now - cached.updatedAt < STALE_TTL_MS) return cached
     throw error
   }
 }
 
-export async function createLineupPngResponse(side: LineupPngSide, force = false) {
-  const screenshot = await getCachedLineupPng(side, force)
+export async function createLineupPngResponse(side: LineupPngSide, force = false, format: LineupImageFormat = "avif") {
+  const screenshot = await getCachedLineupPng(side, format, force)
   const ageSeconds = Math.max(0, Math.round((Date.now() - screenshot.updatedAt) / 1000))
+  const extension = screenshot.format === "avif" ? "avif" : "png"
+  const contentType = screenshot.format === "avif" ? "image/avif" : "image/png"
 
   return new Response(screenshot.body, {
     headers: {
       "Accept-Ranges": "bytes",
       "Cache-Control": "no-store, max-age=0",
-      "Content-Type": "image/png",
+      "Content-Type": contentType,
       "Content-Length": String(screenshot.body.byteLength),
-      "Content-Disposition": `inline; filename="lineup-side-${side}.png"`,
+      "Content-Disposition": `inline; filename="lineup-side-${side}.${extension}"`,
       "X-Content-Type-Options": "nosniff",
       "X-Lineup-Png-Cache-Age": String(ageSeconds),
     },
