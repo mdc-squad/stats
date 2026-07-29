@@ -1,8 +1,11 @@
+import { createHash } from "node:crypto"
 import { chromium } from "playwright"
 import sharp from "sharp"
+import { EXTERNAL_LINEUP_API_URL } from "@/lib/lineup-source"
 
-const FRESH_TTL_MS = 60_000
 const STALE_TTL_MS = 15 * 60_000
+const LINEUP_CHECK_INTERVAL_MS = 30_000
+const LINEUP_REGEN_DEBOUNCE_MS = 90_000
 
 export type LineupPngSide = "1" | "2"
 export type LineupImageFormat = "avif" | "png"
@@ -16,6 +19,12 @@ type LineupPngGlobal = typeof globalThis & {
   __lineupPngCache?: Partial<Record<string, PngCacheEntry>>
   __lineupPngInflight?: Partial<Record<string, Promise<PngCacheEntry>>>
   __lineupPngRenderQueue?: Promise<unknown>
+  __lineupPngDataHash?: string
+  __lineupPngDataCheckedAt?: number
+  __lineupPngDataInflight?: Promise<string>
+  __lineupPngPendingHash?: string
+  __lineupPngDebounceTimer?: ReturnType<typeof setTimeout>
+  __lineupPngQueuedFormats?: Set<LineupImageFormat>
 }
 
 const pngGlobal = globalThis as LineupPngGlobal
@@ -51,6 +60,77 @@ function enqueueRender(task: () => Promise<PngCacheEntry>) {
   const next = previous.catch(() => undefined).then(task)
   pngGlobal.__lineupPngRenderQueue = next.catch(() => undefined)
   return next
+}
+
+function getCacheKey(side: LineupPngSide, format: LineupImageFormat) {
+  return `${side}:${format}`
+}
+
+async function fetchLineupHash() {
+  const response = await fetch(EXTERNAL_LINEUP_API_URL, { cache: "no-store" })
+  if (!response.ok) throw new Error(`Lineup API ${response.status}`)
+
+  const body = await response.text()
+  return createHash("sha256").update(body).digest("hex")
+}
+
+async function checkLineupHash() {
+  if (!pngGlobal.__lineupPngDataInflight) {
+    pngGlobal.__lineupPngDataInflight = fetchLineupHash()
+      .then((hash) => {
+        pngGlobal.__lineupPngDataCheckedAt = Date.now()
+        return hash
+      })
+      .finally(() => {
+        pngGlobal.__lineupPngDataInflight = undefined
+      })
+  }
+
+  return pngGlobal.__lineupPngDataInflight
+}
+
+function queueLineupRegeneration(format: LineupImageFormat, nextHash: string) {
+  pngGlobal.__lineupPngQueuedFormats ??= new Set<LineupImageFormat>()
+  pngGlobal.__lineupPngQueuedFormats.add(format)
+
+  if (pngGlobal.__lineupPngDebounceTimer && pngGlobal.__lineupPngPendingHash === nextHash) {
+    return
+  }
+
+  pngGlobal.__lineupPngPendingHash = nextHash
+
+  if (pngGlobal.__lineupPngDebounceTimer) {
+    clearTimeout(pngGlobal.__lineupPngDebounceTimer)
+  }
+
+  pngGlobal.__lineupPngDebounceTimer = setTimeout(() => {
+    const formats = Array.from(pngGlobal.__lineupPngQueuedFormats ?? new Set<LineupImageFormat>(["avif"]))
+    const targetHash = pngGlobal.__lineupPngPendingHash
+
+    pngGlobal.__lineupPngQueuedFormats = new Set<LineupImageFormat>()
+    pngGlobal.__lineupPngPendingHash = undefined
+    pngGlobal.__lineupPngDebounceTimer = undefined
+
+    void regenerateLineupImages(formats, targetHash)
+  }, LINEUP_REGEN_DEBOUNCE_MS)
+}
+
+async function checkLineupChangesInBackground(format: LineupImageFormat) {
+  const now = Date.now()
+  if (pngGlobal.__lineupPngDataCheckedAt && now - pngGlobal.__lineupPngDataCheckedAt < LINEUP_CHECK_INTERVAL_MS) return
+
+  void checkLineupHash()
+    .then((hash) => {
+      if (!pngGlobal.__lineupPngDataHash) {
+        pngGlobal.__lineupPngDataHash = hash
+        return
+      }
+
+      if (hash !== pngGlobal.__lineupPngDataHash) {
+        queueLineupRegeneration(format, hash)
+      }
+    })
+    .catch(() => undefined)
 }
 
 async function renderLineupBrowserPng(side: LineupPngSide): Promise<Buffer> {
@@ -108,18 +188,66 @@ async function renderLineupImage(side: LineupPngSide, format: LineupImageFormat)
   return { body, format, updatedAt: Date.now() }
 }
 
+async function renderTrackedLineupImage(side: LineupPngSide, format: LineupImageFormat): Promise<PngCacheEntry> {
+  const [hashResult, imageResult] = await Promise.allSettled([
+    checkLineupHash(),
+    renderLineupImage(side, format),
+  ])
+
+  if (hashResult.status === "fulfilled") {
+    pngGlobal.__lineupPngDataHash = hashResult.value
+  }
+
+  if (imageResult.status === "rejected") {
+    throw imageResult.reason
+  }
+
+  return imageResult.value
+}
+
+async function regenerateLineupImages(formats: LineupImageFormat[], targetHash?: string) {
+  const uniqueFormats = Array.from(new Set(formats))
+
+  for (const format of uniqueFormats) {
+    for (const side of ["1", "2"] as const) {
+      const cacheKey = getCacheKey(side, format)
+
+      if (!pngGlobal.__lineupPngInflight?.[cacheKey]) {
+        pngGlobal.__lineupPngInflight ??= {}
+        pngGlobal.__lineupPngInflight[cacheKey] = enqueueRender(() => renderLineupImage(side, format))
+          .then((entry) => {
+            pngGlobal.__lineupPngCache ??= {}
+            pngGlobal.__lineupPngCache[cacheKey] = entry
+            return entry
+          })
+          .finally(() => {
+            delete pngGlobal.__lineupPngInflight?.[cacheKey]
+          })
+      }
+
+      await pngGlobal.__lineupPngInflight[cacheKey].catch(() => undefined)
+    }
+  }
+
+  if (targetHash) {
+    pngGlobal.__lineupPngDataHash = targetHash
+  }
+}
+
 async function getCachedLineupPng(side: LineupPngSide, format: LineupImageFormat, force = false) {
   const now = Date.now()
-  const cacheKey = `${side}:${format}`
+  const cacheKey = getCacheKey(side, format)
   pngGlobal.__lineupPngCache ??= {}
   pngGlobal.__lineupPngInflight ??= {}
 
   const cached = pngGlobal.__lineupPngCache[cacheKey]
-  const isFresh = cached && now - cached.updatedAt < FRESH_TTL_MS
-  if (!force && isFresh) return cached
+  if (!force && cached) {
+    void checkLineupChangesInBackground(format)
+    return cached
+  }
 
   if (!pngGlobal.__lineupPngInflight[cacheKey]) {
-    pngGlobal.__lineupPngInflight[cacheKey] = enqueueRender(() => renderLineupImage(side, format))
+    pngGlobal.__lineupPngInflight[cacheKey] = enqueueRender(() => renderTrackedLineupImage(side, format))
       .then((entry) => {
         pngGlobal.__lineupPngCache![cacheKey] = entry
         return entry
@@ -130,7 +258,9 @@ async function getCachedLineupPng(side: LineupPngSide, format: LineupImageFormat
   }
 
   try {
-    return await pngGlobal.__lineupPngInflight[cacheKey]
+    const entry = await pngGlobal.__lineupPngInflight[cacheKey]
+    void checkLineupChangesInBackground(format)
+    return entry
   } catch (error) {
     if (cached && now - cached.updatedAt < STALE_TTL_MS) return cached
     throw error
