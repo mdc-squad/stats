@@ -6,6 +6,7 @@ import { EXTERNAL_LINEUP_API_URL } from "@/lib/lineup-source"
 const STALE_TTL_MS = 15 * 60_000
 const LINEUP_CHECK_INTERVAL_MS = 30_000
 const LINEUP_REGEN_DEBOUNCE_MS = 90_000
+const LINEUP_BLOCKING_REGEN_DEBOUNCE_MS = 45_000
 
 export type LineupPngSide = "1" | "2"
 export type LineupImageFormat = "avif" | "png"
@@ -25,6 +26,7 @@ type LineupPngGlobal = typeof globalThis & {
   __lineupPngPendingHash?: string
   __lineupPngDebounceTimer?: ReturnType<typeof setTimeout>
   __lineupPngQueuedFormats?: Set<LineupImageFormat>
+  __lineupPngBlockingRefresh?: Partial<Record<LineupImageFormat, Promise<string>>>
 }
 
 const pngGlobal = globalThis as LineupPngGlobal
@@ -64,6 +66,10 @@ function enqueueRender(task: () => Promise<PngCacheEntry>) {
 
 function getCacheKey(side: LineupPngSide, format: LineupImageFormat) {
   return `${side}:${format}`
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 async function fetchLineupHash() {
@@ -131,6 +137,19 @@ async function checkLineupChangesInBackground(format: LineupImageFormat) {
       }
     })
     .catch(() => undefined)
+}
+
+async function waitForStableLineupHash(firstHash: string) {
+  let lastHash = firstHash
+
+  while (true) {
+    await sleep(LINEUP_BLOCKING_REGEN_DEBOUNCE_MS)
+
+    const nextHash = await checkLineupHash()
+    if (nextHash === lastHash) return nextHash
+
+    lastHash = nextHash
+  }
 }
 
 async function renderLineupBrowserPng(side: LineupPngSide): Promise<Buffer> {
@@ -234,6 +253,36 @@ async function regenerateLineupImages(formats: LineupImageFormat[], targetHash?:
   }
 }
 
+async function ensureFreshLineupImagesForResponse(format: LineupImageFormat, changedHash: string) {
+  pngGlobal.__lineupPngBlockingRefresh ??= {}
+
+  if (!pngGlobal.__lineupPngBlockingRefresh[format]) {
+    pngGlobal.__lineupPngBlockingRefresh[format] = waitForStableLineupHash(changedHash)
+      .then(async (stableHash) => {
+        await regenerateLineupImages([format], stableHash)
+        return stableHash
+      })
+      .finally(() => {
+        delete pngGlobal.__lineupPngBlockingRefresh?.[format]
+      })
+  }
+
+  return pngGlobal.__lineupPngBlockingRefresh[format]
+}
+
+async function refreshBeforeResponseIfChanged(format: LineupImageFormat) {
+  const hash = await checkLineupHash()
+
+  if (!pngGlobal.__lineupPngDataHash) {
+    pngGlobal.__lineupPngDataHash = hash
+    return
+  }
+
+  if (hash !== pngGlobal.__lineupPngDataHash) {
+    await ensureFreshLineupImagesForResponse(format, hash)
+  }
+}
+
 async function getCachedLineupPng(side: LineupPngSide, format: LineupImageFormat, force = false) {
   const now = Date.now()
   const cacheKey = getCacheKey(side, format)
@@ -242,8 +291,13 @@ async function getCachedLineupPng(side: LineupPngSide, format: LineupImageFormat
 
   const cached = pngGlobal.__lineupPngCache[cacheKey]
   if (!force && cached) {
-    void checkLineupChangesInBackground(format)
-    return cached
+    try {
+      await refreshBeforeResponseIfChanged(format)
+      return pngGlobal.__lineupPngCache[cacheKey] ?? cached
+    } catch {
+      void checkLineupChangesInBackground(format)
+      return cached
+    }
   }
 
   if (!pngGlobal.__lineupPngInflight[cacheKey]) {
