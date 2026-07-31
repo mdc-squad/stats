@@ -55,8 +55,7 @@ export function LineupExportShot({ side: rawSide }: { side?: string | null }) {
   const titleMeta = splitMatchTitle(title)
   const sideMatchup = getMatchupLabel(lineup?.name, side)
   const sideFaction = getSideFaction(sideMatchup)
-  const sideLabel = side === "siteOne" ? "Side 1" : "Side 2"
-  const headerText = [titleMeta.lead, ...titleMeta.details, sideLabel].filter(Boolean).join(" | ")
+  const headerText = [titleMeta.lead, ...titleMeta.details].filter(Boolean).join(" | ")
   const visibleSquads = SQUAD_ORDER.filter((squadName) => hasSquadContent(sideData[squadName] ?? []))
 
   useEffect(() => {
