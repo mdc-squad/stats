@@ -21,7 +21,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  serverExternalPackages: ["sharp"],
+  serverExternalPackages: ["sharp", "@takumi-rs/core"],
   env: {
     NEXT_PUBLIC_BASE_PATH: normalizedBasePath,
     NEXT_PUBLIC_APP_BUILD_ID: normalizedAppBuildId,
