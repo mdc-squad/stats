@@ -35,6 +35,9 @@ type LineupPayload = {
 
 const takumiImageFetchCache = new Map<string, Promise<ArrayBuffer>>()
 const takumiAssetCache = new Map<string, string>()
+const notoSansRegular = readFileSync(join(process.cwd(), "public", "fonts", "NotoSans-Regular.ttf"))
+const notoSansBold = readFileSync(join(process.cwd(), "public", "fonts", "NotoSans-Bold.ttf"))
+const notoSansSymbols = readFileSync(join(process.cwd(), "public", "fonts", "NotoSansSymbols2-Regular.ttf"))
 
 const SQUAD_COLORS: Record<SquadName, { border: string; panel: string; text: string; accent: string; row: string }> = {
   GREEN: { border: "#047857", panel: "rgba(4, 120, 87, 0.30)", text: "#a7f3d0", accent: "#10b981", row: "rgba(16, 185, 129, 0.25)" },
@@ -249,10 +252,7 @@ function specializationIcon(value: string | null | undefined) {
 function normalizeDisplayText(value: string | null | undefined) {
   return String(value ?? "")
     .replace(/[\uff5c\ufe31\ufe32\uffe8\u2502\u2758]/g, "|")
-    .replace(/\u300e/g, "[")
-    .replace(/\u300f/g, "]")
     .replace(/\uFE0F/g, "")
-    .replace(/[\u2654\u2655\u265a\u265b\u272a\u2742]/g, "")
     .replace(/\s+\|/g, " |")
     .replace(/\|\s+/g, "| ")
     .replace(/\s{2,}/g, " ")
@@ -299,7 +299,7 @@ function LineupTakumiImage({ lineup, side }: { lineup: LineupPayload; side: Line
         padding: "12px",
         background: "#05070d",
         color: "#f8fafc",
-        fontFamily: "Inter",
+        fontFamily: "Noto Sans, Noto Sans Symbols 2",
       }}
     >
       <div
@@ -411,6 +411,13 @@ export async function GET(request: Request) {
     height: HEIGHT,
     lang: "ru",
     emoji: "twemoji",
+    fonts: [
+      { name: "Noto Sans", data: notoSansRegular, weight: 400, style: "normal" },
+      { name: "Noto Sans", data: notoSansBold, weight: 700, style: "normal" },
+      { name: "Noto Sans", data: notoSansBold, weight: 800, style: "normal" },
+      { name: "Noto Sans", data: notoSansBold, weight: 900, style: "normal" },
+      { name: "Noto Sans Symbols 2", data: notoSansSymbols, weight: 400, style: "normal" },
+    ],
     images: {
       fetch,
       fetchCache: takumiImageFetchCache,
