@@ -7,7 +7,7 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 const WIDTH = 1440
-const HEIGHT = 980
+const HEIGHT = 1360
 const SQUAD_ORDER = ["GREEN", "RED", "YELLOW", "BLUE", "PURPLE", "ORANGE", "BROWN", "BLACK", "PINK", "WHITE"] as const
 
 type LineupSide = "1" | "2"
@@ -248,8 +248,14 @@ function specializationIcon(value: string | null | undefined) {
 
 function normalizeDisplayText(value: string | null | undefined) {
   return String(value ?? "")
-    .replace(/\uff5c/g, "|")
+    .replace(/[\uff5c\ufe31\ufe32\uffe8\u2502\u2758]/g, "|")
+    .replace(/\u300e/g, "[")
+    .replace(/\u300f/g, "]")
     .replace(/\uFE0F/g, "")
+    .replace(/[\u2654\u2655\u265a\u265b\u272a\u2742]/g, "")
+    .replace(/\s+\|/g, " |")
+    .replace(/\|\s+/g, "| ")
+    .replace(/\s{2,}/g, " ")
     .trim()
 }
 
@@ -348,7 +354,7 @@ function SquadCard({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
           const tag = normalizeDisplayText(player.tag)
           const nickname = normalizeDisplayText(player.nickname)
           const nameLine = [tag, nickname || "-"].filter(Boolean).join(" ")
-          const metaLine = [roleLabel(player.role), String(player.specialist ?? "").trim()].filter(Boolean).join("  ·  ")
+          const metaLine = [roleLabel(player.role), String(player.specialist ?? "").trim()].filter(Boolean).join("  \u00b7  ")
 
           return (
             <div
