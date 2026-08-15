@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs"
+import { join, normalize } from "node:path"
 import { ImageResponse } from "takumi-js/response"
 import { EXTERNAL_LINEUP_API_URL } from "@/lib/lineup-source"
 
@@ -32,6 +34,7 @@ type LineupPayload = {
 }
 
 const takumiImageFetchCache = new Map<string, Promise<ArrayBuffer>>()
+const takumiAssetCache = new Map<string, string>()
 
 const SQUAD_COLORS: Record<SquadName, { border: string; panel: string; text: string; accent: string; row: string }> = {
   GREEN: { border: "#047857", panel: "rgba(4, 120, 87, 0.30)", text: "#a7f3d0", accent: "#10b981", row: "rgba(16, 185, 129, 0.25)" },
@@ -225,18 +228,33 @@ function specializationIcon(value: string | null | undefined) {
   return source
 }
 
-function absoluteAsset(request: Request, path: string | null | undefined) {
+function publicAssetDataUri(path: string | null | undefined) {
   if (!path) return ""
-  return new URL(path, request.url).toString()
+  const normalizedPath = normalize(path.replace(/^\/+/, ""))
+  if (normalizedPath.startsWith("..")) return ""
+
+  const cached = takumiAssetCache.get(normalizedPath)
+  if (cached) return cached
+
+  try {
+    const buffer = readFileSync(join(process.cwd(), "public", normalizedPath))
+    const extension = normalizedPath.split(".").pop()?.toLowerCase()
+    const mime = extension === "svg" ? "image/svg+xml" : extension === "webp" ? "image/webp" : "image/png"
+    const dataUri = `data:${mime};base64,${buffer.toString("base64")}`
+    takumiAssetCache.set(normalizedPath, dataUri)
+    return dataUri
+  } catch {
+    return ""
+  }
 }
 
-function LineupTakumiImage({ lineup, request, side }: { lineup: LineupPayload; request: Request; side: LineupSide }) {
+function LineupTakumiImage({ lineup, side }: { lineup: LineupPayload; side: LineupSide }) {
   const sideKey = getSideKey(side)
   const sideData = lineup[sideKey] ?? {}
   const titleParts = splitMatchTitle(parseMatchTitle(lineup.name, side))
   const headerText = titleParts.join(" | ")
   const faction = getSideFaction(lineup.name, side)
-  const factionIcon = absoluteAsset(request, FACTION_ICON_BY_KEY[faction] ? `/faction-icons/${FACTION_ICON_BY_KEY[faction]}` : null)
+  const factionIcon = publicAssetDataUri(FACTION_ICON_BY_KEY[faction] ? `/faction-icons/${FACTION_ICON_BY_KEY[faction]}` : null)
   const visibleSquads = SQUAD_ORDER.filter((squad) => hasSquadContent(sideData[squad]))
 
   return (
@@ -272,14 +290,14 @@ function LineupTakumiImage({ lineup, request, side }: { lineup: LineupPayload; r
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
         {visibleSquads.map((squad) => (
-          <SquadCard key={squad} request={request} name={squad} rows={normalizeRows(sideData[squad])} />
+          <SquadCard key={squad} name={squad} rows={normalizeRows(sideData[squad])} />
         ))}
       </div>
     </div>
   )
 }
 
-function SquadCard({ request, name, rows }: { request: Request; name: SquadName; rows: LineupPlayer[] }) {
+function SquadCard({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
   const colors = SQUAD_COLORS[name]
   const displayRows = rows.filter(hasRowContent)
 
@@ -299,7 +317,7 @@ function SquadCard({ request, name, rows }: { request: Request; name: SquadName;
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 12 }}>
         {displayRows.map((player, index) => {
-          const iconPath = absoluteAsset(request, roleIconPath(player.role))
+          const iconPath = publicAssetDataUri(roleIconPath(player.role))
           const specialist = specializationIcon(player.specialist)
           const tag = String(player.tag ?? "").trim()
           const nickname = String(player.nickname ?? "").trim()
@@ -356,7 +374,7 @@ export async function GET(request: Request) {
 
   const lineup = (await response.json()) as LineupPayload
 
-  return new ImageResponse(<LineupTakumiImage lineup={lineup} request={request} side={side} />, {
+  return new ImageResponse(<LineupTakumiImage lineup={lineup} side={side} />, {
     width: WIDTH,
     height: HEIGHT,
     lang: "ru",
