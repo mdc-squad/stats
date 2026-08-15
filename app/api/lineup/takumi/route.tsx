@@ -284,8 +284,8 @@ function specializationIcon(value: string | null | undefined) {
 function normalizeDisplayText(value: string | null | undefined) {
   return String(value ?? "")
     .replace(/[\uff5c\ufe31\ufe32\uffe8\u2502\u2758]/g, "|")
-    .replace(/\u300e/g, "[")
-    .replace(/\u300f/g, "]")
+    .replace(/[\u300e\u3010]/g, "[")
+    .replace(/[\u300f\u3011]/g, "]")
     .replace(/\uFE0F/g, "")
     .replace(/\s{2,}/g, " ")
     .replace(/\s*\|\s*/g, "  |  ")
