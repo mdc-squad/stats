@@ -7,8 +7,15 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 const WIDTH = 1440
-const HEIGHT = 1360
 const SQUAD_ORDER = ["GREEN", "RED", "YELLOW", "BLUE", "PURPLE", "ORANGE", "BROWN", "BLACK", "PINK", "WHITE"] as const
+const CANVAS_PADDING_Y = 12
+const HEADER_HEIGHT = 60
+const HEADER_TO_GRID_GAP = 14
+const GRID_ROW_GAP = 12
+const SQUAD_HEADER_HEIGHT = 54
+const SQUAD_BODY_PADDING_Y = 24
+const PLAYER_ROW_HEIGHT = 52
+const PLAYER_ROW_GAP = 8
 
 type LineupSide = "1" | "2"
 type LineupSideKey = "siteOne" | "siteTwo"
@@ -38,6 +45,7 @@ const takumiAssetCache = new Map<string, string>()
 const notoSansRegular = readFileSync(join(process.cwd(), "public", "fonts", "NotoSans-Regular.ttf"))
 const notoSansBold = readFileSync(join(process.cwd(), "public", "fonts", "NotoSans-Bold.ttf"))
 const notoSansSymbols = readFileSync(join(process.cwd(), "public", "fonts", "NotoSansSymbols2-Regular.ttf"))
+const decorativeTagSymbols = /[\u2654\u2655\u265a\u265b\u272a\u2742\u2605\u2606\u272f\u2726\u2727]+/g
 
 const SQUAD_COLORS: Record<SquadName, { border: string; panel: string; text: string; accent: string; row: string }> = {
   GREEN: { border: "#047857", panel: "rgba(4, 120, 87, 0.30)", text: "#a7f3d0", accent: "#10b981", row: "rgba(16, 185, 129, 0.25)" },
@@ -187,6 +195,29 @@ function hasSquadContent(rows: LineupPlayer[] | undefined) {
   return normalizeRows(rows).some(hasRowContent)
 }
 
+function getVisibleSquads(lineup: LineupPayload, side: LineupSide) {
+  const sideData = lineup[getSideKey(side)] ?? {}
+  return SQUAD_ORDER
+    .map((squad) => ({ name: squad, rows: normalizeRows(sideData[squad]) }))
+    .filter((squad) => squad.rows.some(hasRowContent))
+}
+
+function squadCardHeight(rowCount: number) {
+  const rows = Math.max(1, Math.min(9, rowCount))
+  return SQUAD_HEADER_HEIGHT + SQUAD_BODY_PADDING_Y + rows * PLAYER_ROW_HEIGHT + Math.max(0, rows - 1) * PLAYER_ROW_GAP
+}
+
+function calculateImageHeight(visibleSquads: Array<{ rows: LineupPlayer[] }>) {
+  const gridRows: number[] = []
+  for (let index = 0; index < visibleSquads.length; index += 4) {
+    const rowSquads = visibleSquads.slice(index, index + 4)
+    gridRows.push(Math.max(...rowSquads.map((squad) => squadCardHeight(squad.rows.filter(hasRowContent).length))))
+  }
+
+  const gridHeight = gridRows.reduce((sum, height) => sum + height, 0) + Math.max(0, gridRows.length - 1) * GRID_ROW_GAP
+  return CANVAS_PADDING_Y * 2 + HEADER_HEIGHT + HEADER_TO_GRID_GAP + gridHeight
+}
+
 function parseMatchTitle(name: string | null | undefined, side: LineupSide) {
   const source = String(name ?? "").trim()
   if (!source) return side === "1" ? "Сторона 1" : "Сторона 2"
@@ -252,11 +283,19 @@ function specializationIcon(value: string | null | undefined) {
 function normalizeDisplayText(value: string | null | undefined) {
   return String(value ?? "")
     .replace(/[\uff5c\ufe31\ufe32\uffe8\u2502\u2758]/g, "|")
+    .replace(/\u300e/g, "[")
+    .replace(/\u300f/g, "]")
     .replace(/\uFE0F/g, "")
     .replace(/\s+\|/g, " |")
     .replace(/\|\s+/g, "| ")
     .replace(/\s{2,}/g, " ")
     .trim()
+}
+
+function splitDecorativeTag(value: string) {
+  const symbols = value.match(decorativeTagSymbols)?.join("") ?? ""
+  const text = value.replace(decorativeTagSymbols, "").replace(/\s{2,}/g, " ").trim()
+  return { symbols, text }
 }
 
 function publicAssetDataUri(path: string | null | undefined) {
@@ -279,14 +318,11 @@ function publicAssetDataUri(path: string | null | undefined) {
   }
 }
 
-function LineupTakumiImage({ lineup, side }: { lineup: LineupPayload; side: LineupSide }) {
-  const sideKey = getSideKey(side)
-  const sideData = lineup[sideKey] ?? {}
+function LineupTakumiImage({ lineup, side, visibleSquads }: { lineup: LineupPayload; side: LineupSide; visibleSquads: Array<{ name: SquadName; rows: LineupPlayer[] }> }) {
   const titleParts = splitMatchTitle(parseMatchTitle(lineup.name, side))
   const headerText = titleParts.join(" | ")
   const faction = getSideFaction(lineup.name, side)
   const factionIcon = publicAssetDataUri(FACTION_ICON_BY_KEY[faction] ? `/faction-icons/${FACTION_ICON_BY_KEY[faction]}` : null)
-  const visibleSquads = SQUAD_ORDER.filter((squad) => hasSquadContent(sideData[squad]))
 
   return (
     <div
@@ -321,7 +357,7 @@ function LineupTakumiImage({ lineup, side }: { lineup: LineupPayload; side: Line
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
         {visibleSquads.map((squad) => (
-          <SquadCard key={squad} name={squad} rows={normalizeRows(sideData[squad])} />
+          <SquadCard key={squad.name} name={squad.name} rows={squad.rows} />
         ))}
       </div>
     </div>
@@ -353,6 +389,7 @@ function SquadCard({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
           const specialist = specializationIcon(player.specialist)
           const tag = normalizeDisplayText(player.tag)
           const nickname = normalizeDisplayText(player.nickname)
+          const tagParts = splitDecorativeTag(tag)
           const nameLine = [tag, nickname || "-"].filter(Boolean).join(" ")
           const metaLine = [roleLabel(player.role), String(player.specialist ?? "").trim()].filter(Boolean).join("  \u00b7  ")
 
@@ -384,7 +421,10 @@ function SquadCard({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
                 {specialist}
               </div>
               <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 2, overflow: "hidden" }}>
-                <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nameLine}</div>
+                <div style={{ display: "flex", minWidth: 0, alignItems: "center", gap: 4, color: "#f8fafc", fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden" }}>
+                  {tagParts.symbols ? <span style={{ flexShrink: 0, fontFamily: "Noto Sans Symbols 2", fontWeight: 400 }}>{tagParts.symbols}</span> : null}
+                  <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{[tagParts.text, nickname || "-"].filter(Boolean).join(" ")}</span>
+                </div>
                 <div style={{ color: "rgba(203, 213, 225, 0.72)", fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{metaLine}</div>
               </div>
             </div>
@@ -405,10 +445,12 @@ export async function GET(request: Request) {
   }
 
   const lineup = (await response.json()) as LineupPayload
+  const visibleSquads = getVisibleSquads(lineup, side)
+  const height = calculateImageHeight(visibleSquads)
 
-  return new ImageResponse(<LineupTakumiImage lineup={lineup} side={side} />, {
+  return new ImageResponse(<LineupTakumiImage lineup={lineup} side={side} visibleSquads={visibleSquads} />, {
     width: WIDTH,
-    height: HEIGHT,
+    height,
     lang: "ru",
     emoji: "twemoji",
     fonts: [
