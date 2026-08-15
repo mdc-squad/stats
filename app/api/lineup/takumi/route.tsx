@@ -218,6 +218,18 @@ function roleLabel(role: string | null | undefined) {
   return ROLE_LABELS[normalizeKey(source)] ?? source
 }
 
+function vehicleIconPath(vehicle: string | number | null | undefined) {
+  const key = normalizeKey(vehicle)
+  if (!key) return null
+  if (key.includes("\u043c\u0440\u0430\u043f\u0440\u0432\u0441")) return "/lineup-vehicle-icons/6.png"
+  if (key.includes("\u043c\u0440\u0430\u043f")) return "/lineup-vehicle-icons/1.png"
+  if (key.includes("\u0441\u043e\u043f\u043b\u0430\u0439\u0433\u0440\u0443\u0437")) return "/lineup-vehicle-icons/10.png"
+  if (key.includes("\u043f\u0435\u0445\u043e\u0442\u043a\u0430\u0433\u0440\u0443\u0437")) return "/lineup-vehicle-icons/8.png"
+  if (key.includes("\u0441\u043e\u043f\u043b\u0430\u0439\u0434\u0436\u0438\u043f")) return "/lineup-vehicle-icons/5.png"
+  if (key.includes("\u043f\u0435\u0445\u043e\u0442\u043a\u0430\u0434\u0436\u0438\u043f")) return "/lineup-vehicle-icons/2.png"
+  return null
+}
+
 function vehicleColor(value: string | null | undefined) {
   return VEHICLE_COLORS[String(value ?? "").trim().toUpperCase()] ?? "#52525b"
 }
@@ -225,7 +237,13 @@ function vehicleColor(value: string | null | undefined) {
 function specializationIcon(value: string | null | undefined) {
   const source = String(value ?? "").trim()
   if (!source || source.toLowerCase() === "cellimage") return ""
-  return source
+  const key = normalizeKey(source)
+  if (key === "\u044f\u043a\u043e\u0440\u044c" || key === "anchor") return "\ud83d\udee1\ufe0f"
+  if (key === "\u043f\u0443\u0448\u0435\u0440" || key === "pusher") return "\ud83d\udde1\ufe0f"
+  if (key === "\u0434\u0440\u0433" || key === "drg") return "\ud83d\udca5"
+  if (key === "\u043c\u0438\u043d\u043e\u043c\u0435\u0442" || key === "mortar") return "\ud83d\udca3"
+  if (key === "\u0442\u0435\u0445" || key === "tech") return "\ud83d\ude99"
+  return source.length <= 2 ? source : ""
 }
 
 function publicAssetDataUri(path: string | null | undefined) {
@@ -317,6 +335,7 @@ function SquadCard({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 12 }}>
         {displayRows.map((player, index) => {
+          const vehiclePath = publicAssetDataUri(vehicleIconPath(player.vehicle))
           const iconPath = publicAssetDataUri(roleIconPath(player.role))
           const specialist = specializationIcon(player.specialist)
           const tag = String(player.tag ?? "").trim()
@@ -343,7 +362,7 @@ function SquadCard({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
                 {Number(player.number) || index + 1}
               </div>
               <div style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 5, background: vehicleColor(player.vehicle_color), border: "1px solid rgba(255,255,255,0.18)", color: "#f8fafc", fontSize: 17, fontWeight: 900 }}>
-                ▣
+                {vehiclePath ? <img src={vehiclePath} width={22} height={22} style={{ objectFit: "contain" }} /> : null}
               </div>
               <div style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 5, background: "#facc15" }}>
                 {iconPath ? <img src={iconPath} width={24} height={24} style={{ objectFit: "contain" }} /> : <span style={{ color: "#020617", fontSize: 17, fontWeight: 900 }}>?</span>}
