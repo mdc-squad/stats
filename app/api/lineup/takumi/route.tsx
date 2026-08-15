@@ -1,5 +1,4 @@
 import { ImageResponse } from "takumi-js/response"
-import { googleFonts } from "takumi-js/helpers"
 import { EXTERNAL_LINEUP_API_URL } from "@/lib/lineup-source"
 
 export const runtime = "nodejs"
@@ -362,7 +361,6 @@ export async function GET(request: Request) {
     height: HEIGHT,
     lang: "ru",
     emoji: "twemoji",
-    fonts: googleFonts([{ name: "Inter", weight: "400..900" }]),
     images: {
       fetch,
       fetchCache: takumiImageFetchCache,
