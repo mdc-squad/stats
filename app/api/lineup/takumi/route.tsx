@@ -335,7 +335,7 @@ function LineupTakumiImage({ lineup, side, visibleSquads }: { lineup: LineupPayl
         padding: "12px",
         background: "#05070d",
         color: "#f8fafc",
-        fontFamily: "Noto Sans, Noto Sans Symbols 2",
+        fontFamily: "Noto Sans",
       }}
     >
       <div
@@ -422,7 +422,7 @@ function SquadCard({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
               </div>
               <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 2, overflow: "hidden" }}>
                 <div style={{ display: "flex", minWidth: 0, alignItems: "center", gap: 4, color: "#f8fafc", fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden" }}>
-                  {tagParts.symbols ? <span style={{ flexShrink: 0, fontFamily: "Noto Sans Symbols 2", fontWeight: 400 }}>{tagParts.symbols}</span> : null}
+                  {tagParts.symbols ? <span style={{ flexShrink: 0, fontFamily: "'Noto Sans Symbols 2'", fontWeight: 400 }}>{tagParts.symbols}</span> : null}
                   <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{[tagParts.text, nickname || "-"].filter(Boolean).join(" ")}</span>
                 </div>
                 <div style={{ color: "rgba(203, 213, 225, 0.72)", fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{metaLine}</div>
