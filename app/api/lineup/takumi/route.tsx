@@ -355,7 +355,7 @@ function LineupTakumiImage({ lineup, side, visibleSquads }: { lineup: LineupPayl
         <div style={{ fontSize: 22, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{headerText}</div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
         {visibleSquads.map((squad) => (
           <SquadCard key={squad.name} name={squad.name} rows={squad.rows} />
         ))}
@@ -399,30 +399,30 @@ function SquadCard({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
               style={{
                 height: 52,
                 display: "grid",
-                gridTemplateColumns: "30px 30px 30px 30px minmax(0, 1fr)",
+                gridTemplateColumns: "30px 28px 28px 26px minmax(0, 1fr)",
                 alignItems: "center",
-                gap: 8,
+                gap: 6,
                 border: `1px solid ${colors.row}`,
                 borderRadius: 12,
                 background: "rgba(0, 0, 0, 0.22)",
-                padding: "0 12px",
+                padding: "0 10px",
               }}
             >
               <div style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 999, background: colors.accent, color: "#020617", fontSize: 16, fontWeight: 900 }}>
                 {Number(player.number) || index + 1}
               </div>
-              <div style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 5, background: vehicleColor(player.vehicle_color), border: "1px solid rgba(255,255,255,0.18)", color: "#f8fafc", fontSize: 17, fontWeight: 900 }}>
-                {vehiclePath ? <img src={vehiclePath} width={22} height={22} style={{ objectFit: "contain" }} /> : null}
+              <div style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 5, background: vehicleColor(player.vehicle_color), border: "1px solid rgba(255,255,255,0.18)", color: "#f8fafc", fontSize: 17, fontWeight: 900 }}>
+                {vehiclePath ? <img src={vehiclePath} width={21} height={21} style={{ objectFit: "contain" }} /> : null}
               </div>
-              <div style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 5, background: "#facc15" }}>
-                {iconPath ? <img src={iconPath} width={24} height={24} style={{ objectFit: "contain" }} /> : <span style={{ color: "#020617", fontSize: 17, fontWeight: 900 }}>?</span>}
+              <div style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 5, background: "#facc15" }}>
+                {iconPath ? <img src={iconPath} width={23} height={23} style={{ objectFit: "contain" }} /> : <span style={{ color: "#020617", fontSize: 17, fontWeight: 900 }}>?</span>}
               </div>
-              <div style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, lineHeight: 1 }}>
+              <div style={{ width: 26, height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, lineHeight: 1 }}>
                 {specialist}
               </div>
               <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 2, overflow: "hidden" }}>
                 <div style={{ display: "flex", minWidth: 0, alignItems: "center", gap: 4, color: "#f8fafc", fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden" }}>
-                  {tagParts.symbols ? <span style={{ flexShrink: 0, fontFamily: "'Noto Sans Symbols 2'", fontWeight: 400 }}>{tagParts.symbols}</span> : null}
+                  {tagParts.symbols ? <span style={{ display: "flex", height: 14, flexShrink: 0, alignItems: "center", justifyContent: "center", fontFamily: "'Noto Sans Symbols 2'", fontSize: 12, fontWeight: 400, lineHeight: 1 }}>{tagParts.symbols}</span> : null}
                   <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{[tagParts.text, nickname || "-"].filter(Boolean).join(" ")}</span>
                 </div>
                 <div style={{ color: "rgba(203, 213, 225, 0.72)", fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{metaLine}</div>
