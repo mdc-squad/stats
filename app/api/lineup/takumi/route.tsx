@@ -12,7 +12,7 @@ const CANVAS_PADDING_Y = 12
 const HEADER_HEIGHT = 60
 const HEADER_TO_GRID_GAP = 14
 const GRID_ROW_GAP = 12
-const BOTTOM_SAFE_PADDING = 24
+const BOTTOM_SAFE_PADDING = 48
 const SQUAD_HEADER_HEIGHT = 54
 const SQUAD_BODY_PADDING_Y = 24
 const PLAYER_ROW_HEIGHT = 52
@@ -205,7 +205,7 @@ function getVisibleSquads(lineup: LineupPayload, side: LineupSide) {
 
 function squadCardHeight(rowCount: number) {
   const rows = Math.max(1, Math.min(9, rowCount))
-  return SQUAD_HEADER_HEIGHT + SQUAD_BODY_PADDING_Y + rows * PLAYER_ROW_HEIGHT + Math.max(0, rows - 1) * PLAYER_ROW_GAP
+  return SQUAD_HEADER_HEIGHT + SQUAD_BODY_PADDING_Y + rows * PLAYER_ROW_HEIGHT + Math.max(0, rows - 1) * PLAYER_ROW_GAP + 2
 }
 
 function calculateImageHeight(visibleSquads: Array<{ rows: LineupPlayer[] }>) {
@@ -356,10 +356,19 @@ function LineupTakumiImage({ lineup, side, visibleSquads }: { lineup: LineupPayl
         <div style={{ fontSize: 22, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{headerText}</div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
-        {visibleSquads.map((squad) => (
-          <SquadCard key={squad.name} name={squad.name} rows={squad.rows} />
-        ))}
+      <div style={{ display: "flex", flexDirection: "column", gap: GRID_ROW_GAP }}>
+        {Array.from({ length: Math.ceil(visibleSquads.length / 4) }, (_, rowIndex) => {
+          const rowSquads = visibleSquads.slice(rowIndex * 4, rowIndex * 4 + 4)
+          const rowHeight = Math.max(...rowSquads.map((squad) => squadCardHeight(squad.rows.filter(hasRowContent).length)))
+
+          return (
+            <div key={`row-${rowIndex}`} style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, height: rowHeight }}>
+              {rowSquads.map((squad) => (
+                <SquadCard key={squad.name} name={squad.name} rows={squad.rows} />
+              ))}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -423,7 +432,7 @@ function SquadCard({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
               </div>
               <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 2, overflow: "hidden" }}>
                 <div style={{ display: "flex", minWidth: 0, alignItems: "center", gap: 4, color: "#f8fafc", fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden" }}>
-                  {tagParts.symbols ? <span style={{ display: "flex", height: 14, flexShrink: 0, alignItems: "center", justifyContent: "center", fontFamily: "'Noto Sans Symbols 2'", fontSize: 12, fontWeight: 400, lineHeight: 1 }}>{tagParts.symbols}</span> : null}
+                  {tagParts.symbols ? <span style={{ display: "flex", height: 14, flexShrink: 0, alignItems: "center", justifyContent: "center", paddingTop: 3, fontFamily: "'Noto Sans Symbols 2'", fontSize: 12, fontWeight: 400, lineHeight: 1 }}>{tagParts.symbols}</span> : null}
                   <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{[tagParts.text, nickname || "-"].filter(Boolean).join(" ")}</span>
                 </div>
                 <div style={{ color: "rgba(203, 213, 225, 0.72)", fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{metaLine}</div>
