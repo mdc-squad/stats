@@ -287,9 +287,8 @@ function normalizeDisplayText(value: string | null | undefined) {
     .replace(/\u300e/g, "[")
     .replace(/\u300f/g, "]")
     .replace(/\uFE0F/g, "")
-    .replace(/\s+\|/g, " |")
-    .replace(/\|\s+/g, "| ")
     .replace(/\s{2,}/g, " ")
+    .replace(/\s*\|\s*/g, "  |  ")
     .trim()
 }
 
