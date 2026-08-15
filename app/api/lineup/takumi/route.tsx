@@ -7,7 +7,7 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 const WIDTH = 1440
-const HEIGHT = 860
+const HEIGHT = 980
 const SQUAD_ORDER = ["GREEN", "RED", "YELLOW", "BLUE", "PURPLE", "ORANGE", "BROWN", "BLACK", "PINK", "WHITE"] as const
 
 type LineupSide = "1" | "2"
@@ -246,6 +246,13 @@ function specializationIcon(value: string | null | undefined) {
   return source.length <= 2 ? source : ""
 }
 
+function normalizeDisplayText(value: string | null | undefined) {
+  return String(value ?? "")
+    .replace(/\uff5c/g, "|")
+    .replace(/\uFE0F/g, "")
+    .trim()
+}
+
 function publicAssetDataUri(path: string | null | undefined) {
   if (!path) return ""
   const normalizedPath = normalize(path.replace(/^\/+/, ""))
@@ -338,8 +345,8 @@ function SquadCard({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
           const vehiclePath = publicAssetDataUri(vehicleIconPath(player.vehicle))
           const iconPath = publicAssetDataUri(roleIconPath(player.role))
           const specialist = specializationIcon(player.specialist)
-          const tag = String(player.tag ?? "").trim()
-          const nickname = String(player.nickname ?? "").trim()
+          const tag = normalizeDisplayText(player.tag)
+          const nickname = normalizeDisplayText(player.nickname)
           const nameLine = [tag, nickname || "-"].filter(Boolean).join(" ")
           const metaLine = [roleLabel(player.role), String(player.specialist ?? "").trim()].filter(Boolean).join("  ·  ")
 
