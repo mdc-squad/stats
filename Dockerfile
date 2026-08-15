@@ -24,6 +24,5 @@ COPY package.json next.config.mjs ./
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-RUN pnpm exec playwright install --with-deps chromium
 EXPOSE 80
 CMD ["pnpm", "start", "-H", "0.0.0.0", "-p", "80"]

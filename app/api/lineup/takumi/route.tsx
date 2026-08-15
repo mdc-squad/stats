@@ -12,6 +12,7 @@ const CANVAS_PADDING_Y = 12
 const HEADER_HEIGHT = 60
 const HEADER_TO_GRID_GAP = 14
 const GRID_ROW_GAP = 12
+const BOTTOM_SAFE_PADDING = 24
 const SQUAD_HEADER_HEIGHT = 54
 const SQUAD_BODY_PADDING_Y = 24
 const PLAYER_ROW_HEIGHT = 52
@@ -140,7 +141,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 function resolveSide(value: string | null | undefined): LineupSide {
   const normalized = String(value ?? "").trim().toLowerCase()
-  return ["2", "two", "right", "second", "sitetwo", "site-two", "side-2", "side2"].includes(normalized) ? "2" : "1"
+  return ["2", "two", "right", "second", "sitetwo", "site-two", "side-2", "side2", "2.png", "side-2.png", "side2.png", "lineup-side-2.png", "lineup-side-2.avif"].includes(normalized) ? "2" : "1"
 }
 
 function getSideKey(side: LineupSide): LineupSideKey {
@@ -215,7 +216,7 @@ function calculateImageHeight(visibleSquads: Array<{ rows: LineupPlayer[] }>) {
   }
 
   const gridHeight = gridRows.reduce((sum, height) => sum + height, 0) + Math.max(0, gridRows.length - 1) * GRID_ROW_GAP
-  return CANVAS_PADDING_Y * 2 + HEADER_HEIGHT + HEADER_TO_GRID_GAP + gridHeight
+  return CANVAS_PADDING_Y * 2 + HEADER_HEIGHT + HEADER_TO_GRID_GAP + gridHeight + BOTTOM_SAFE_PADDING
 }
 
 function parseMatchTitle(name: string | null | undefined, side: LineupSide) {
@@ -435,9 +436,9 @@ function SquadCard({ name, rows }: { name: SquadName; rows: LineupPlayer[] }) {
   )
 }
 
-export async function GET(request: Request) {
+export async function createLineupTakumiResponse(request: Request, sideValue?: string | null) {
   const url = new URL(request.url)
-  const side = resolveSide(url.searchParams.get("side"))
+  const side = resolveSide(sideValue ?? url.searchParams.get("side"))
   const response = await fetch(EXTERNAL_LINEUP_API_URL, { cache: "no-store" })
 
   if (!response.ok) {
@@ -465,6 +466,10 @@ export async function GET(request: Request) {
       fetchCache: takumiImageFetchCache,
     },
   })
+}
+
+export async function GET(request: Request) {
+  return createLineupTakumiResponse(request)
 }
 
 export const HEAD = GET
